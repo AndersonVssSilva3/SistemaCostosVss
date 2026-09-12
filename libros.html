@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Libros - OMEGA SAC</title>
+    <link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/professional.css">
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <div class="company-name">OMEGA SAC</div>
+        <h1>📚 LIBROS</h1>
+    </div>
+    <div style="display:flex; align-items:center; gap:15px;">
+        <a href="index.html" class="home-btn">🏠 Inicio</a>
+        <div class="datetime" id="currentDateTime"></div>
+    </div>
+</div>
+
+<div class="sub-nav">
+    <button class="active" onclick="showTab('lib-diario', this)">📖 Diario</button>
+    <button onclick="showTab('lib-mayor', this)">📖 Mayor</button>
+    <button onclick="showTab('lib-compras', this)">🛒 Compras</button>
+    <button onclick="showTab('lib-ventas', this)">💰 Ventas</button>
+    <button onclick="showTab('lib-inventarios', this)">📦 Inventarios</button>
+    <button onclick="showTab('lib-planillas', this)">👥 Planillas</button>
+</div>
+
+<div class="main-content">
+    <div id="alertContainer"></div>
+
+    <!-- LIBRO DIARIO -->
+    <div class="tab-content active" id="lib-diario">
+        <div class="card">
+            <h2>📚 Libro Diario</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Desde</label>
+                    <input type="date" id="libroDiarioDesde" value="2026-01-01">
+                </div>
+                <div class="form-group">
+                    <label>Hasta</label>
+                    <input type="date" id="libroDiarioHasta" value="2026-12-31">
+                </div>
+                <div class="form-group" style="display:flex; align-items:flex-end;">
+                    <button class="btn btn-primary" onclick="generarLibroDiario()">📊 Generar</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Fecha</th><th>N° Asiento</th><th>Cuenta</th><th>Descripción</th><th>Debe</th><th>Haber</th></tr>
+                    </thead>
+                    <tbody id="libroDiarioTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIBRO MAYOR -->
+    <div class="tab-content" id="lib-mayor">
+        <div class="card">
+            <h2>📚 Libro Mayor</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Cuenta Contable</label>
+                    <select id="mayorCuenta" onchange="generarLibroMayor()">
+                        <option value="">Seleccione cuenta...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Período</label>
+                    <input type="month" id="mayorPeriodo" value="2026-09" onchange="generarLibroMayor()">
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Fecha</th><th>Detalle</th><th>Debe</th><th>Haber</th><th>Saldo</th></tr>
+                    </thead>
+                    <tbody id="libroMayorTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- COMPRAS -->
+    <div class="tab-content" id="lib-compras">
+        <div class="card">
+            <h2>📚 Libro de Compras</h2>
+            <div class="btn-group" style="margin-bottom:15px;">
+                <button class="btn btn-info" onclick="openModal('modalCompra')">➕ Nueva Compra</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Fecha</th><th>Proveedor</th><th>RUC/DNI</th><th>Comprobante</th><th>N°</th><th>Base</th><th>IGV</th><th>Total</th><th>Acciones</th></tr>
+                    </thead>
+                    <tbody id="comprasTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- VENTAS -->
+    <div class="tab-content" id="lib-ventas">
+        <div class="card">
+            <h2>📚 Libro de Ventas</h2>
+            <div class="btn-group" style="margin-bottom:15px;">
+                <button class="btn btn-info" onclick="openModal('modalVenta')">➕ Nueva Venta</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Fecha</th><th>Cliente</th><th>RUC/DNI</th><th>Comprobante</th><th>N°</th><th>Base</th><th>IGV</th><th>Total</th><th>Acciones</th></tr>
+                    </thead>
+                    <tbody id="ventasTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- INVENTARIOS -->
+    <div class="tab-content" id="lib-inventarios">
+        <div class="card">
+            <h2>📦 Libro de Inventarios y Balances</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Código</th><th>Descripción</th><th>Unidad</th><th>Stock</th><th>Costo Unit.</th><th>Valor Total</th></tr>
+                    </thead>
+                    <tbody id="inventariosTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PLANILLAS -->
+    <div class="tab-content" id="lib-planillas">
+        <div class="card">
+            <h2>👥 Planillas</h2>
+            <div class="btn-group" style="margin-bottom:15px;">
+                <button class="btn btn-info" onclick="openModal('modalPlanilla')">➕ Agregar Trabajador</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Código</th><th>Nombre</th><th>Cargo</th><th>Sueldo Bruto</th><th>AFP/ONP</th><th>ESSALUD</th><th>Impuesto</th><th>Neto</th><th>Acciones</th></tr>
+                    </thead>
+                    <tbody id="planillasTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-info">
+        <p>Sistema de Contabilidad OMEGA SAC © 2026</p>
+    </div>
+</div>
+
+<!-- MODALES -->
+<div class="modal-overlay" id="modalCompra">
+    <div class="modal">
+        <button class="close-btn" onclick="closeModal('modalCompra')">&times;</button>
+        <h2>Nueva Compra</h2>
+        <div class="form-row">
+            <div class="form-group"><label>Fecha</label><input type="date" id="compraFecha"></div>
+            <div class="form-group"><label>Proveedor</label><input type="text" id="compraProveedor"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>RUC/DNI</label><input type="text" id="compraRuc"></div>
+            <div class="form-group"><label>Tipo</label>
+                <select id="compraTipo">
+                    <option>Factura</option><option>Boleta</option><option>Nota de Crédito</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>N° Comprobante</label><input type="text" id="compraNumero"></div>
+            <div class="form-group"><label>Base Imponible</label><input type="number" id="compraBase" step="0.01" oninput="calcCompraIGV()"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>IGV (18%)</label><input type="number" id="compraIgv" readonly></div>
+            <div class="form-group"><label>Total</label><input type="number" id="compraTotal" readonly></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="guardarCompra()">💾 Guardar</button>
+            <button class="btn btn-danger" onclick="closeModal('modalCompra')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalVenta">
+    <div class="modal">
+        <button class="close-btn" onclick="closeModal('modalVenta')">&times;</button>
+        <h2>Nueva Venta</h2>
+        <div class="form-row">
+            <div class="form-group"><label>Fecha</label><input type="date" id="ventaFecha"></div>
+            <div class="form-group"><label>Cliente</label><input type="text" id="ventaCliente"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>RUC/DNI</label><input type="text" id="ventaRuc"></div>
+            <div class="form-group"><label>Tipo</label>
+                <select id="ventaTipo"><option>Factura</option><option>Boleta</option></select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>N° Comprobante</label><input type="text" id="ventaNumero"></div>
+            <div class="form-group"><label>Base Imponible</label><input type="number" id="ventaBase" step="0.01" oninput="calcVentaIGV()"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>IGV (18%)</label><input type="number" id="ventaIgv" readonly></div>
+            <div class="form-group"><label>Total</label><input type="number" id="ventaTotal" readonly></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="guardarVenta()">💾 Guardar</button>
+            <button class="btn btn-danger" onclick="closeModal('modalVenta')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalPlanilla">
+    <div class="modal">
+        <button class="close-btn" onclick="closeModal('modalPlanilla')">&times;</button>
+        <h2>Nuevo Trabajador</h2>
+        <div class="form-row">
+            <div class="form-group"><label>Código</label><input type="text" id="planCodigo"></div>
+            <div class="form-group"><label>Nombre</label><input type="text" id="planNombre"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Cargo</label><input type="text" id="planCargo"></div>
+            <div class="form-group"><label>Sueldo Bruto</label><input type="number" id="planSueldo" step="0.01"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="guardarPlanilla()">💾 Guardar</button>
+            <button class="btn btn-danger" onclick="closeModal('modalPlanilla')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/accounting.js"></script>
+<script src="js/libros.js"></script>
+<script src="js/professional.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        initDefaultData();
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        initLibros();
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Costos - OMEGA SAC</title>
+    <link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/professional.css">
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <div class="company-name">OMEGA SAC</div>
+        <h1>🏭 COSTOS</h1>
+    </div>
+    <div style="display:flex; align-items:center; gap:15px;">
+        <a href="index.html" class="home-btn">🏠 Inicio</a>
+        <div class="datetime" id="currentDateTime"></div>
+    </div>
+</div>
+
+<div class="sub-nav">
+    <button class="active" onclick="showTab('cost-mayor-fab', this)">🏭 Mayor Fábrica</button>
+    <button onclick="showTab('cost-hoja', this)">🏭 Hoja de Costos</button>
+    <button onclick="showTab('cost-fijos', this)">🏭 Fijos y Variables</button>
+    <button onclick="showTab('cost-ventas', this)">🏭 Costo de Ventas</button>
+</div>
+
+<div class="main-content">
+    <div class="tab-content active" id="cost-mayor-fab">
+        <div class="card">
+            <h2>🏭 Libro Mayor de Fábrica</h2>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Elemento</th><th>Descripción</th><th style="text-align:right;">Costo (S/.)</th></tr></thead>
+                    <tbody id="mayorFabTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="tab-content" id="cost-hoja">
+        <div class="card">
+            <h2>🏭 Hoja de Costos</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Producto</label>
+                    <select id="hojaProducto">
+                        <option value="prod1">Producto A - 1000 unidades</option>
+                        <option value="prod2">Producto B - 500 unidades</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Concepto</th><th style="text-align:right;">Costo Unit.</th><th style="text-align:right;">Cantidad</th><th style="text-align:right;">Total</th></tr></thead>
+                    <tbody id="hojaCostosTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="tab-content" id="cost-fijos">
+        <div class="card">
+            <h2>🏭 Costos Fijos y Variables</h2>
+            <div class="dashboard-grid">
+                <div class="stat-card"><h4>Costos Fijos Totales</h4><div class="value">S/ 15,000.00</div></div>
+                <div class="stat-card"><h4>Costos Variables Totales</h4><div class="value">S/ 8,500.00</div></div>
+                <div class="stat-card"><h4>Costo Total</h4><div class="value">S/ 23,500.00</div></div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Concepto</th><th>Tipo</th><th style="text-align:right;">Monto (S/.)</th></tr></thead>
+                    <tbody id="costosFijosVarTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="tab-content" id="cost-ventas">
+        <div class="card">
+            <h2>🏭 Costo de Ventas</h2>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Producto</th><th>Unidades</th><th style="text-align:right;">Costo Unit.</th><th style="text-align:right;">Costo Total</th><th style="text-align:right;">Precio Venta</th><th style="text-align:right;">Utilidad</th></tr></thead>
+                    <tbody id="costoVentasTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="footer-info"><p>Sistema de Contabilidad OMEGA SAC © 2026</p></div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/accounting.js"></script>
+<script src="js/costos.js"></script>
+<script src="js/professional.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        initDefaultData();
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        generarCostos();
+    });
+</script>
+
+</body>
+</html>

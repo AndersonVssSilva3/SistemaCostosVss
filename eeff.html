@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EEFF - OMEGA SAC</title>
+    <link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/professional.css">
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <div class="company-name">OMEGA SAC</div>
+        <h1>📊 ESTADOS FINANCIEROS</h1>
+    </div>
+    <div style="display:flex; align-items:center; gap:15px;">
+        <a href="index.html" class="home-btn">🏠 Inicio</a>
+        <div class="datetime" id="currentDateTime"></div>
+    </div>
+</div>
+
+<div class="sub-nav">
+    <button class="active" onclick="showTab('eeff-balance', this)">📊 Balance General</button>
+    <button onclick="showTab('eeff-ganancias', this)">📊 Ganancias y Pérdidas</button>
+    <button onclick="showTab('eeff-flujo', this)">📊 Flujo de Efectivo</button>
+    <button onclick="showTab('eeff-comprobacion', this)">📊 Balance Comprobación</button>
+</div>
+
+<div class="main-content">
+    <div class="tab-content active" id="eeff-balance">
+        <div class="card">
+            <h2>📊 Balance General</h2>
+            <p style="color:#666; margin-bottom:15px;">Saldos acumulados a la fecha de corte seleccionada</p>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Cuenta</th><th>Descripción</th><th style="text-align:right;">Monto (S/.)</th></tr></thead>
+                    <tbody id="balanceGeneralTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="tab-content" id="eeff-ganancias">
+        <div class="card">
+            <h2>📊 Estado de Ganancias y Pérdidas</h2>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Concepto</th><th style="text-align:right;">Monto (S/.)</th></tr></thead>
+                    <tbody id="gananciasTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="tab-content" id="eeff-flujo">
+        <div class="card">
+            <h2>📊 Flujo de Efectivo</h2>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Concepto</th><th style="text-align:right;">Monto (S/.)</th></tr></thead>
+                    <tbody id="flujoTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="tab-content" id="eeff-comprobacion">
+        <div class="card">
+            <h2>📊 Balance de Comprobación</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Código</th><th>Cuenta</th><th style="text-align:right;">Saldo Deudor</th>
+                        <th style="text-align:right;">Saldo Acreedor</th><th style="text-align:right;">Mov. Deudor</th>
+                        <th style="text-align:right;">Mov. Acreedor</th></tr>
+                    </thead>
+                    <tbody id="comprobacionTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="footer-info"><p>Sistema de Contabilidad OMEGA SAC © 2026</p></div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/accounting.js"></script>
+<script src="js/eeff.js"></script>
+<script src="js/professional.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        initDefaultData();
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        initEEFF();
+    });
+</script>
+
+</body>
+</html>
