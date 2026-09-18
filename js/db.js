@@ -1,19 +1,153 @@
-// ==================== BASE DE DATOS LOCAL ====================
+
+
+// Importar cliente (usando CDN en el HTML)
+// <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
+
+function initSupabase() {
+    if (supabaseClient) return true;  // ← Ya está inicializado
+    if (typeof supabase !== 'undefined') {
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        console.log('✅ Supabase inicializado');
+        return true;
+    }
+    console.error('❌ Supabase no está cargado');
+    return false;
+}
+
+// ==================== DB - Capa de abstracción ASÍNCRONA ====================
 const DB = {
-    get(key) {
-        const data = localStorage.getItem('omega_' + key);
-        return data ? JSON.parse(data) : null;
+    // -------- GET ALL (asíncrono) --------
+    async getAll(key) {
+        if (!supabaseClient) initSupabase();
+        const tableName = this._mapKey(key);
+        const { data, error } = await supabaseClient
+            .from(tableName)
+            .select('*')
+            .order('id', { ascending: true });
+        
+        if (error) {
+            console.error(`Error en getAll(${key}):`, error);
+            return [];
+        }
+        return data || [];
     },
-    set(key, value) {
-        localStorage.setItem('omega_' + key, JSON.stringify(value));
+
+    // -------- GET ONE --------
+    async get(key, id) {
+        if (!supabaseClient) initSupabase();
+        const tableName = this._mapKey(key);
+        const { data, error } = await supabaseClient
+            .from(tableName)
+            .select('*')
+            .eq('id', id)
+            .single();
+        
+        if (error) return null;
+        return data;
     },
-    getAll(key) {
-        return this.get(key) || [];
+
+    // -------- INSERT --------
+    async insert(key, record) {
+        if (!supabaseClient) initSupabase();
+        const tableName = this._mapKey(key);
+        const { data, error } = await supabaseClient
+            .from(tableName)
+            .insert([record])
+            .select();
+        
+        if (error) {
+            console.error(`Error en insert(${key}):`, error);
+            throw error;
+        }
+        return data[0];
+    },
+
+    // -------- UPDATE --------
+    async update(key, id, record) {
+        if (!supabaseClient) initSupabase();
+        const tableName = this._mapKey(key);
+        const { data, error } = await supabaseClient
+            .from(tableName)
+            .update(record)
+            .eq('id', id)
+            .select();
+        
+        if (error) {
+            console.error(`Error en update(${key}):`, error);
+            throw error;
+        }
+        return data[0];
+    },
+
+    // -------- DELETE --------
+    async delete(key, id) {
+        if (!supabaseClient) initSupabase();
+        const tableName = this._mapKey(key);
+        const { error } = await supabaseClient
+            .from(tableName)
+            .delete()
+            .eq('id', id);
+        
+        if (error) {
+            console.error(`Error en delete(${key}):`, error);
+            throw error;
+        }
+        return true;
+    },
+
+    // -------- BULK INSERT (para migración inicial) --------
+    async bulkInsert(key, records) {
+        if (!supabaseClient) initSupabase();
+        const tableName = this._mapKey(key);
+        const { data, error } = await supabaseClient
+            .from(tableName)
+            .insert(records)
+            .select();
+        
+        if (error) {
+            console.error(`Error en bulkInsert(${key}):`, error);
+            throw error;
+        }
+        return data;
+    },
+
+    // -------- DELETE ALL (cuidado) --------
+    async deleteAll(key) {
+        if (!supabaseClient) initSupabase();
+        const tableName = this._mapKey(key);
+        const { error } = await supabaseClient
+            .from(tableName)
+            .delete()
+            .neq('id', 0);  // Elimina todos
+        
+        if (error) throw error;
+        return true;
+    },
+
+    // -------- MAPEO de claves locales a nombres de tabla --------
+    _mapKey(key) {
+        const map = {
+            'cuentas': 'cuentas',
+            'planJerarquico': 'plan_jerarquico',
+            'asientos': 'asientos',
+            'compras': 'compras',
+            'ventas': 'ventas',
+            'planillas': 'planillas',
+            'mercaderias': 'mercaderias',
+            'activoFijo': 'activo_fijo',
+            'centrosCosto': 'centros_costo',
+            'inductores': 'inductores',
+            'repuestos': 'repuestos',
+            'ajustes': 'ajustes',
+            'productos': 'productos'
+        };
+        return map[key] || key;
     }
 };
 
-// ==================== PLAN CONTABLE GENERAL EMPRESARIAL (PCGE - PERÚ) ====================
-// Cada cuenta tiene un array de subcuentas (segundo nivel)
+// ==================== PLAN CONTABLE PCGE (se mantiene igual) ====================
 const PLAN_CONTABLE_PCGE = [
     // ============ ELEMENTO 1: ACTIVO DISPONIBLE Y EXIGIBLE ============
     {
@@ -775,131 +909,78 @@ const PLAN_CONTABLE_PCGE = [
     }
 ];
 
-// ==================== DATOS INICIALES ====================
-function initDefaultData() {
-    // Convertir PLAN_CONTABLE_PCGE al formato plano de cuentas (compatible con código existente)
-    // Cada subcuenta se convierte en una entrada del array de cuentas
-    if (!DB.get('cuentas')) {
-        const cuentasPlanas = [];
-        PLAN_CONTABLE_PCGE.forEach(c => {
-            // Agregar la cuenta padre
-            cuentasPlanas.push({
-                codigo: c.codigo,
-                nombre: c.nombre,
-                tipo: c.tipo,
-                naturaleza: c.naturaleza,
-                esPadre: true
-            });
-            // Agregar todas las subcuentas
-            c.subcuentas.forEach(sub => {
+
+// ==================== INICIALIZACIÓN DE DATOS EN SUPABASE ====================
+async function initDefaultData() {
+    if (!supabaseClient) initSupabase();
+    
+    console.log('🔄 Verificando datos iniciales...');
+    
+    try {
+        // ==================== 1. CUENTAS ====================
+        const cuentasExistentes = await DB.getAll('cuentas');
+        console.log(`   cuentas: ${cuentasExistentes.length} en BD`);
+        
+        if (cuentasExistentes.length === 0) {
+            console.log('📦 Insertando cuentas...');
+            const cuentasPlanas = [];
+            PLAN_CONTABLE_PCGE.forEach(c => {
                 cuentasPlanas.push({
-                    codigo: sub.codigo,
-                    nombre: sub.nombre,
-                    tipo: c.tipo,
-                    naturaleza: c.naturaleza,
-                    esPadre: false,
-                    cuentaPadre: c.codigo
+                    codigo: c.codigo, nombre: c.nombre, tipo: c.tipo,
+                    naturaleza: c.naturaleza, es_padre: true
+                });
+                c.subcuentas.forEach(sub => {
+                    cuentasPlanas.push({
+                        codigo: sub.codigo, nombre: sub.nombre, tipo: c.tipo,
+                        naturaleza: c.naturaleza, es_padre: false, cuenta_padre: c.codigo
+                    });
                 });
             });
-        });
-        DB.set('cuentas', cuentasPlanas);
-    }
+            
+            // Insertar con upsert ignorando duplicados
+            for (let i = 0; i < cuentasPlanas.length; i += 50) {
+                const lote = cuentasPlanas.slice(i, i + 50);
+                await supabaseClient
+                    .from('cuentas')
+                    .upsert(lote, { onConflict: 'codigo', ignoreDuplicates: true });
+            }
+            console.log(`✅ ${cuentasPlanas.length} cuentas procesadas`);
+        }
 
-    // Guardar el plan estructurado (con jerarquía) por separado para el dropdown en cascada
-    if (!DB.get('planJerarquico')) {
-        DB.set('planJerarquico', PLAN_CONTABLE_PCGE);
-    }
+        // ==================== 2. PLAN JERÁRQUICO ====================
+        const planExistente = await DB.getAll('planJerarquico');
+        console.log(`   plan_jerarquico: ${planExistente.length} en BD`);
+        
+        if (planExistente.length === 0) {
+            console.log('📦 Insertando plan jerárquico...');
+            const planJer = PLAN_CONTABLE_PCGE.map(c => ({
+                codigo: c.codigo, nombre: c.nombre, tipo: c.tipo,
+                naturaleza: c.naturaleza, subcuentas: c.subcuentas
+            }));
+            await supabaseClient
+                .from('plan_jerarquico')
+                .upsert(planJer, { onConflict: 'codigo', ignoreDuplicates: true });
+            console.log(`✅ ${planJer.length} cuentas jerárquicas procesadas`);
+        }
 
-    if (!DB.get('asientos')) {
-        DB.set('asientos', [
-            {
-                id: 1, numero: 'AS-001', fecha: '2026-09-04', tipo: 'normal',
-                glosa: 'Venta de demostración cobrada en cuenta corriente; comprobante B001-0005678',
+        // ==================== 3. ASIENTOS ====================
+        const asientosExistentes = await DB.getAll('asientos');
+        if (asientosExistentes.length === 0) {
+            console.log('📦 Insertando asientos de ejemplo...');
+            await supabaseClient.from('asientos').insert([{
+                numero: 'AS-001', fecha: '2026-09-04', tipo: 'normal',
+                glosa: 'Venta de demostración cobrada en cuenta corriente',
                 lineas: [
-                    { cuenta: '104', nombre: 'Cuentas Corrientes en Instituciones Financieras', debe: 11800, haber: 0 },
-                    { cuenta: '401', nombre: 'Impuesto General a las Ventas (IGV)', debe: 0, haber: 1800 },
+                    { cuenta: '104', nombre: 'Cuentas Corrientes', debe: 11800, haber: 0 },
+                    { cuenta: '401', nombre: 'IGV', debe: 0, haber: 1800 },
                     { cuenta: '701', nombre: 'Mercaderías', debe: 0, haber: 10000 }
                 ],
                 estado: 'validado'
-            },
-            {
-                id: 2, numero: 'AS-002', fecha: '2026-09-05', tipo: 'normal',
-                glosa: 'Compra de mercaderías a proveedor ABC SAC, Factura F001-0001234',
-                lineas: [
-                    { cuenta: '601', nombre: 'Mercaderías', debe: 5000, haber: 0 },
-                    { cuenta: '401', nombre: 'Impuesto General a las Ventas (IGV)', debe: 900, haber: 0 },
-                    { cuenta: '421', nombre: 'Facturas, Boletas y Otros Comprobantes por Pagar', debe: 0, haber: 5900 }
-                ],
-                estado: 'validado'
-            },
-            {
-                id: 3, numero: 'AS-003', fecha: '2026-09-06', tipo: 'normal',
-                glosa: 'Pago de planilla mensual septiembre 2026',
-                lineas: [
-                    { cuenta: '621', nombre: 'Sueldos y Salarios', debe: 8500, haber: 0 },
-                    { cuenta: '407', nombre: 'Aportes al Sistema de Pensiones (AFP/ONP)', debe: 0, haber: 850 },
-                    { cuenta: '104', nombre: 'Cuentas Corrientes en Instituciones Financieras', debe: 0, haber: 7650 }
-                ],
-                estado: 'validado'
-            }
-        ]);
-    }
+            }]);
+        }
 
-    if (!DB.get('compras')) {
-        DB.set('compras', [
-            { id: 1, fecha: '2026-09-05', proveedor: 'ABC SAC', ruc: '20123456789', tipo: 'Factura', numero: 'F001-0001234', base: 5000, igv: 900, total: 5900 }
-        ]);
-    }
-    if (!DB.get('ventas')) {
-        DB.set('ventas', [
-            { id: 1, fecha: '2026-09-04', cliente: 'Juan Perez', ruc: '081071416', tipo: 'Boleta', numero: 'B001-0005678', base: 10000, igv: 1800, total: 11800 }
-        ]);
-    }
-    if (!DB.get('productos')) {
-        DB.set('productos', [
-            { codigo: 'P001', nombre: 'Producto A', categoria: 'Electrónica', precio: 10.00, stock: 1000 },
-            { codigo: 'P002', nombre: 'Producto B', categoria: 'Textil', precio: 25.00, stock: 500 }
-        ]);
-    }
-    if (!DB.get('mercaderias')) {
-        DB.set('mercaderias', [
-            { codigo: 'M001', descripcion: 'Mercadería X', unidad: 'UND', stock: 2000, costo: 5.00 },
-            { codigo: 'M002', descripcion: 'Mercadería Y', unidad: 'KG', stock: 500, costo: 12.50 }
-        ]);
-    }
-    if (!DB.get('activoFijo')) {
-        DB.set('activoFijo', [
-            { codigo: 'AF001', descripcion: 'Computadoras', fecha: '2025-01-15', costo: 15000, dep: 3000 },
-            { codigo: 'AF002', descripcion: 'Mobiliario de Oficina', fecha: '2024-06-01', costo: 8000, dep: 2400 },
-            { codigo: 'AF003', descripcion: 'Vehículo de Entrega', fecha: '2025-03-10', costo: 45000, dep: 9000 }
-        ]);
-    }
-    if (!DB.get('centrosCosto')) {
-        DB.set('centrosCosto', [
-            { codigo: 'CC001', nombre: 'Administración', responsable: 'Carlos López', presupuesto: 20000, gastado: 12500 },
-            { codigo: 'CC002', nombre: 'Producción', responsable: 'María García', presupuesto: 50000, gastado: 35000 },
-            { codigo: 'CC003', nombre: 'Ventas', responsable: 'Pedro Sánchez', presupuesto: 30000, gastado: 18000 }
-        ]);
-    }
-    if (!DB.get('inductores')) {
-        DB.set('inductores', [
-            { codigo: 'IND001', inductor: 'Horas Máquina', unidad: 'Horas', valor: 25.00 },
-            { codigo: 'IND002', inductor: 'Horas Hombre', unidad: 'Horas', valor: 15.00 },
-            { codigo: 'IND003', inductor: 'Unidades Producidas', unidad: 'Und', valor: 2.50 }
-        ]);
-    }
-    if (!DB.get('repuestos')) {
-        DB.set('repuestos', [
-            { codigo: 'R001', descripcion: 'Filtro de aceite', stock: 50, costo: 25.00 },
-            { codigo: 'R002', descripcion: 'Correa de transmisión', stock: 20, costo: 85.00 }
-        ]);
-    }
-    if (!DB.get('ajustes')) DB.set('ajustes', []);
-    if (!DB.get('planillas')) {
-        DB.set('planillas', [
-            { codigo: 'T001', nombre: 'Carlos López', cargo: 'Gerente', sueldo: 5000 },
-            { codigo: 'T002', nombre: 'María García', cargo: 'Jefa Producción', sueldo: 3500 },
-            { codigo: 'T003', nombre: 'Pedro Sánchez', cargo: 'Vendedor', sueldo: 2500 }
-        ]);
+        console.log('✅ Init completa');
+    } catch (error) {
+        console.error('❌ Error inicializando datos:', error);
     }
 }

@@ -114,18 +114,40 @@
         <p>Sistema de Contabilidad OMEGA SAC © 2026</p>
     </div>
 </div>
-
+<!-- Fallback: definir textCell antes que cualquier script -->
+<script>
+    window.textCell = window.textCell || function(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    };
+    console.log('✅ textCell definido como fallback');
+</script>
+<!-- 1. CDN de Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- 2. Configuración Supabase (crea supabaseClient) -->
+<script src="js/supabase-config.js"></script>
+<!-- 3. Base de datos -->
 <script src="js/db.js"></script>
+<!-- 4. Resto -->
 <script src="js/utils.js"></script>
 <script src="js/accounting.js"></script>
 <script src="js/operaciones.js"></script>
 <script src="js/professional.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        initDefaultData();
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) {
+            alert('❌ Error: No se pudo conectar con Supabase');
+            return;
+        }
+        await initDefaultData();
         updateDateTime();
         setInterval(updateDateTime, 60000);
-        initOperaciones();
+        await initOperaciones();
     });
 </script>
 

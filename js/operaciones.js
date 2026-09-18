@@ -4,20 +4,22 @@
 let asientoLineCount = 0;
 
 // ==================== INICIALIZACIÓN ====================
-function initOperaciones() {
+async function initOperaciones() {
     renderAsientos();
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('asientoFecha').value = today;
     addAsientoLine();
     addAsientoLine();
-    const asientos = DB.getAll('asientos');
+    await actualizarNumeroAsiento();
+}
+async function actualizarNumeroAsiento() {
+    const asientos = await DB.getAll('asientos');
     document.getElementById('asientoNumero').value = 'AS-' + String(asientos.length + 1).padStart(3, '0');
 }
-
 // ==================== LÍNEAS DE ASIENTO (CUENTA + SUBCUENTA) ====================
-function addAsientoLine(cuentaPadre = '', subcuenta = '', debe = '', haber = '') {
+async function addAsientoLine(cuentaPadre = '', subcuenta = '', debe = '', haber = '') {
     asientoLineCount++;
-    const plan = DB.getAll('planJerarquico');
+    const plan = await DB.getAll('planJerarquico');
     const lineId = 'line-' + asientoLineCount;
 
     // Opciones del select de cuentas padre
@@ -57,15 +59,15 @@ function addAsientoLine(cuentaPadre = '', subcuenta = '', debe = '', haber = '')
 }
 
 // Cuando cambia la cuenta padre, se llena la lista de subcuentas
-function onCuentaPadreChange(selectPadre) {
+async function onCuentaPadreChange(selectPadre) {
     const codigoPadre = selectPadre.value;
-    const plan = DB.getAll('planJerarquico');
+    const plan = await DB.getAll('planJerarquico');
     const ctaPadre = plan.find(c => c.codigo === codigoPadre);
     const selectSub = selectPadre.parentElement.querySelector('.line-subcuenta');
 
     if (!ctaPadre) {
         selectSub.innerHTML = '<option value="">-- Subcuenta --</option>';
-        updateLineName(selectSub);
+        await updateLineName(selectSub);
         return;
     }
 
@@ -75,14 +77,14 @@ function onCuentaPadreChange(selectPadre) {
     // Si solo hay una subcuenta, seleccionarla automáticamente
     if (ctaPadre.subcuentas.length === 1) {
         selectSub.value = ctaPadre.subcuentas[0].codigo;
-        updateLineName(selectSub);
+        await updateLineName(selectSub);
     }
 }
 
 // Actualiza la etiqueta con el nombre de la subcuenta seleccionada
-function updateLineName(selectSub) {
+async function updateLineName(selectSub) {
     const codigoSub = selectSub.value;
-    const plan = DB.getAll('planJerarquico');
+    const plan = await DB.getAll('planJerarquico');
     const nameSpan = selectSub.parentElement.querySelector('.line-name');
     let nombreCompleto = '';
 
@@ -124,7 +126,7 @@ function calcTotals() {
 }
 
 // ==================== GUARDAR / LIMPIAR ASIENTO ====================
-function guardarAsiento() {
+async function guardarAsiento() {
     if (typeof detenerDictado === 'function') detenerDictado();
 
     const lines = document.querySelectorAll('.asiento-entry');
@@ -136,17 +138,16 @@ function guardarAsiento() {
     let totalDebe = 0, totalHaber = 0;
     const lineas = [];
     let valido = true;
-    const plan = DB.getAll('planJerarquico');
+    const plan = await DB.getAll('planJerarquico');
 
-    lines.forEach(line => {
+    for (const line of lines) {
         const cuentaPadre = line.querySelector('.line-cuenta-padre').value;
         const subcuenta = line.querySelector('.line-subcuenta').value;
         const debe = parseFloat(line.querySelector('.line-debe').value) || 0;
         const haber = parseFloat(line.querySelector('.line-haber').value) || 0;
 
-        if (!subcuenta) { valido = false; return; }
+        if (!subcuenta) { valido = false; continue; }
 
-        // Buscar el nombre de la subcuenta
         let nombreSub = '';
         const cta = plan.find(c => c.codigo === cuentaPadre);
         if (cta) {
@@ -157,50 +158,51 @@ function guardarAsiento() {
         totalDebe += debe;
         totalHaber += haber;
         lineas.push({ cuenta: subcuenta, nombre: nombreSub, debe, haber });
-    });
+    }
 
     if (!valido) {
         showAlert('Seleccione una subcuenta en todas las líneas', 'error');
         return;
     }
     if (Math.abs(totalDebe - totalHaber) > 0.01) {
-        showAlert('El asiento no está cuadrado. Debe = Haber', 'error');
+        showAlert('El asiento no está cuadrado', 'error');
         return;
     }
 
-    const asientos = DB.getAll('asientos');
-    const num = 'AS-' + String(asientos.length + 1).padStart(3, '0');
-    asientos.push({
-        id: Date.now(),
-        numero: num,
-        fecha: document.getElementById('asientoFecha').value,
-        tipo: document.getElementById('asientoTipo').value,
-        glosa: document.getElementById('asientoGlosa').value,
-        lineas,
-        estado: 'validado'
-    });
-    DB.set('asientos', asientos);
+    try {
+        const asientos = await DB.getAll('asientos');
+        const num = 'AS-' + String(asientos.length + 1).padStart(3, '0');
+        
+        await DB.insert('asientos', {
+            numero: num,
+            fecha: document.getElementById('asientoFecha').value,
+            tipo: document.getElementById('asientoTipo').value,
+            glosa: document.getElementById('asientoGlosa').value,
+            lineas: lineas,
+            estado: 'validado'
+        });
 
-    showAlert('Asiento ' + num + ' guardado exitosamente', 'success');
-    limpiarAsiento();
-    renderAsientos();
+        showAlert('Asiento ' + num + ' guardado exitosamente', 'success');
+        await limpiarAsiento();
+        await renderAsientos();
+    } catch (error) {
+        showAlert('Error al guardar: ' + error.message, 'error');
+    }
 }
 
-function limpiarAsiento() {
+async function limpiarAsiento() {
     if (typeof detenerDictado === 'function') detenerDictado();
     document.getElementById('asientoLines').innerHTML = '';
     document.getElementById('asientoGlosa').value = '';
     asientoLineCount = 0;
-    const asientos = DB.getAll('asientos');
-    document.getElementById('asientoNumero').value = 'AS-' + String(asientos.length + 1).padStart(3, '0');
-    addAsientoLine();
-    addAsientoLine();
+    await actualizarNumeroAsiento();
+    await addAsientoLine();
+    await addAsientoLine();
     calcTotals();
 }
-
 // ==================== RENDERIZAR TABLA DE ASIENTOS ====================
-function renderAsientos() {
-    const asientos = DB.getAll('asientos');
+async function renderAsientos() {
+    const asientos = await DB.getAll('asientos');
     const tbody = document.getElementById('asientosTable');
     if (!tbody) return;
 
@@ -227,9 +229,8 @@ function renderAsientos() {
 }
 
 // ==================== VER / ELIMINAR ASIENTO ====================
-function verAsiento(id) {
-    const asientos = DB.getAll('asientos');
-    const a = asientos.find(x => x.id === id);
+async function verAsiento(id) {
+    const a = await DB.get('asientos', id);
     if (!a) return;
 
     let html = `<h3>Asiento ${textCell(a.numero)}</h3>
@@ -253,13 +254,15 @@ function verAsiento(id) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function eliminarAsiento(id) {
+async function eliminarAsiento(id) {
     if (!confirm('¿Está seguro de eliminar este asiento?')) return;
-    let asientos = DB.getAll('asientos');
-    asientos = asientos.filter(a => a.id !== id);
-    DB.set('asientos', asientos);
-    renderAsientos();
-    showAlert('Asiento eliminado', 'success');
+    try {
+        await DB.delete('asientos', id);
+        await renderAsientos();
+        showAlert('Asiento eliminado', 'success');
+    } catch (error) {
+        showAlert('Error al eliminar: ' + error.message, 'error');
+    }
 }
 
 // ==================== FILTROS ====================

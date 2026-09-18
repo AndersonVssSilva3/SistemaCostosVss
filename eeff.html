@@ -7,6 +7,25 @@
     <link rel="stylesheet" href="css/styles.css">
 <link rel="stylesheet" href="css/professional.css">
 </head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/accounting.js"></script>
+<script src="js/eeff.js"></script>
+<script src="js/professional.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) {
+            alert('❌ Error: No se pudo conectar con Supabase');
+            return;
+        }
+        await initDefaultData();
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        await initEEFF();
+    });
+</script>
 <body>
 
 <div class="header">

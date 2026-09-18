@@ -7,6 +7,30 @@
     <link rel="stylesheet" href="css/styles.css">
 <link rel="stylesheet" href="css/professional.css">
 </head>
+<!-- 1. CDN Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- 2. Configuración Supabase -->
+<script src="js/supabase-config.js"></script>
+<!-- 3. Base de datos -->
+<script src="js/db.js"></script>
+<!-- 4. Resto -->
+<script src="js/utils.js"></script>
+<script src="js/accounting.js"></script>
+<script src="js/cierre.js"></script>
+<script src="js/professional.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) {
+            alert('❌ Error: No se pudo conectar con Supabase');
+            return;
+        }
+        await initDefaultData();
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        await initCierre();
+    });
+</script>
+
 <body>
 
 <div class="header">

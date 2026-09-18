@@ -1,3 +1,5 @@
+// ==================== TABLAS - DATOS MAESTROS ====================
+
 function showTab(tabId, btn) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
@@ -5,54 +7,75 @@ function showTab(tabId, btn) {
     if (btn) btn.classList.add('active');
 }
 
-function initTablas() {
-    renderCuentas();
-    renderProductos();
-    renderMercaderias();
-    renderActivoFijo();
-    renderCentrosCosto();
-    renderInductores();
-    renderRepuestos();
+async function initTablas() {
+    await Promise.all([
+        renderCuentas(),
+        renderProductos(),
+        renderMercaderias(),
+        renderActivoFijo(),
+        renderCentrosCosto(),
+        renderInductores(),
+        renderRepuestos()
+    ]);
 }
 
 // ==================== CUENTAS ====================
-function guardarCuenta() {
-    const codigo = document.getElementById('cuentaCodigo').value;
-    const nombre = document.getElementById('cuentaNombre').value;
+async function guardarCuenta() {
+    const codigo = document.getElementById('cuentaCodigo').value.trim();
+    const nombre = document.getElementById('cuentaNombre').value.trim();
     if (!codigo || !nombre) { showAlert('Complete todos los campos', 'error'); return; }
-    const cuentas = DB.getAll('cuentas');
-    cuentas.push({
-        codigo, nombre,
-        tipo: document.getElementById('cuentaTipo').value,
-        naturaleza: document.getElementById('cuentaNaturaleza').value
-    });
-    DB.set('cuentas', cuentas);
-    closeModal('modalCuenta');
-    renderCuentas();
-    showAlert('Cuenta guardada', 'success');
-    document.getElementById('cuentaCodigo').value = '';
-    document.getElementById('cuentaNombre').value = '';
+    
+    try {
+        // Verificar si ya existe
+        const cuentas = await DB.getAll('cuentas');
+        if (cuentas.some(c => c.codigo === codigo)) {
+            showAlert('El código ya existe', 'error');
+            return;
+        }
+        
+        await DB.insert('cuentas', {
+            codigo,
+            nombre,
+            tipo: document.getElementById('cuentaTipo').value,
+            naturaleza: document.getElementById('cuentaNaturaleza').value,
+            es_padre: false
+        });
+        
+        closeModal('modalCuenta');
+        await renderCuentas();
+        showAlert('Cuenta guardada', 'success');
+        document.getElementById('cuentaCodigo').value = '';
+        document.getElementById('cuentaNombre').value = '';
+    } catch (error) {
+        showAlert('Error: ' + error.message, 'error');
+    }
 }
 
-function renderCuentas() {
-    const cuentas = DB.getAll('cuentas');
-    document.getElementById('cuentasTable').innerHTML = cuentas.map((c, i) => `
+async function renderCuentas() {
+    const cuentas = await DB.getAll('cuentas');
+    const tbody = document.getElementById('cuentasTable');
+    if (!tbody) return;
+    
+    tbody.innerHTML = cuentas.map(c => `
         <tr>
             <td><strong>${textCell(c.codigo)}</strong></td>
             <td>${textCell(c.nombre)}</td>
             <td><span class="status-badge status-valid">${textCell(c.tipo)}</span></td>
             <td>${textCell(c.naturaleza)}</td>
-            <td><button class="delete-btn" onclick="eliminarCuenta(${i})">🗑️</button></td>
+            <td><button class="delete-btn" onclick="eliminarCuenta(${c.id})">🗑️</button></td>
         </tr>
     `).join('');
 }
 
-function eliminarCuenta(index) {
+async function eliminarCuenta(id) {
     if (!confirm('¿Eliminar esta cuenta?')) return;
-    const cuentas = DB.getAll('cuentas');
-    cuentas.splice(index, 1);
-    DB.set('cuentas', cuentas);
-    renderCuentas();
+    try {
+        await DB.delete('cuentas', id);
+        await renderCuentas();
+        showAlert('Cuenta eliminada', 'success');
+    } catch (error) {
+        showAlert('Error: ' + error.message, 'error');
+    }
 }
 
 function filterCuentas() {
@@ -63,194 +86,249 @@ function filterCuentas() {
 }
 
 // ==================== PRODUCTOS ====================
-function guardarProducto() {
-    const productos = DB.getAll('productos');
-    productos.push({
-        codigo: document.getElementById('prodCodigo').value,
-        nombre: document.getElementById('prodNombre').value,
-        categoria: document.getElementById('prodCategoria').value,
-        precio: parseFloat(document.getElementById('prodPrecio').value) || 0,
-        stock: parseInt(document.getElementById('prodStock').value) || 0
-    });
-    DB.set('productos', productos);
-    closeModal('modalProducto');
-    renderProductos();
-    showAlert('Producto guardado', 'success');
+async function guardarProducto() {
+    try {
+        await DB.insert('productos', {
+            codigo: document.getElementById('prodCodigo').value,
+            nombre: document.getElementById('prodNombre').value,
+            categoria: document.getElementById('prodCategoria').value,
+            precio: parseFloat(document.getElementById('prodPrecio').value) || 0,
+            stock: parseInt(document.getElementById('prodStock').value) || 0
+        });
+        closeModal('modalProducto');
+        await renderProductos();
+        showAlert('Producto guardado', 'success');
+    } catch (error) {
+        showAlert('Error: ' + error.message, 'error');
+    }
 }
 
-function renderProductos() {
-    const productos = DB.getAll('productos');
-    document.getElementById('productosTable').innerHTML = productos.map((p, i) => `
+async function renderProductos() {
+    const productos = await DB.getAll('productos');
+    const tbody = document.getElementById('productosTable');
+    if (!tbody) return;
+    
+    tbody.innerHTML = productos.map(p => `
         <tr>
-            <td>${textCell(p.codigo)}</td><td>${textCell(p.nombre)}</td><td>${textCell(p.categoria)}</td>
-            <td style="text-align:right;">${p.precio.toFixed(2)}</td>
+            <td>${textCell(p.codigo)}</td>
+            <td>${textCell(p.nombre)}</td>
+            <td>${textCell(p.categoria)}</td>
+            <td style="text-align:right;">${Number(p.precio).toFixed(2)}</td>
             <td>${p.stock}</td>
-            <td><button class="delete-btn" onclick="eliminarProducto(${i})">🗑️</button></td>
+            <td><button class="delete-btn" onclick="eliminarProducto(${p.id})">🗑️</button></td>
         </tr>
     `).join('');
 }
 
-function eliminarProducto(index) {
+async function eliminarProducto(id) {
     if (!confirm('¿Eliminar?')) return;
-    const p = DB.getAll('productos');
-    p.splice(index, 1);
-    DB.set('productos', p);
-    renderProductos();
+    try {
+        await DB.delete('productos', id);
+        await renderProductos();
+    } catch (error) {
+        showAlert('Error: ' + error.message, 'error');
+    }
 }
 
 // ==================== MERCADERÍAS ====================
-function guardarMercaderia() {
-    const mercs = DB.getAll('mercaderias');
-    mercs.push({
-        codigo: document.getElementById('mercCodigo').value,
-        descripcion: document.getElementById('mercDesc').value,
-        unidad: document.getElementById('mercUnidad').value,
-        stock: parseInt(document.getElementById('mercStock').value) || 0,
-        costo: parseFloat(document.getElementById('mercCosto').value) || 0
-    });
-    DB.set('mercaderias', mercs);
-    closeModal('modalMercaderia');
-    renderMercaderias();
-    showAlert('Mercadería guardada', 'success');
+async function guardarMercaderia() {
+    try {
+        await DB.insert('mercaderias', {
+            codigo: document.getElementById('mercCodigo').value,
+            descripcion: document.getElementById('mercDesc').value,
+            unidad: document.getElementById('mercUnidad').value,
+            stock: parseInt(document.getElementById('mercStock').value) || 0,
+            costo: parseFloat(document.getElementById('mercCosto').value) || 0
+        });
+        closeModal('modalMercaderia');
+        await renderMercaderias();
+        showAlert('Mercadería guardada', 'success');
+    } catch (error) {
+        showAlert('Error: ' + error.message, 'error');
+    }
 }
 
-function renderMercaderias() {
-    const mercs = DB.getAll('mercaderias');
-    document.getElementById('mercaderiasTable').innerHTML = mercs.map((m, i) => `
+async function renderMercaderias() {
+    const mercs = await DB.getAll('mercaderias');
+    const tbody = document.getElementById('mercaderiasTable');
+    if (!tbody) return;
+    
+    tbody.innerHTML = mercs.map(m => `
         <tr>
-            <td>${textCell(m.codigo)}</td><td>${textCell(m.descripcion)}</td><td>${textCell(m.unidad)}</td>
+            <td>${textCell(m.codigo)}</td>
+            <td>${textCell(m.descripcion)}</td>
+            <td>${textCell(m.unidad)}</td>
             <td>${m.stock}</td>
-            <td style="text-align:right;">${m.costo.toFixed(2)}</td>
-            <td><button class="delete-btn" onclick="eliminarMercaderia(${i})">🗑️</button></td>
+            <td style="text-align:right;">${Number(m.costo).toFixed(2)}</td>
+            <td><button class="delete-btn" onclick="eliminarMercaderia(${m.id})">🗑️</button></td>
         </tr>
     `).join('');
 }
 
-function eliminarMercaderia(index) {
+async function eliminarMercaderia(id) {
     if (!confirm('¿Eliminar?')) return;
-    const m = DB.getAll('mercaderias');
-    m.splice(index, 1);
-    DB.set('mercaderias', m);
-    renderMercaderias();
+    try {
+        await DB.delete('mercaderias', id);
+        await renderMercaderias();
+    } catch (error) {
+        showAlert('Error: ' + error.message, 'error');
+    }
 }
 
 // ==================== ACTIVO FIJO ====================
-function guardarActivo() {
-    const activos = DB.getAll('activoFijo');
-    activos.push({
-        codigo: document.getElementById('actCodigo').value,
-        descripcion: document.getElementById('actDesc').value,
-        fecha: document.getElementById('actFecha').value,
-        costo: parseFloat(document.getElementById('actCosto').value) || 0,
-        dep: parseFloat(document.getElementById('actDep').value) || 0
-    });
-    DB.set('activoFijo', activos);
-    closeModal('modalActivo');
-    renderActivoFijo();
-    showAlert('Activo fijo guardado', 'success');
+async function guardarActivo() {
+    try {
+        await DB.insert('activoFijo', {
+            codigo: document.getElementById('actCodigo').value,
+            descripcion: document.getElementById('actDesc').value,
+            fecha: document.getElementById('actFecha').value,
+            costo: parseFloat(document.getElementById('actCosto').value) || 0,
+            dep: parseFloat(document.getElementById('actDep').value) || 0
+        });
+        closeModal('modalActivo');
+        await renderActivoFijo();
+        showAlert('Activo fijo guardado', 'success');
+    } catch (error) {
+        showAlert('Error: ' + error.message, 'error');
+    }
 }
 
-function renderActivoFijo() {
-    const activos = DB.getAll('activoFijo');
-    document.getElementById('activoFijoTable').innerHTML = activos.map((a, i) => `
+async function renderActivoFijo() {
+    const activos = await DB.getAll('activoFijo');
+    const tbody = document.getElementById('activoFijoTable');
+    if (!tbody) return;
+    
+    tbody.innerHTML = activos.map(a => `
         <tr>
-            <td>${textCell(a.codigo)}</td><td>${textCell(a.descripcion)}</td><td>${textCell(a.fecha)}</td>
-            <td style="text-align:right;">${a.costo.toFixed(2)}</td>
-            <td style="text-align:right;">${a.dep.toFixed(2)}</td>
-            <td style="text-align:right;"><strong>${(a.costo - a.dep).toFixed(2)}</strong></td>
-            <td><button class="delete-btn" onclick="eliminarActivo(${i})">🗑️</button></td>
+            <td>${textCell(a.codigo)}</td>
+            <td>${textCell(a.descripcion)}</td>
+            <td>${textCell(a.fecha)}</td>
+            <td style="text-align:right;">${Number(a.costo).toFixed(2)}</td>
+            <td style="text-align:right;">${Number(a.dep).toFixed(2)}</td>
+            <td style="text-align:right;"><strong>${(Number(a.costo) - Number(a.dep)).toFixed(2)}</strong></td>
+            <td><button class="delete-btn" onclick="eliminarActivo(${a.id})">🗑️</button></td>
         </tr>
     `).join('');
 }
 
-function eliminarActivo(index) {
+async function eliminarActivo(id) {
     if (!confirm('¿Eliminar?')) return;
-    const a = DB.getAll('activoFijo');
-    a.splice(index, 1);
-    DB.set('activoFijo', a);
-    renderActivoFijo();
+    try {
+        await DB.delete('activoFijo', id);
+        await renderActivoFijo();
+    } catch (error) {
+        showAlert('Error: ' + error.message, 'error');
+    }
 }
 
-// ==================== CENTROS ====================
-function guardarCentro() {
-    const centros = DB.getAll('centrosCosto');
-    centros.push({
-        codigo: document.getElementById('centroCodigo').value,
-        nombre: document.getElementById('centroNombre').value,
-        responsable: document.getElementById('centroResp').value,
-        presupuesto: parseFloat(document.getElementById('centroPresup').value) || 0,
-        gastado: parseFloat(document.getElementById('centroGastado').value) || 0
-    });
-    DB.set('centrosCosto', centros);
-    closeModal('modalCentro');
-    renderCentrosCosto();
-    showAlert('Centro guardado', 'success');
+// ==================== CENTROS DE COSTO ====================
+async function guardarCentro() {
+    try {
+        await DB.insert('centrosCosto', {
+            codigo: document.getElementById('centroCodigo').value,
+            nombre: document.getElementById('centroNombre').value,
+            responsable: document.getElementById('centroResp').value,
+            presupuesto: parseFloat(document.getElementById('centroPresup').value) || 0,
+            gastado: parseFloat(document.getElementById('centroGastado').value) || 0
+        });
+        closeModal('modalCentro');
+        await renderCentrosCosto();
+        showAlert('Centro guardado', 'success');
+    } catch (error) {
+        showAlert('Error: ' + error.message, 'error');
+    }
 }
 
-function renderCentrosCosto() {
-    const centros = DB.getAll('centrosCosto');
-    document.getElementById('centrosCostoTable').innerHTML = centros.map((c, i) => {
-        const pct = c.presupuesto > 0 ? ((c.gastado / c.presupuesto) * 100).toFixed(1) : 0;
+async function renderCentrosCosto() {
+    const centros = await DB.getAll('centrosCosto');
+    const tbody = document.getElementById('centrosCostoTable');
+    if (!tbody) return;
+    
+    tbody.innerHTML = centros.map(c => {
+        const presup = Number(c.presupuesto);
+        const gast = Number(c.gastado);
+        const pct = presup > 0 ? ((gast / presup) * 100).toFixed(1) : 0;
         return `
         <tr>
-            <td>${textCell(c.codigo)}</td><td>${textCell(c.nombre)}</td><td>${textCell(c.responsable)}</td>
-            <td style="text-align:right;">${c.presupuesto.toFixed(2)}</td>
-            <td style="text-align:right;">${c.gastado.toFixed(2)}</td>
-            <td><div class="progress-bar"><div class="fill" style="width:${pct}%"></div></div><small>${pct}%</small></td>
-            <td><button class="delete-btn" onclick="eliminarCentro(${i})">🗑️</button></td>
+            <td>${textCell(c.codigo)}</td>
+            <td>${textCell(c.nombre)}</td>
+            <td>${textCell(c.responsable)}</td>
+            <td style="text-align:right;">${presup.toFixed(2)}</td>
+            <td style="text-align:right;">${gast.toFixed(2)}</td>
+            <td>
+                <div class="progress-bar"><div class="fill" style="width:${pct}%"></div></div>
+                <small>${pct}%</small>
+            </td>
+            <td><button class="delete-btn" onclick="eliminarCentro(${c.id})">🗑️</button></td>
         </tr>`;
     }).join('');
 }
 
-function eliminarCentro(index) {
+async function eliminarCentro(id) {
     if (!confirm('¿Eliminar?')) return;
-    const c = DB.getAll('centrosCosto');
-    c.splice(index, 1);
-    DB.set('centrosCosto', c);
-    renderCentrosCosto();
+    try {
+        await DB.delete('centrosCosto', id);
+        await renderCentrosCosto();
+    } catch (error) {
+        showAlert('Error: ' + error.message, 'error');
+    }
 }
 
 // ==================== INDUCTORES ====================
-function renderInductores() {
-    const inductores = DB.getAll('inductores');
-    document.getElementById('inductoresTable').innerHTML = inductores.map(ind => `
+async function renderInductores() {
+    const inductores = await DB.getAll('inductores');
+    const tbody = document.getElementById('inductoresTable');
+    if (!tbody) return;
+    
+    tbody.innerHTML = inductores.map(ind => `
         <tr>
-            <td>${textCell(ind.codigo)}</td><td>${textCell(ind.inductor)}</td><td>${textCell(ind.unidad)}</td>
-            <td style="text-align:right;">${ind.valor.toFixed(2)}</td>
+            <td>${textCell(ind.codigo)}</td>
+            <td>${textCell(ind.inductor)}</td>
+            <td>${textCell(ind.unidad)}</td>
+            <td style="text-align:right;">${Number(ind.valor).toFixed(2)}</td>
         </tr>
     `).join('');
 }
 
 // ==================== REPUESTOS ====================
-function guardarRepuesto() {
-    const reps = DB.getAll('repuestos');
-    reps.push({
-        codigo: document.getElementById('repCodigo').value,
-        descripcion: document.getElementById('repDesc').value,
-        stock: parseInt(document.getElementById('repStock').value) || 0,
-        costo: parseFloat(document.getElementById('repCosto').value) || 0
-    });
-    DB.set('repuestos', reps);
-    closeModal('modalRepuesto');
-    renderRepuestos();
-    showAlert('Repuesto guardado', 'success');
+async function guardarRepuesto() {
+    try {
+        await DB.insert('repuestos', {
+            codigo: document.getElementById('repCodigo').value,
+            descripcion: document.getElementById('repDesc').value,
+            stock: parseInt(document.getElementById('repStock').value) || 0,
+            costo: parseFloat(document.getElementById('repCosto').value) || 0
+        });
+        closeModal('modalRepuesto');
+        await renderRepuestos();
+        showAlert('Repuesto guardado', 'success');
+    } catch (error) {
+        showAlert('Error: ' + error.message, 'error');
+    }
 }
 
-function renderRepuestos() {
-    const reps = DB.getAll('repuestos');
-    document.getElementById('repuestosTable').innerHTML = reps.map((r, i) => `
+async function renderRepuestos() {
+    const reps = await DB.getAll('repuestos');
+    const tbody = document.getElementById('repuestosTable');
+    if (!tbody) return;
+    
+    tbody.innerHTML = reps.map(r => `
         <tr>
-            <td>${textCell(r.codigo)}</td><td>${textCell(r.descripcion)}</td><td>${r.stock}</td>
-            <td style="text-align:right;">${r.costo.toFixed(2)}</td>
-            <td><button class="delete-btn" onclick="eliminarRepuesto(${i})">🗑️</button></td>
+            <td>${textCell(r.codigo)}</td>
+            <td>${textCell(r.descripcion)}</td>
+            <td>${r.stock}</td>
+            <td style="text-align:right;">${Number(r.costo).toFixed(2)}</td>
+            <td><button class="delete-btn" onclick="eliminarRepuesto(${r.id})">🗑️</button></td>
         </tr>
     `).join('');
 }
 
-function eliminarRepuesto(index) {
+async function eliminarRepuesto(id) {
     if (!confirm('¿Eliminar?')) return;
-    const r = DB.getAll('repuestos');
-    r.splice(index, 1);
-    DB.set('repuestos', r);
-    renderRepuestos();
+    try {
+        await DB.delete('repuestos', id);
+        await renderRepuestos();
+    } catch (error) {
+        showAlert('Error: ' + error.message, 'error');
+    }
 }

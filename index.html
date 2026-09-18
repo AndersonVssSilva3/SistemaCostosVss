@@ -95,13 +95,24 @@
     </div>
 </div>
 
+<!-- 1. CDN de Supabase primero -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- 2. Configuración (crea supabaseClient) -->
+<script src="js/supabase-config.js"></script>
+<!-- 3. db.js (usa supabaseClient) -->
 <script src="js/db.js"></script>
+<!-- 4. Resto -->
 <script src="js/utils.js"></script>
 <script src="js/accounting.js"></script>
+<script src="js/operaciones.js"></script>
 <script src="js/professional.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        initDefaultData();
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) {
+            alert('❌ Error: No se pudo conectar con Supabase');
+            return;
+        }
+        await initDefaultData();
         updateDateTime();
         setInterval(updateDateTime, 60000);
     });

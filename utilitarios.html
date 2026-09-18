@@ -100,19 +100,24 @@
     <div class="footer-info"><p>Sistema de Contabilidad OMEGA SAC © 2026</p></div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
 <script src="js/db.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/accounting.js"></script>
 <script src="js/utilitarios.js"></script>
 <script src="js/professional.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        initDefaultData();
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) {
+            alert('❌ Error: No se pudo conectar con Supabase');
+            return;
+        }
+        await initDefaultData();
         updateDateTime();
         setInterval(updateDateTime, 60000);
-        generarEstadisticas();
+        // await initTU_MODULO(); // ← el que corresponda
     });
 </script>
-
 </body>
 </html>
