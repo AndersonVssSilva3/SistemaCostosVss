@@ -24,12 +24,12 @@ function _empty(columns, text = 'Sin registros para mostrar.') {
 
 // ==================== MENÚ DE MÓDULOS ====================
 const modules = [
-    ['index.html', '◫', 'Resumen'],
-    ['operaciones.html', '↔', 'Operaciones'],
+    ['index.html', '◉', 'Resumen'],
+    ['operaciones.html', '◈', 'Operaciones'],
     ['kardex.html', '▦', 'Kardex'],
     ['libros.html', '▤', 'Libros contables'],
     ['eeff.html', '▥', 'Estados financieros'],
-    ['costos.html', '▦', 'Costos'],
+    ['costos.html', '◧', 'Costos'],
     ['cierre.html', '▣', 'Ajustes y cierre'],
     ['tablas.html', '☷', 'Datos maestros'],
     ['utilitarios.html', '⚙', 'Herramientas']
