@@ -23,46 +23,34 @@ function pvRedondear(n) {
 
 // ==================== CATÁLOGOS PLAZA VEA ====================
 
-// Centros de costo por sección (como en un supermercado real)
 const PV_CENTROS = [
-    { codigo: 'CC-ABAR', nombre: 'Abarrotes',           responsable: 'Ing. Roberto Salinas',  presupuesto: 2500000, gastado: 2180000 },
-    { codigo: 'CC-PERE', nombre: 'Perecibles',          responsable: 'Ing. Carolina Vega',    presupuesto: 1800000, gastado: 1650000 },
-    { codigo: 'CC-BAZA', nombre: 'Bazar y Electrohogar',responsable: 'Lic. Diego Paredes',    presupuesto: 900000,  gastado: 720000 },
-    { codigo: 'CC-LOGI', nombre: 'Logística y CD',      responsable: 'Ing. Patricia Ríos',    presupuesto: 1200000, gastado: 1080000 },
-    { codigo: 'CC-ADMI', nombre: 'Administración',      responsable: 'CPC Fernando Loayza',   presupuesto: 750000,  gastado: 620000 },
-    { codigo: 'CC-MKTG', nombre: 'Marketing y E-commerce', responsable: 'Lic. Valeria Castro', presupuesto: 480000, gastado: 395000 }
+    { codigo: 'CC-ABAR', nombre: 'Abarrotes',              responsable: 'Ing. Roberto Salinas', presupuesto: 2500000, gastado: 2180000 },
+    { codigo: 'CC-PERE', nombre: 'Perecibles',             responsable: 'Ing. Carolina Vega',   presupuesto: 1800000, gastado: 1650000 },
+    { codigo: 'CC-BAZA', nombre: 'Bazar y Electrohogar',   responsable: 'Lic. Diego Paredes',   presupuesto: 900000,  gastado: 720000 },
+    { codigo: 'CC-LOGI', nombre: 'Logística y CD',         responsable: 'Ing. Patricia Ríos',   presupuesto: 1200000, gastado: 1080000 },
+    { codigo: 'CC-ADMI', nombre: 'Administración',         responsable: 'CPC Fernando Loayza',  presupuesto: 750000,  gastado: 620000 },
+    { codigo: 'CC-MKTG', nombre: 'Marketing y E-commerce', responsable: 'Lic. Valeria Castro',  presupuesto: 480000,  gastado: 395000 }
 ];
 
-// Productos terminados (catálogo tipo supermercado) - Precios de venta al público
 const PV_PRODUCTOS = [
-    // Abarrotes
     { codigo: 'PT-ABAR-001', nombre: 'Aceite Primor 1L',              categoria: 'Abarrotes',       precio: 12.90, stock: 2400 },
     { codigo: 'PT-ABAR-002', nombre: 'Arroz Costeño Extra 5kg',       categoria: 'Abarrotes',       precio: 28.50, stock: 1800 },
     { codigo: 'PT-ABAR-003', nombre: 'Fideo Don Vittorio 500g',       categoria: 'Abarrotes',       precio: 4.20,  stock: 3600 },
     { codigo: 'PT-ABAR-004', nombre: 'Atún Florida en aceite 170g',   categoria: 'Abarrotes',       precio: 8.90,  stock: 2200 },
     { codigo: 'PT-ABAR-005', nombre: 'Azúcar Rubia Cartavio 1kg',     categoria: 'Abarrotes',       precio: 5.80,  stock: 2800 },
-    
-    // Bebidas
     { codigo: 'PT-BEBI-001', nombre: 'Inca Kola 3L',                  categoria: 'Bebidas',         precio: 12.50, stock: 1500 },
     { codigo: 'PT-BEBI-002', nombre: 'Coca Cola 3L',                  categoria: 'Bebidas',         precio: 12.50, stock: 1400 },
     { codigo: 'PT-BEBI-003', nombre: 'Agua San Luis 2.5L',            categoria: 'Bebidas',         precio: 3.90,  stock: 3000 },
-    
-    // Lácteos
     { codigo: 'PT-LACT-001', nombre: 'Leche Gloria Evaporada 400g',   categoria: 'Lácteos',         precio: 5.20,  stock: 4200 },
     { codigo: 'PT-LACT-002', nombre: 'Yogurt Gloria Fresa 1L',        categoria: 'Lácteos',         precio: 7.80,  stock: 1200 },
     { codigo: 'PT-LACT-003', nombre: 'Queso Fresco Laive 250g',       categoria: 'Lácteos',         precio: 11.50, stock: 800 },
-    
-    // Limpieza
     { codigo: 'PT-LIMP-001', nombre: 'Detergente Bolívar 800g',       categoria: 'Limpieza',        precio: 15.90, stock: 1800 },
     { codigo: 'PT-LIMP-002', nombre: 'Papel Higiénico Suave 4 rollos',categoria: 'Limpieza',        precio: 9.80,  stock: 2500 },
     { codigo: 'PT-LIMP-003', nombre: 'Lejía Clorox 1L',               categoria: 'Limpieza',        precio: 6.50,  stock: 1600 },
-    
-    // Cuidado personal
     { codigo: 'PT-CUID-001', nombre: 'Shampoo Sedal 750ml',           categoria: 'Cuidado Personal',precio: 18.90, stock: 900 },
     { codigo: 'PT-CUID-002', nombre: 'Pasta Dental Colgate 90g',      categoria: 'Cuidado Personal',precio: 7.50,  stock: 1400 }
 ];
 
-// Mercaderías (materias primas / productos a granel que Plaza Vea procesa)
 const PV_MERCADERIAS = [
     { codigo: 'MP-CARN-001', descripcion: 'Carne de res (corte industrial)',  unidad: 'KG', stock: 850,  costo: 28.50 },
     { codigo: 'MP-CARN-002', descripcion: 'Pollo entero fresco',              unidad: 'KG', stock: 1200, costo: 11.80 },
@@ -74,7 +62,6 @@ const PV_MERCADERIAS = [
     { codigo: 'MP-PANA-001', descripcion: 'Pan francés (insumo panadería)',   unidad: 'KG', stock: 400,  costo: 5.20 }
 ];
 
-// Activos fijos (infraestructura retail)
 const PV_ACTIVOS = [
     { codigo: 'AF-001', descripcion: 'Local comercial Miraflores (Alquiler)',    fecha: '2024-01-15', costo: 3500000, dep: 875000 },
     { codigo: 'AF-002', descripcion: 'Cámaras frigoríficas perecibles',          fecha: '2024-03-20', costo: 480000,  dep: 120000 },
@@ -84,7 +71,6 @@ const PV_ACTIVOS = [
     { codigo: 'AF-006', descripcion: 'Montacargas de almacén (4 unidades)',      fecha: '2025-02-15', costo: 320000,  dep: 40000 }
 ];
 
-// Planilla (trabajadores de supermercado)
 const PV_PLANILLAS = [
     { codigo: 'EMP-001', nombre: 'Roberto Salinas Mendoza',    cargo: 'Gerente General',            sueldo: 18500 },
     { codigo: 'EMP-002', nombre: 'Carolina Vega Quispe',       cargo: 'Jefa de Perecibles',         sueldo: 8200 },
@@ -100,7 +86,6 @@ const PV_PLANILLAS = [
     { codigo: 'EMP-012', nombre: 'Silvia Mendoza Rojas',       cargo: 'Asistente Administrativa',   sueldo: 2800 }
 ];
 
-// Inductores de costos retail
 const PV_INDUCTORES = [
     { codigo: 'IND-01', inductor: 'Metros cuadrados de tienda',      unidad: 'm2',  valor: 4500 },
     { codigo: 'IND-02', inductor: 'Horas cajero',                    unidad: 'HC',  valor: 8500 },
@@ -109,7 +94,6 @@ const PV_INDUCTORES = [
     { codigo: 'IND-05', inductor: 'Transacciones POS',               unidad: 'TXN', valor: 32000 }
 ];
 
-// Repuestos (para flota de reparto y equipos)
 const PV_REPUESTOS = [
     { codigo: 'REP-001', descripcion: 'Filtro de aceite camión Hyundai',    stock: 48, costo: 85.00 },
     { codigo: 'REP-002', descripcion: 'Neumático 295/80R22.5',              stock: 24, costo: 1250.00 },
@@ -118,7 +102,6 @@ const PV_REPUESTOS = [
     { codigo: 'REP-005', descripcion: 'Faja de transmisión POS',            stock: 36, costo: 45.00 }
 ];
 
-// Proveedores reales del sector retail peruano
 const PV_PROVEEDORES = [
     { nombre: 'Alicorp S.A.A.',                    ruc: '20100055237', tipo: 'Abarrotes' },
     { nombre: 'Gloria S.A.',                       ruc: '20100190797', tipo: 'Lácteos' },
@@ -132,7 +115,6 @@ const PV_PROVEEDORES = [
     { nombre: 'Frigorífico del Pacífico S.A.C.',   ruc: '20458791234', tipo: 'Carnes' }
 ];
 
-// Clientes (empresas que compran al por mayor + B2B)
 const PV_CLIENTES = [
     { nombre: 'Restaurantes del Perú S.A.C.',       ruc: '20551122334' },
     { nombre: 'Hoteles Costa del Sol S.A.',         ruc: '20602233445' },
@@ -263,7 +245,6 @@ async function pvInsertarCompras() {
     let totalCompras = 0;
 
     for (const mes of meses) {
-        // 4-6 compras por mes (supermercado compra a muchos proveedores)
         const numCompras = pvAleatorioInt(4, 6);
         for (let i = 0; i < numCompras; i++) {
             const prov = pvElegir(PV_PROVEEDORES);
@@ -272,7 +253,7 @@ async function pvInsertarCompras() {
             const total = pvRedondear(base + igv);
             const dia = pvAleatorioInt(3, 25);
             const fecha = pvFecha(2026, mes, dia);
-            const numeroFactura = `F${String(_aleatorioInt(100,999)).padStart(3,'0')}-${String(pvAleatorioInt(1000,9999))}`;
+            const numeroFactura = `F${String(pvAleatorioInt(100,999)).padStart(3,'0')}-${String(pvAleatorioInt(1000,9999))}`;
 
             await DB.insert('compras', {
                 fecha,
@@ -317,7 +298,6 @@ async function pvInsertarVentas() {
     let totalVentas = 0;
 
     for (const mes of meses) {
-        // 5 ventas por mes (mezcla B2B + boletas retail)
         const numVentas = 5;
         for (let i = 0; i < numVentas; i++) {
             const cli = pvElegir(PV_CLIENTES);
@@ -359,7 +339,6 @@ async function pvInsertarVentas() {
                 estado: 'validado'
             });
 
-            // Costo de ventas (~75% del precio = margen bruto 25%, típico supermercado)
             const costoVentas = pvRedondear(base * 0.75);
             const numAsientoCosto = `AS-${String(contador++).padStart(3, '0')}`;
             await DB.insert('asientos', {
@@ -409,7 +388,7 @@ async function pvInsertarPlanillasContables() {
             estado: 'validado'
         });
     }
-    console.log(`✅ ${9} planillas insertadas. Total mensual: S/ ${totalSueldos.toFixed(2)}`);
+    console.log(`✅ 9 planillas insertadas. Total mensual: S/ ${totalSueldos.toFixed(2)}`);
 }
 
 // ==================== GASTOS OPERATIVOS ====================
@@ -420,9 +399,9 @@ async function pvInsertarGastosOperativos() {
     let contador = asientos.length + 1;
 
     for (const mes of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
-        // Servicios básicos (luz, agua, telefonía)
+        // Servicios básicos
         const fechaServ = pvFecha(2026, mes, 10);
-        const luz = pvRedondear(pvAleatorio(35000, 55000)); // consumo alto por refrigeración
+        const luz = pvRedondear(pvAleatorio(35000, 55000));
         const agua = pvRedondear(pvAleatorio(3000, 5000));
         const internet = pvRedondear(pvAleatorio(2500, 4000));
         const totalServ = pvRedondear(luz + agua + internet);
@@ -439,7 +418,7 @@ async function pvInsertarGastosOperativos() {
             estado: 'validado'
         });
 
-        // Publicidad y marketing (constante en retail)
+        // Publicidad
         const fechaMkt = pvFecha(2026, mes, 15);
         const mkt = pvRedondear(pvAleatorio(18000, 35000));
 
@@ -455,7 +434,7 @@ async function pvInsertarGastosOperativos() {
             estado: 'validado'
         });
 
-        // Alquiler de local (muy alto en retail)
+        // Alquiler
         const fechaAlq = pvFecha(2026, mes, 5);
         const alquiler = pvRedondear(pvAleatorio(85000, 120000));
 
@@ -482,7 +461,6 @@ async function pvInsertarDepreciacionesYAjustes() {
     let contador = asientos.length + 1;
     const totalDepMensual = PV_ACTIVOS.reduce((s, a) => s + (a.costo * 0.10 / 12), 0);
 
-    // Depreciación trimestral
     for (const mes of [3, 6, 9]) {
         const fecha = pvFecha(2026, mes, 30);
         const montoDep = pvRedondear(totalDepMensual * 3);
@@ -500,7 +478,6 @@ async function pvInsertarDepreciacionesYAjustes() {
         });
     }
 
-    // Pagos a proveedores
     for (const mes of [2, 4, 6, 8, 9]) {
         const fecha = pvFecha(2026, mes, 20);
         const monto = pvRedondear(pvAleatorio(150000, 350000));
@@ -518,7 +495,6 @@ async function pvInsertarDepreciacionesYAjustes() {
         });
     }
 
-    // Cobros a clientes
     for (const mes of [2, 4, 6, 8, 9]) {
         const fecha = pvFecha(2026, mes, 25);
         const monto = pvRedondear(pvAleatorio(180000, 400000));
@@ -554,7 +530,7 @@ async function pvInsertarKardex() {
         for (const m of PV_MERCADERIAS) {
             if (Math.random() < 0.3) continue;
             const cantidad = pvAleatorioInt(200, 800);
-            const costoUnit = pvRedondear(m.costo * pvAleatorio(0.95, 1.05)); // fluctuación de precios
+            const costoUnit = pvRedondear(m.costo * pvAleatorio(0.95, 1.05));
             const costoTotal = pvRedondear(cantidad * costoUnit);
             const fecha = pvFecha(2026, mes, pvAleatorioInt(3, 12));
 
@@ -579,7 +555,7 @@ async function pvInsertarKardex() {
             });
         }
 
-        // SALIDAS (ventas / consumo)
+        // SALIDAS
         for (const m of PV_MERCADERIAS) {
             if (saldos[m.codigo].cant < 100) continue;
             const cantidad = pvAleatorioInt(80, 400);
@@ -608,7 +584,6 @@ async function pvInsertarKardex() {
         }
     }
 
-    // Actualizar stocks finales
     for (const m of PV_MERCADERIAS) {
         const mercs = await DB.getAll('mercaderias');
         const merc = mercs.find(x => x.codigo === m.codigo);

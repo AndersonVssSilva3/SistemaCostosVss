@@ -45,7 +45,10 @@ function construirSidebar() {
     const sidebarHTML = `
         <a class="skip-link" href="#workspace">Ir al contenido</a>
         <aside class="app-sidebar">
-            <a class="app-brand" href="index.html">OMEGA<small>CONTABILIDAD</small></a>
+            <a class="app-brand" href="index.html">
+                🛒 Plaza Vea
+                <small>SUPERMERCADOS PERUANOS</small>
+            </a>
             <div class="nav-caption">Espacio de trabajo</div>
             <nav aria-label="Navegación principal">
                 ${modules.map(([href, icon, label]) =>
@@ -55,9 +58,10 @@ function construirSidebar() {
                 ).join('')}
             </nav>
             <div class="sidebar-bottom">
-                <strong>OMEGA SAC</strong>
-                Soles peruanos · PEN<br>
-                Datos en Supabase
+                <strong>PLAZA VEA</strong>
+                Supermercados Peruanos S.A.<br>
+                RUC 20492068702<br>
+                Soles peruanos · PEN
             </div>
         </aside>
     `;
