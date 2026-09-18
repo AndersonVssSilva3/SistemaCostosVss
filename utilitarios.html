@@ -34,8 +34,8 @@
             <h2>⚙️ Backup del Sistema</h2>
             <p style="margin-bottom:15px; color:#666;">Exporte o importe todos los datos del sistema.</p>
             <div class="btn-group">
-                <button class="btn btn-primary" onclick="cargarDatosDemo()">🎬 Cargar datos de demostración</button>
-                <button class="btn btn-danger"  onclick="borrarDatosDemo()">🗑️ Borrar solo datos DEMO</button>
+                <button class="btn btn-primary" onclick="cargarDatosPlazaVea()">🛒 Cargar datos Plaza Vea</button>
+                <button class="btn btn-danger"  onclick="borrarDatosPlazaVea()">🗑️ Borrar Plaza Vea</button>
                 <button class="btn btn-success" onclick="exportarBackup()">📥 Exportar Backup (JSON)</button>
                 <button class="btn btn-warning" onclick="document.getElementById('importFile').click()">📤 Importar Backup</button>
                 <input type="file" id="importFile" accept=".json" style="display:none" onchange="importarBackup(event)">
@@ -111,7 +111,7 @@
 <script src="js/accounting.js"></script>
 <script src="js/utilitarios.js"></script>
 <script src="js/professional.js"></script>
-<script src="js/seed-demo.js"></script>
+<script src="js/seed-plaza-vea.js"></script>   <!-- reemplaza a seed-demo.js -->
 <script>
     document.addEventListener('DOMContentLoaded', async function() {
         if (!initSupabase()) {
