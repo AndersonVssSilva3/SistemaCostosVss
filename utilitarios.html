@@ -34,6 +34,8 @@
             <h2>⚙️ Backup del Sistema</h2>
             <p style="margin-bottom:15px; color:#666;">Exporte o importe todos los datos del sistema.</p>
             <div class="btn-group">
+                <button class="btn btn-primary" onclick="cargarDatosDemo()">🎬 Cargar datos de demostración</button>
+                <button class="btn btn-danger"  onclick="borrarDatosDemo()">🗑️ Borrar solo datos DEMO</button>
                 <button class="btn btn-success" onclick="exportarBackup()">📥 Exportar Backup (JSON)</button>
                 <button class="btn btn-warning" onclick="document.getElementById('importFile').click()">📤 Importar Backup</button>
                 <input type="file" id="importFile" accept=".json" style="display:none" onchange="importarBackup(event)">
@@ -94,10 +96,12 @@
                     <p><strong>NIIF</strong> → Normas Internacionales de Información Financiera (Inglaterra, Londres)</p>
                 </div>
             </div>
+            <div id="seedStatus"></div>
         </div>
     </div>
 
     <div class="footer-info"><p>Sistema de Contabilidad OMEGA SAC © 2026</p></div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -107,6 +111,7 @@
 <script src="js/accounting.js"></script>
 <script src="js/utilitarios.js"></script>
 <script src="js/professional.js"></script>
+<script src="js/seed-demo.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', async function() {
         if (!initSupabase()) {
@@ -119,5 +124,6 @@
         // await initTU_MODULO(); // ← el que corresponda
     });
 </script>
+
 </body>
 </html>

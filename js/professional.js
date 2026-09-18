@@ -170,3 +170,7 @@ function exportTable(card) {
     }).join(';')).join('\r\n');
     downloadFile('omega-reporte.csv', '\uFEFF' + text, 'text/csv;charset=utf-8');
 }
+// ==================== DEMO SEED ====================
+async function cargarDatosDemo() {
+    if (typeof window.cargarDatosDemo === 'function') return;  // ya definida
+}
