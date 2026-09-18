@@ -29,6 +29,7 @@ const modules = [
     ['kardex.html', '▦', 'Kardex'],
     ['libros.html', '▤', 'Libros contables'],
     ['eeff.html', '▥', 'Estados financieros'],
+    ['ratios.html', '◎', 'Ratios Financieros'],   // ⬅️ NUEVO
     ['costos.html', '◧', 'Costos'],
     ['cierre.html', '▣', 'Ajustes y cierre'],
     ['tablas.html', '☷', 'Datos maestros'],

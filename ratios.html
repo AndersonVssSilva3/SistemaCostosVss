@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ratios Financieros - Plaza Vea</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/professional.css">
+    <link rel="stylesheet" href="css/plaza-vea.css">
+    <link rel="stylesheet" href="css/plaza-vea-3d.css">
+    <link rel="stylesheet" href="css/ratios.css">
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <div class="company-name">Supermercados Peruanos S.A.</div>
+        <h1>📊 Ratios Financieros</h1>
+    </div>
+    <div style="display:flex; align-items:center; gap:15px;">
+        <a href="index.html" class="home-btn">🏠 Inicio</a>
+        <div class="datetime" id="currentDateTime"></div>
+    </div>
+</div>
+
+<div class="sub-nav">
+    <button class="active" onclick="showTabRatios('rat-liquidez', this)">💧 Liquidez</button>
+    <button onclick="showTabRatios('rat-endeudamiento', this)">💰 Endeudamiento</button>
+    <button onclick="showTabRatios('rat-rentabilidad', this)">📈 Rentabilidad</button>
+    <button onclick="showTabRatios('rat-gestion', this)">🔄 Gestión</button>
+    <button onclick="showTabRatios('rat-resumen', this)">📋 Resumen Ejecutivo</button>
+</div>
+
+<div class="main-content">
+    <div id="alertContainer"></div>
+
+    <!-- Header del módulo -->
+    <div class="ratios-header">
+        <div>
+            <div class="eyebrow">ANÁLISIS FINANCIERO</div>
+            <h2>📊 Ratios Financieros · Plaza Vea</h2>
+            <p>Análisis comparativo con el benchmark del sector retail peruano</p>
+        </div>
+        <div class="ratios-actions no-print">
+            <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir / PDF</button>
+            <button class="btn btn-warning" onclick="exportarRatiosCSV()">📥 Exportar CSV</button>
+        </div>
+    </div>
+
+    <!-- Métricas generales -->
+    <div class="metrics">
+        <div class="metric">
+            <div class="metric-icon">💼</div>
+            <div class="metric-label">Activo Total</div>
+            <strong id="ratActivo">S/ 0.00</strong>
+            <small id="ratActivoDetalle">Corriente: — · No corriente: —</small>
+        </div>
+        <div class="metric">
+            <div class="metric-icon">📉</div>
+            <div class="metric-label">Pasivo Total</div>
+            <strong id="ratPasivo">S/ 0.00</strong>
+            <small id="ratPasivoDetalle">Corriente: — · No corriente: —</small>
+        </div>
+        <div class="metric">
+            <div class="metric-icon">💎</div>
+            <div class="metric-label">Patrimonio</div>
+            <strong id="ratPatrimonio">S/ 0.00</strong>
+            <small>Capital propio de la empresa</small>
+        </div>
+        <div class="metric">
+            <div class="metric-icon">📊</div>
+            <div class="metric-label">Utilidad Neta</div>
+            <strong id="ratUtilidad">S/ 0.00</strong>
+            <small id="ratUtilidadDetalle">—</small>
+        </div>
+    </div>
+
+    <!-- LIQUIDEZ -->
+    <div class="tab-content active" id="rat-liquidez">
+        <div class="card">
+            <h2>💧 Ratios de Liquidez</h2>
+            <p class="field-help">Miden la capacidad de la empresa para cumplir con sus obligaciones de corto plazo. Un supermercado necesita liquidez alta por la rotación diaria de efectivo.</p>
+            <div id="ratiosLiquidez" class="ratios-grid"></div>
+        </div>
+    </div>
+
+    <!-- ENDEUDAMIENTO -->
+    <div class="tab-content" id="rat-endeudamiento">
+        <div class="card">
+            <h2>💰 Ratios de Endeudamiento</h2>
+            <p class="field-help">Miden el grado de apalancamiento financiero y la capacidad de la empresa para asumir nuevas deudas.</p>
+            <div id="ratiosEndeudamiento" class="ratios-grid"></div>
+        </div>
+    </div>
+
+    <!-- RENTABILIDAD -->
+    <div class="tab-content" id="rat-rentabilidad">
+        <div class="card">
+            <h2>📈 Ratios de Rentabilidad</h2>
+            <p class="field-help">Miden la capacidad de la empresa para generar ganancias. En retail, los márgenes son ajustados pero el volumen es alto.</p>
+            <div id="ratiosRentabilidad" class="ratios-grid"></div>
+        </div>
+    </div>
+
+    <!-- GESTIÓN -->
+    <div class="tab-content" id="rat-gestion">
+        <div class="card">
+            <h2>🔄 Ratios de Gestión</h2>
+            <p class="field-help">Miden la eficiencia en el uso de los activos y la gestión del capital de trabajo.</p>
+            <div id="ratiosGestion" class="ratios-grid"></div>
+        </div>
+    </div>
+
+    <!-- RESUMEN EJECUTIVO -->
+    <div class="tab-content" id="rat-resumen">
+        <div class="card">
+            <h2>📋 Resumen Ejecutivo</h2>
+            <p class="field-help">Vista consolidada de todos los ratios agrupados por categoría, con semáforo de estado.</p>
+            <div id="ratiosResumen"></div>
+        </div>
+    </div>
+
+    <div class="footer-info">
+        <p>Plaza Vea · Supermercados Peruanos S.A. © 2026 | Análisis de Ratios Financieros</p>
+        <p>Basado en el Plan Contable General Empresarial (PCGE) · Soles peruanos (PEN)</p>
+    </div>
+</div>
+
+<script>
+    window.textCell = window.textCell || function(value) {
+        if (value === null || value === undefined) return '';
+        return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    };
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/accounting.js"></script>
+<script src="js/ratios.js"></script>
+<script src="js/professional.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) {
+            alert('❌ Error: No se pudo conectar con Supabase');
+            return;
+        }
+        await initDefaultData();
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        await initRatios();
+    });
+
+    async function initRatios() {
+        console.log('📊 Iniciando módulo Ratios...');
+        try {
+            const resultado = await Ratios.calcularTodos();
+            renderizarMetricasGenerales(resultado);
+            renderizarRatios(resultado);
+            console.log('✅ Módulo Ratios listo');
+        } catch (error) {
+            console.error('❌ Error:', error);
+            showAlert('Error al cargar ratios: ' + error.message, 'error');
+        }
+    }
+
+    function renderizarMetricasGenerales(r) {
+        document.getElementById('ratActivo').textContent = 'S/ ' + Ratios.fmt(r.activoTotal);
+        document.getElementById('ratActivoDetalle').textContent =
+            `Corriente: S/ ${Ratios.fmt(r.activoCorriente)} · No corriente: S/ ${Ratios.fmt(r.activoNoCorriente)}`;
+
+        document.getElementById('ratPasivo').textContent = 'S/ ' + Ratios.fmt(r.pasivoTotal);
+        document.getElementById('ratPasivoDetalle').textContent =
+            `Corriente: S/ ${Ratios.fmt(r.pasivoCorriente)} · No corriente: S/ ${Ratios.fmt(r.pasivoNoCorriente)}`;
+
+        document.getElementById('ratPatrimonio').textContent = 'S/ ' + Ratios.fmt(r.patrimonio);
+
+        document.getElementById('ratUtilidad').textContent = 'S/ ' + Ratios.fmt(r.utilidadNeta);
+        document.getElementById('ratUtilidadDetalle').textContent =
+            `Ventas: S/ ${Ratios.fmt(r.ventas)}`;
+    }
+
+    function formatearValor(ratio) {
+        if (ratio.esMoneda) return 'S/ ' + Ratios.fmt(ratio.valor);
+        if (ratio.esPorcentaje) return (ratio.valor * 100).toFixed(2) + '%';
+        if (ratio.unidad === '%') return ratio.valor.toFixed(2) + '%';
+        if (ratio.unidad === 'x') return ratio.valor.toFixed(2) + 'x';
+        if (ratio.unidad === 'veces') return ratio.valor.toFixed(2) + ' veces';
+        return ratio.valor.toFixed(2);
+    }
+
+    function crearCardRatio(ratio) {
+        const sem = Ratios.semaforo(ratio.valor, ratio.min, ratio.max, ratio.tipo);
+        const valorFormateado = formatearValor(ratio);
+
+        // Calcular porcentaje para la barra de progreso (0-100%)
+        let pct = 0;
+        if (ratio.tipo === 'mayor') {
+            pct = Math.min((ratio.valor / ratio.max) * 100, 100);
+        } else if (ratio.tipo === 'menor') {
+            pct = Math.max(0, 100 - (ratio.valor / ratio.max) * 100);
+        } else {
+            // normal
+            pct = Math.min((ratio.valor / ratio.max) * 100, 100);
+        }
+
+        return `
+            <div class="ratio-card ratio-${sem.clase}">
+                <div class="ratio-header">
+                    <div class="ratio-name">${textCell(ratio.nombre)}</div>
+                    <div class="ratio-semaforo">${sem.icon}</div>
+                </div>
+                <div class="ratio-value">${valorFormateado}</div>
+                <div class="ratio-benchmark">
+                    <span class="ratio-benchmark-label">Benchmark:</span>
+                    <span class="ratio-benchmark-value">${textCell(ratio.benchmark)}</span>
+                </div>
+                <div class="ratio-bar">
+                    <div class="ratio-bar-fill" style="width:${pct}%"></div>
+                </div>
+                <div class="ratio-interpretacion">${textCell(ratio.interpretacion)}</div>
+                <div class="ratio-formula">
+                    <small><strong>Fórmula:</strong> ${textCell(ratio.formula)}</small>
+                </div>
+                <div class="ratio-status ratio-status-${sem.clase}">${sem.texto}</div>
+            </div>
+        `;
+    }
+
+    function renderizarRatios(r) {
+        const grupos = {
+            liquidez: ['liquidezCorriente', 'pruebaAcida', 'capitalTrabajo'],
+            endeudamiento: ['endeudamientoTotal', 'apalancamiento', 'coberturaIntereses'],
+            rentabilidad: ['margenBruto', 'margenOperativo', 'margenNeto', 'roa', 'roe'],
+            gestion: ['rotacionInventarios', 'rotacionCartera', 'rotacionPagos']
+        };
+
+        document.getElementById('ratiosLiquidez').innerHTML =
+            grupos.liquidez.map(k => crearCardRatio(r.ratios[k])).join('');
+        document.getElementById('ratiosEndeudamiento').innerHTML =
+            grupos.endeudamiento.map(k => crearCardRatio(r.ratios[k])).join('');
+        document.getElementById('ratiosRentabilidad').innerHTML =
+            grupos.rentabilidad.map(k => crearCardRatio(r.ratios[k])).join('');
+        document.getElementById('ratiosGestion').innerHTML =
+            grupos.gestion.map(k => crearCardRatio(r.ratios[k])).join('');
+
+        // Resumen ejecutivo
+        const todos = Object.values(r.ratios);
+        let html = '<table><thead><tr><th>Ratio</th><th>Categoría</th><th style="text-align:right;">Valor</th><th>Benchmark</th><th style="text-align:center;">Estado</th></tr></thead><tbody>';
+
+        const categorias = {
+            liquidezCorriente: '💧 Liquidez',
+            pruebaAcida: '💧 Liquidez',
+            capitalTrabajo: '💧 Liquidez',
+            endeudamientoTotal: '💰 Endeudamiento',
+            apalancamiento: '💰 Endeudamiento',
+            coberturaIntereses: '💰 Endeudamiento',
+            margenBruto: '📈 Rentabilidad',
+            margenOperativo: '📈 Rentabilidad',
+            margenNeto: '📈 Rentabilidad',
+            roa: '📈 Rentabilidad',
+            roe: '📈 Rentabilidad',
+            rotacionInventarios: '🔄 Gestión',
+            rotacionCartera: '🔄 Gestión',
+            rotacionPagos: '🔄 Gestión'
+        };
+
+        Object.entries(r.ratios).forEach(([key, ratio]) => {
+            const sem = Ratios.semaforo(ratio.valor, ratio.min, ratio.max, ratio.tipo);
+            html += `<tr>
+                <td><strong>${textCell(ratio.nombre)}</strong></td>
+                <td>${categorias[key]}</td>
+                <td style="text-align:right; font-weight:700;">${formatearValor(ratio)}</td>
+                <td>${textCell(ratio.benchmark)}</td>
+                <td style="text-align:center;">${sem.icon} <span class="ratio-status-inline ratio-status-${sem.clase}">${sem.texto}</span></td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('ratiosResumen').innerHTML = html;
+    }
+
+    function showTabRatios(tabId, btn) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        document.querySelectorAll('.sub-nav button').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+    }
+
+    async function exportarRatiosCSV() {
+        const r = await Ratios.calcularTodos();
+        let csv = '\uFEFFRatio;Categoría;Valor;Benchmark;Estado\n';
+        Object.entries(r.ratios).forEach(([key, ratio]) => {
+            const sem = Ratios.semaforo(ratio.valor, ratio.min, ratio.max, ratio.tipo);
+            csv += `"${ratio.nombre}";"${ratio.formula}";"${formatearValor(ratio)}";"${ratio.benchmark}";"${sem.texto}"\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ratios-plaza-vea-' + new Date().toISOString().split('T')[0] + '.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+        showAlert('✅ Ratios exportados', 'success');
+    }
+</script>
+
+</body>
+</html>

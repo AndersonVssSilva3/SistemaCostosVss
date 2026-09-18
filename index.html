@@ -154,7 +154,55 @@
             </a>
         </div>
     </div>
-
+    <!-- ==================== RATIOS FINANCIEROS CLAVE ==================== -->
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
+            <h2 style="margin:0; border:0; padding:0;">📊 Ratios Financieros Clave</h2>
+            <a href="ratios.html" class="btn btn-primary" style="text-decoration:none;">Ver análisis completo →</a>
+        </div>
+        
+        <div class="kpi-ratios-grid">
+            <div class="kpi-ratio" id="kpiLiquidez">
+                <div class="kpi-header">
+                    <div class="kpi-icon">💧</div>
+                    <div class="kpi-semaforo">—</div>
+                </div>
+                <div class="kpi-label">Liquidez Corriente</div>
+                <div class="kpi-value">—</div>
+                <div class="kpi-benchmark">Benchmark: > 1.50</div>
+            </div>
+            
+            <div class="kpi-ratio" id="kpiMargenBruto">
+                <div class="kpi-header">
+                    <div class="kpi-icon">📈</div>
+                    <div class="kpi-semaforo">—</div>
+                </div>
+                <div class="kpi-label">Margen Bruto</div>
+                <div class="kpi-value">—</div>
+                <div class="kpi-benchmark">Benchmark: 25% – 30%</div>
+            </div>
+            
+            <div class="kpi-ratio" id="kpiEndeudamiento">
+                <div class="kpi-header">
+                    <div class="kpi-icon">💰</div>
+                    <div class="kpi-semaforo">—</div>
+                </div>
+                <div class="kpi-label">Endeudamiento Total</div>
+                <div class="kpi-value">—</div>
+                <div class="kpi-benchmark">Benchmark: < 0.60</div>
+            </div>
+            
+            <div class="kpi-ratio" id="kpiRoe">
+                <div class="kpi-header">
+                    <div class="kpi-icon">💎</div>
+                    <div class="kpi-semaforo">—</div>
+                </div>
+                <div class="kpi-label">ROE</div>
+                <div class="kpi-value">—</div>
+                <div class="kpi-benchmark">Benchmark: > 10%</div>
+            </div>
+        </div>
+    </div>
     <div class="footer-info">
         <p>Plaza Vea · Supermercados Peruanos S.A. © 2026 | RUC 20492068702</p>
         <p>Sistema Contable · Soles peruanos · Desarrollado sobre Supabase</p>
@@ -176,6 +224,7 @@
 <script src="js/db.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/accounting.js"></script>
+<script src="js/ratios.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/professional.js"></script>
 <script>

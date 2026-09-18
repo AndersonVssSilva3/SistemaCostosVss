@@ -887,3 +887,91 @@ table tbody tr:hover {
         -webkit-overflow-scrolling: touch;
     }
 }
+/* ==================== KPIs DE RATIOS EN DASHBOARD ==================== */
+.kpi-ratios-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.kpi-ratio {
+    background: rgba(255,255,255,.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.7);
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 2px 8px rgba(16,43,70,.05), inset 0 1px 0 rgba(255,255,255,.9);
+    transition: all .35s cubic-bezier(.16, 1, .3, 1);
+    border-left: 4px solid #999;
+    position: relative;
+    overflow: hidden;
+}
+
+.kpi-ratio:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(16,43,70,.10), inset 0 1px 0 rgba(255,255,255,.9);
+}
+
+.kpi-ratio.kpi-ok { border-left-color: #087565; }
+.kpi-ratio.kpi-warn { border-left-color: #F58220; }
+.kpi-ratio.kpi-bad { border-left-color: #E30613; }
+
+.kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.kpi-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    background: rgba(0,0,0,.04);
+}
+
+.kpi-semaforo {
+    font-size: 18px;
+}
+
+.kpi-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.kpi-value {
+    font-size: 26px;
+    font-weight: 800;
+    color: #2B2B2B;
+    letter-spacing: -1px;
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 6px;
+    line-height: 1;
+}
+
+.kpi-ok .kpi-value { color: #087565; }
+.kpi-warn .kpi-value { color: #d96d10; }
+.kpi-bad .kpi-value { color: #E30613; }
+
+.kpi-benchmark {
+    font-size: 11px;
+    color: #999;
+    font-weight: 500;
+}
+
+@media (max-width: 800px) {
+    .kpi-ratios-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .kpi-value {
+        font-size: 22px;
+    }
+}

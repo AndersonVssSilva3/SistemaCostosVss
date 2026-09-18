@@ -11,7 +11,8 @@ async function initDashboard() {
             cargarDistribucionGastos(),
             cargarTopProductosKardex(),
             cargarActividadReciente(),
-            cargarAlertasStock()
+            cargarAlertasStock(),
+            cargarRatiosClave(),          // ⬅️ NUEVO
         ]);
         console.log('✅ Dashboard listo');
     } catch (error) {
@@ -488,4 +489,52 @@ async function cargarAlertasStock() {
             </div>
         `;
     }).join('');
+}
+// ==================== RATIOS CLAVE EN EL DASHBOARD ====================
+async function cargarRatiosClave() {
+    if (typeof Ratios === 'undefined') {
+        console.warn('[Dashboard] Módulo Ratios no cargado');
+        return;
+    }
+    
+    try {
+        const resultado = await Ratios.calcularTodos();
+        const r = resultado.ratios;
+        
+        // Actualizar las 4 tarjetas de ratios clave
+        actualizarTarjetaRatio('kpiLiquidez', r.liquidezCorriente, 'x');
+        actualizarTarjetaRatio('kpiMargenBruto', r.margenBruto, '%');
+        actualizarTarjetaRatio('kpiEndeudamiento', r.endeudamientoTotal, 'pct');
+        actualizarTarjetaRatio('kpiRoe', r.roe, '%');
+        
+        console.log('✅ Ratios clave cargados');
+    } catch (error) {
+        console.error('Error cargando ratios:', error);
+    }
+}
+
+function actualizarTarjetaRatio(elementId, ratio, tipo) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    
+    const sem = Ratios.semaforo(ratio.valor, ratio.min, ratio.max, ratio.tipo);
+    
+    let valorFormateado;
+    if (tipo === 'pct') {
+        valorFormateado = (ratio.valor * 100).toFixed(2) + '%';
+    } else if (tipo === '%') {
+        valorFormateado = ratio.valor.toFixed(2) + '%';
+    } else if (tipo === 'x') {
+        valorFormateado = ratio.valor.toFixed(2) + 'x';
+    } else {
+        valorFormateado = ratio.valor.toFixed(2);
+    }
+    
+    el.querySelector('.kpi-value').textContent = valorFormateado;
+    el.querySelector('.kpi-semaforo').textContent = sem.icon;
+    el.querySelector('.kpi-benchmark').textContent = ratio.benchmark;
+    
+    // Actualizar clase de color
+    el.classList.remove('kpi-ok', 'kpi-warn', 'kpi-bad');
+    el.classList.add('kpi-' + sem.clase);
 }
