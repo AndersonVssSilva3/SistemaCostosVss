@@ -35,7 +35,6 @@ function updateDateTime() {
 }
 
 // ==================== ESCAPADO HTML ====================
-// ⚠️ CRÍTICO: textCell debe existir para que funcionen operaciones, libros, tablas, etc.
 function textCell(value) {
     if (value === null || value === undefined) return '';
     return String(value)
@@ -46,52 +45,39 @@ function textCell(value) {
         .replace(/'/g, '&#39;');
 }
 
-// ⚠️ NO declarar const esc aquí — professional.js ya lo declara
-// window.esc = textCell;  // ← NO, eliminar
-
-// ==================== LECTOR DE VOZ ====================
-function anunciarModulo(nombreModulo, callback) {
-    if (!('speechSynthesis' in window)) {
-        if (callback) callback();
-        return;
-    }
-    const texto = `Ha ingresado al módulo de ${nombreModulo}`;
-    const hablar = () => {
-        const mensaje = new SpeechSynthesisUtterance(texto);
-        mensaje.lang = 'es-PE';
-        mensaje.rate = 1.0;
-        const voces = window.speechSynthesis.getVoices();
-        const vozEspanol = voces.find(v => v.lang.toLowerCase().startsWith('es'));
-        if (vozEspanol) mensaje.voice = vozEspanol;
-        mensaje.onend = function() { if (callback) callback(); };
-        mensaje.onerror = function() { if (callback) callback(); };
-        window.speechSynthesis.speak(mensaje);
-    };
-    const vocesActuales = window.speechSynthesis.getVoices();
-    if (vocesActuales.length > 0) {
-        hablar();
-    } else {
-        let yaHablo = false;
-        const alCargarVoces = () => {
-            if (yaHablo) return;
-            yaHablo = true;
-            hablar();
-        };
-        window.speechSynthesis.onvoiceschanged = alCargarVoces;
-        setTimeout(alCargarVoces, 2000);
-    }
-}
-
 // ==================== NAVEGACIÓN CON VOZ ====================
 function irAModulo(url, nombreModulo) {
-    let yaNavego = false;
-    const navegar = () => {
-        if (yaNavego) return;
-        yaNavego = true;
-        window.location.href = url;
-    };
-    anunciarModulo(nombreModulo, navegar);
-    setTimeout(navegar, 2500);
+    console.log('🚀 Navegando a:', url);
+
+    try {
+        if ('speechSynthesis' in window) {
+            const mensaje = new SpeechSynthesisUtterance(`Ha ingresado al módulo de ${nombreModulo}`);
+            mensaje.lang = 'es-PE';
+            mensaje.rate = 1.0;
+            const voces = window.speechSynthesis.getVoices();
+            const vozEspanol = voces.find(v => v.lang.toLowerCase().startsWith('es'));
+            if (vozEspanol) mensaje.voice = vozEspanol;
+            window.speechSynthesis.speak(mensaje);
+        }
+    } catch (e) {
+        console.warn('Voz no disponible:', e);
+    }
+
+    window.location.href = url;
+}
+
+function anunciarModulo(nombreModulo, callback) {
+    try {
+        if ('speechSynthesis' in window) {
+            const mensaje = new SpeechSynthesisUtterance(`Ha ingresado al módulo de ${nombreModulo}`);
+            mensaje.lang = 'es-PE';
+            mensaje.rate = 1.0;
+            window.speechSynthesis.speak(mensaje);
+        }
+    } catch (e) {
+        console.warn('Voz no disponible:', e);
+    }
+    if (callback) callback();
 }
 
 // ==================== AUTO-VOZ EN BARRA LATERAL ====================
@@ -99,6 +85,7 @@ function irAModulo(url, nombreModulo) {
     const mapaModulos = {
         'index.html': 'Resumen',
         'operaciones.html': 'Operaciones',
+        'kardex.html': 'Kardex',
         'libros.html': 'Libros Contables',
         'eeff.html': 'Estados Financieros',
         'costos.html': 'Costos',
@@ -113,12 +100,11 @@ function irAModulo(url, nombreModulo) {
         todosLosLinks.forEach(link => {
             if (link.dataset.vozActivada === 'true') return;
             const href = link.getAttribute('href');
-            if (href && mapaModulos[href]) {
+            if (href && mapaModulos[href] && !link.hasAttribute('onclick')) {
                 link.dataset.vozActivada = 'true';
                 const nombre = mapaModulos[href];
                 contador++;
                 link.addEventListener('click', function(e) {
-                    if (link.hasAttribute('onclick')) return;
                     e.preventDefault();
                     irAModulo(href, nombre);
                 });
@@ -128,7 +114,5 @@ function irAModulo(url, nombreModulo) {
     }
 
     document.addEventListener('DOMContentLoaded', activarVozEnLinks);
-    const observer = new MutationObserver(activarVozEnLinks);
-    observer.observe(document.body, { childList: true, subtree: true });
     window.addEventListener('load', activarVozEnLinks);
 })();

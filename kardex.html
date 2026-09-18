@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kardex - OMEGA SAC</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/professional.css">
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <div class="company-name">OMEGA SAC</div>
+        <h1>📦 KARDEX</h1>
+    </div>
+    <div style="display:flex; align-items:center; gap:15px;">
+        <a href="index.html" class="home-btn">🏠 Inicio</a>
+        <div class="datetime" id="currentDateTime"></div>
+    </div>
+</div>
+
+<div class="sub-nav">
+    <button class="active" onclick="showTab('kx-movimientos', this)">📦 Movimientos</button>
+    <button onclick="showTabKardex('kx-kardex', this)">📊 Kardex por Producto</button>
+    <button onclick="showTabKardex('kx-valorizado', this)">💰 Inventario Valorizado</button>
+    <button onclick="showTabKardex('kx-ajustes', this)">⚖️ Ajustes</button>
+</div>
+
+<div class="main-content">
+    <div id="alertContainer"></div>
+
+    <!-- MOVIMIENTOS -->
+    <div class="tab-content active" id="kx-movimientos">
+        <div class="card">
+            <h2>📦 Registro de Movimientos</h2>
+            <div class="btn-group" style="margin-bottom:15px;">
+                <button class="btn btn-success" onclick="openModalKardex('entrada')">➕ Entrada</button>
+                <button class="btn btn-danger" onclick="openModalKardex('salida')">➖ Salida</button>
+                <button class="btn btn-warning" onclick="openModalKardex('ajuste')">⚖️ Ajuste</button>
+            </div>
+            <div class="search-box">
+                <input type="text" id="kxSearchProducto" placeholder="Buscar producto..." onkeyup="filterKardex()">
+                <input type="date" id="kxFilterDesde">
+                <input type="date" id="kxFilterHasta">
+                <select id="kxFilterTipo" onchange="filterKardex()">
+                    <option value="">Todos los tipos</option>
+                    <option value="entrada">Entradas</option>
+                    <option value="salida">Salidas</option>
+                    <option value="ajuste">Ajustes</option>
+                </select>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Producto</th>
+                            <th>Tipo</th>
+                            <th>Documento</th>
+                            <th>Descripción</th>
+                            <th style="text-align:right;">Cantidad</th>
+                            <th style="text-align:right;">Costo Unit.</th>
+                            <th style="text-align:right;">Costo Total</th>
+                            <th style="text-align:right;">Saldo</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="kardexTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- KARDEX POR PRODUCTO -->
+    <div class="tab-content" id="kx-kardex">
+        <div class="card">
+            <h2>📊 Kardex Detallado por Producto</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Producto / Mercadería</label>
+                    <select id="kardexProducto" onchange="generarKardexProducto()">
+                        <option value="">Seleccione producto...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Desde</label>
+                    <input type="date" id="kardexDesde" value="2026-01-01">
+                </div>
+                <div class="form-group">
+                    <label>Hasta</label>
+                    <input type="date" id="kardexHasta" value="2026-12-31">
+                </div>
+                <div class="form-group" style="display:flex; align-items:flex-end;">
+                    <button class="btn btn-primary" onclick="generarKardexProducto()">📊 Generar</button>
+                </div>
+            </div>
+
+            <div id="kardexResumen" style="margin:20px 0;"></div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Documento</th>
+                            <th>Descripción</th>
+                            <th colspan="3" style="text-align:center; background:#e8f5e9;">ENTRADAS</th>
+                            <th colspan="3" style="text-align:center; background:#ffebee;">SALIDAS</th>
+                            <th colspan="3" style="text-align:center; background:#e3f2fd;">SALDOS</th>
+                        </tr>
+                        <tr>
+                            <th></th><th></th><th></th>
+                            <th style="text-align:right;">Cant.</th>
+                            <th style="text-align:right;">Costo U.</th>
+                            <th style="text-align:right;">Total</th>
+                            <th style="text-align:right;">Cant.</th>
+                            <th style="text-align:right;">Costo U.</th>
+                            <th style="text-align:right;">Total</th>
+                            <th style="text-align:right;">Cant.</th>
+                            <th style="text-align:right;">Costo U.</th>
+                            <th style="text-align:right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="kardexProductoTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- INVENTARIO VALORIZADO -->
+    <div class="tab-content" id="kx-valorizado">
+        <div class="card">
+            <h2>💰 Inventario Valorizado</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Al</label>
+                    <input type="date" id="invValFecha" value="2026-12-31">
+                </div>
+                <div class="form-group" style="display:flex; align-items:flex-end;">
+                    <button class="btn btn-primary" onclick="generarInventarioValorizado()">📊 Generar</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Unidad</th>
+                            <th style="text-align:right;">Stock</th>
+                            <th style="text-align:right;">Costo Promedio</th>
+                            <th style="text-align:right;">Valor Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invValTable"></tbody>
+                    <tfoot>
+                        <tr style="font-weight:700; background:#e8eaf6;">
+                            <td colspan="5" style="text-align:right;">TOTAL INVENTARIO</td>
+                            <td style="text-align:right;" id="invValTotal">0.00</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- AJUSTES -->
+    <div class="tab-content" id="kx-ajustes">
+        <div class="card">
+            <h2>⚖️ Ajustes de Inventario</h2>
+            <p class="field-help">
+                Los ajustes permiten corregir diferencias detectadas en la toma física de inventarios.
+                Cada ajuste debe estar justificado con un acta o documento de sustento.
+            </p>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Producto</th>
+                            <th>Documento</th>
+                            <th>Motivo</th>
+                            <th style="text-align:right;">Ajuste</th>
+                            <th style="text-align:right;">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="kardexAjustesTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-info">
+        <p>Sistema de Contabilidad OMEGA SAC © 2026 · Kardex valorizado por promedio ponderado</p>
+    </div>
+</div>
+
+<!-- MODAL MOVIMIENTO -->
+<div class="modal-overlay" id="modalKardexMov">
+    <div class="modal">
+        <button class="close-btn" onclick="closeModal('modalKardexMov')">&times;</button>
+        <h2 id="kardexModalTitulo">Nuevo Movimiento</h2>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" id="kxFecha">
+            </div>
+            <div class="form-group">
+                <label>Tipo</label>
+                <input type="text" id="kxTipo" readonly>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Producto / Mercadería</label>
+            <select id="kxProducto"></select>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Documento (Factura, Guía, etc.)</label>
+                <input type="text" id="kxDocumento">
+            </div>
+            <div class="form-group">
+                <label>Descripción</label>
+                <input type="text" id="kxDescripcion">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Cantidad</label>
+                <input type="number" id="kxCantidad" step="0.001" oninput="calcKardexTotal()">
+            </div>
+            <div class="form-group">
+                <label>Costo Unitario</label>
+                <input type="number" id="kxCostoUnit" step="0.0001" oninput="calcKardexTotal()">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Costo Total</label>
+            <input type="number" id="kxCostoTotal" readonly>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="guardarMovimientoKardex()">💾 Guardar</button>
+            <button class="btn btn-danger" onclick="closeModal('modalKardexMov')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Fallback textCell -->
+<script>
+    window.textCell = window.textCell || function(value) {
+        if (value === null || value === undefined) return '';
+        return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    };
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/accounting.js"></script>
+<script src="js/kardex.js"></script>
+<script src="js/professional.js"></script>
+<script src="js/utilitarios.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) {
+            alert('❌ Error: No se pudo conectar con Supabase');
+            return;
+        }
+        await initDefaultData();
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        await initKardex();
+    });
+</script>
+
+</body>
+</html>

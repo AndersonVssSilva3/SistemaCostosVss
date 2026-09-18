@@ -32,7 +32,7 @@
         .menu-card h3 { font-size: 1.2em; margin-bottom: 5px; }
         .menu-card p { color: #666; font-size: 0.85em; }
     </style>
-<link rel="stylesheet" href="css/professional.css">
+    <link rel="stylesheet" href="css/professional.css">
 </head>
 <body>
 
@@ -53,6 +53,11 @@
                 <div class="icon">📋</div>
                 <h3>OPERACIONES</h3>
                 <p>Registro de Asientos Contables</p>
+            </a>
+            <a href="javascript:void(0)" class="menu-card" onclick="irAModulo('kardex.html','Kardex')">
+                <div class="icon">📦</div>
+                <h3>KARDEX</h3>
+                <p>Control de Inventarios</p>
             </a>
             <a href="javascript:void(0)" class="menu-card" onclick="irAModulo('libros.html','Libros Contables')">
                 <div class="icon">📚</div>
@@ -85,21 +90,32 @@
                 <p>Backup, Estadísticas, Manual</p>
             </a>
         </div>
-
-
     </div>
 
     <div class="footer-info">
-        <p>Sistema de Contabilidad OMEGA SAC © 2026 | Contabilidad en soles · Entorno local</p>
-        <p>Versión 2.0 | Última actualización: 11/09/2026</p>
+        <p>Sistema de Contabilidad OMEGA SAC © 2026 | Contabilidad en soles · Supabase</p>
+        <p>Versión 2.1 | Última actualización: 17/09/2026</p>
     </div>
 </div>
 
-<!-- 1. CDN de Supabase primero -->
+<!-- Fallback: textCell antes de cualquier script -->
+<script>
+    window.textCell = window.textCell || function(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    };
+</script>
+
+<!-- 1. CDN de Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- 2. Configuración (crea supabaseClient) -->
+<!-- 2. Configuración Supabase -->
 <script src="js/supabase-config.js"></script>
-<!-- 3. db.js (usa supabaseClient) -->
+<!-- 3. Base de datos -->
 <script src="js/db.js"></script>
 <!-- 4. Resto -->
 <script src="js/utils.js"></script>

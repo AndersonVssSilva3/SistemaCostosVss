@@ -5,27 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EEFF - OMEGA SAC</title>
     <link rel="stylesheet" href="css/styles.css">
-<link rel="stylesheet" href="css/professional.css">
+    <link rel="stylesheet" href="css/professional.css">
 </head>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-config.js"></script>
-<script src="js/db.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/accounting.js"></script>
-<script src="js/eeff.js"></script>
-<script src="js/professional.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', async function() {
-        if (!initSupabase()) {
-            alert('❌ Error: No se pudo conectar con Supabase');
-            return;
-        }
-        await initDefaultData();
-        updateDateTime();
-        setInterval(updateDateTime, 60000);
-        await initEEFF();
-    });
-</script>
 <body>
 
 <div class="header">
@@ -47,6 +28,8 @@
 </div>
 
 <div class="main-content">
+    <div id="alertContainer"></div>
+
     <div class="tab-content active" id="eeff-balance">
         <div class="card">
             <h2>📊 Balance General</h2>
@@ -59,6 +42,7 @@
             </div>
         </div>
     </div>
+
     <div class="tab-content" id="eeff-ganancias">
         <div class="card">
             <h2>📊 Estado de Ganancias y Pérdidas</h2>
@@ -70,6 +54,7 @@
             </div>
         </div>
     </div>
+
     <div class="tab-content" id="eeff-flujo">
         <div class="card">
             <h2>📊 Flujo de Efectivo</h2>
@@ -81,35 +66,62 @@
             </div>
         </div>
     </div>
+
     <div class="tab-content" id="eeff-comprobacion">
         <div class="card">
             <h2>📊 Balance de Comprobación</h2>
             <div class="table-container">
                 <table>
                     <thead>
-                        <tr><th>Código</th><th>Cuenta</th><th style="text-align:right;">Saldo Deudor</th>
-                        <th style="text-align:right;">Saldo Acreedor</th><th style="text-align:right;">Mov. Deudor</th>
-                        <th style="text-align:right;">Mov. Acreedor</th></tr>
+                        <tr>
+                            <th>Código</th><th>Cuenta</th>
+                            <th style="text-align:right;">Saldo Deudor</th>
+                            <th style="text-align:right;">Saldo Acreedor</th>
+                            <th style="text-align:right;">Mov. Deudor</th>
+                            <th style="text-align:right;">Mov. Acreedor</th>
+                        </tr>
                     </thead>
                     <tbody id="comprobacionTable"></tbody>
                 </table>
             </div>
         </div>
     </div>
+
     <div class="footer-info"><p>Sistema de Contabilidad OMEGA SAC © 2026</p></div>
 </div>
 
+<!-- Fallback textCell -->
+<script>
+    window.textCell = window.textCell || function(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    };
+</script>
+
+<!-- 1. CDN Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- 2. Configuración Supabase -->
+<script src="js/supabase-config.js"></script>
+<!-- 3. Base de datos -->
 <script src="js/db.js"></script>
+<!-- 4. Resto -->
 <script src="js/utils.js"></script>
 <script src="js/accounting.js"></script>
 <script src="js/eeff.js"></script>
 <script src="js/professional.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        initDefaultData();
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) {
+            alert('❌ Error: No se pudo conectar con Supabase');
+            return;
+        }
+        await initDefaultData();
         updateDateTime();
         setInterval(updateDateTime, 60000);
-        initEEFF();
+        await initEEFF();
     });
 </script>
 

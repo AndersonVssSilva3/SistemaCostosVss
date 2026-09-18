@@ -141,7 +141,10 @@ const DB = {
             'inductores': 'inductores',
             'repuestos': 'repuestos',
             'ajustes': 'ajustes',
-            'productos': 'productos'
+            'productos': 'productos',
+            'kardex': 'kardex',           // ← NUEVO
+            'audit': 'audit',             // ← NUEVO (si lo vas a usar)
+            'costItems': 'cost_items'     // ← NUEVO (si lo vas a usar)
         };
         return map[key] || key;
     }

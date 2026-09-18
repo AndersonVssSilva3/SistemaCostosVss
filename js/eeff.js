@@ -34,6 +34,19 @@ async function getSaldos() {
 // ==================== BALANCE GENERAL ====================
 async function generarBalanceGeneral() {
     const { cuentas, saldos } = await getSaldos();
+    // ⚠️ Validar que el saldo de cuenta 20 coincida con el Kardex
+    const kardex = await DB.getAll('kardex');
+    const saldoKardex = kardex.reduce((s, m) => s + (Number(m.saldo_total) || 0), 0);
+    const saldo20 = Math.abs(saldos['201'] || 0);
+    
+    if (Math.abs(saldoKardex - saldo20) > 0.01 && kardex.length > 0) {
+        console.warn(`⚠️ Descuadre: Kardex S/ ${saldoKardex.toFixed(2)} vs Cuenta 20 S/ ${saldo20.toFixed(2)}`);
+    }
+    
+
+
+
+
     let html = '<tr><td colspan="3" style="background:#e8eaf6; font-weight:700;">ACTIVO</td></tr>';
     let totalActivo = 0;
     

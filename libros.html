@@ -243,7 +243,27 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js"></script>
+
+<!-- Fallback: textCell antes de cualquier script -->
+<script>
+    window.textCell = window.textCell || function(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    };
+</script>
+
+<!-- 1. CDN de Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- 2. Configuración Supabase -->
+<script src="js/supabase-config.js"></script>
+<!-- 3. Base de datos -->
 <script src="js/db.js"></script>
+<!-- 4. Resto -->
 <script src="js/utils.js"></script>
 <script src="js/accounting.js"></script>
 <script src="js/libros.js"></script>
@@ -257,7 +277,7 @@
         await initDefaultData();
         updateDateTime();
         setInterval(updateDateTime, 60000);
-        // await initTU_MODULO(); // ← el que corresponda
+        await initLibros();   // ← ¡AQUÍ ESTABA EL PROBLEMA!
     });
 </script>
 

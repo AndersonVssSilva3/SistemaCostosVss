@@ -1,8 +1,9 @@
 'use strict';
-// ⚠️ NO redeclarar esc, money, empty aquí — ya están definidas globalmente
-// (evita colisión de 'const' en el mismo ámbito global que utils.js)
 
-// Fallback defensivo por si utils.js no cargó
+// ==================== HELPERS GLOBALES ====================
+// NO definimos el() para evitar conflictos con otros módulos.
+// Usamos document.getElementById() directo en todo el archivo.
+
 if (typeof window.textCell !== 'function') {
     window.textCell = function(value) {
         if (value === null || value === undefined) return '';
@@ -15,15 +16,17 @@ if (typeof window.textCell !== 'function') {
     };
 }
 
-// Helpers locales SIN redeclarar nombres globales
 function _esc(value) { return window.textCell(value); }
 function _money(v) { return Number(v || 0).toFixed(2); }
 function _empty(columns, text = 'Sin registros para mostrar.') {
     return `<tr><td class="empty-state" colspan="${columns}">${_esc(text)}</td></tr>`;
 }
+
+// ==================== MENÚ DE MÓDULOS ====================
 const modules = [
     ['index.html', '◫', 'Resumen'],
     ['operaciones.html', '↔', 'Operaciones'],
+    ['kardex.html', '▦', 'Kardex'],
     ['libros.html', '▤', 'Libros contables'],
     ['eeff.html', '▥', 'Estados financieros'],
     ['costos.html', '▦', 'Costos'],
@@ -32,11 +35,14 @@ const modules = [
     ['utilitarios.html', '⚙', 'Herramientas']
 ];
 
-document.addEventListener('DOMContentLoaded', async () => {
+// ==================== CONSTRUCCIÓN DEL SIDEBAR ====================
+function construirSidebar() {
+    // Evitar duplicados si ya existe
+    if (document.querySelector('.app-sidebar')) return;
+
     const current = location.pathname.split('/').pop() || 'index.html';
 
-    // -------- Barra lateral --------
-    document.body.insertAdjacentHTML('afterbegin', `
+    const sidebarHTML = `
         <a class="skip-link" href="#workspace">Ir al contenido</a>
         <aside class="app-sidebar">
             <a class="app-brand" href="index.html">OMEGA<small>CONTABILIDAD</small></a>
@@ -54,7 +60,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 Datos en Supabase
             </div>
         </aside>
-    `);
+    `;
+
+    document.body.insertAdjacentHTML('afterbegin', sidebarHTML);
+    console.log('✅ Sidebar construido');
+}
+
+// ==================== INICIALIZACIÓN UI ====================
+document.addEventListener('DOMContentLoaded', async () => {
+    const current = location.pathname.split('/').pop() || 'index.html';
+
+    // -------- Barra lateral (PRIMERO, siempre) --------
+    construirSidebar();
 
     const main = document.querySelector('.main-content');
     if (main) main.id = 'workspace';
@@ -66,8 +83,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (found) title.textContent = found[2];
     }
 
-    // -------- Contenedor de alertas --------
-    let alerts = el('alertContainer');
+    // -------- Contenedor de alertas (usando getElementById directo) --------
+    let alerts = document.getElementById('alertContainer');
     if (!alerts && main) {
         alerts = document.createElement('div');
         alerts.id = 'alertContainer';
@@ -92,7 +109,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.form-group').forEach(g => {
         const label = g.querySelector('label');
         const input = g.querySelector('input,select,textarea');
-        if (label && input?.id) label.htmlFor = input.id;
+        if (label && input && input.id) label.htmlFor = input.id;
     });
     document.querySelectorAll('input[type=number]').forEach(i => i.min = '0');
     document.querySelectorAll('input[type=date]').forEach(i => {
@@ -103,8 +120,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.table-container').forEach(c => {
         c.tabIndex = 0;
         c.setAttribute('role', 'region');
-        const title = c.closest('.card')?.querySelector('h2')?.textContent || 'Tabla de datos';
-        c.setAttribute('aria-label', title);
+        const cardTitle = c.closest('.card')?.querySelector('h2')?.textContent || 'Tabla de datos';
+        c.setAttribute('aria-label', cardTitle);
     });
     document.querySelectorAll('.delete-btn').forEach(b => {
         b.title = 'Eliminar registro';
