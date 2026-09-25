@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planilla - Plaza Vea</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧾</text></svg>">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/professional.css">
+    <link rel="stylesheet" href="css/plaza-vea.css">
+    <link rel="stylesheet" href="css/plaza-vea-3d.css">
+</head>
+<body>
+    <div class="header">
+        <div>
+            <div class="company-name">Supermercados Peruanos S.A.</div>
+            <h1>🧾 Planilla</h1>
+        </div>
+        <div style="display:flex; align-items:center; gap:15px;">
+            <a href="index.html" class="home-btn">🏠 Inicio</a>
+            <div class="datetime" id="currentDateTime"></div>
+        </div>
+    </div>
+
+    <div class="sub-nav">
+        <button class="active" type="button">📋 Planilla</button>
+    </div>
+
+    <div class="main-content">
+        <div class="card">
+            <h2>📋 Resumen de Planilla</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Empleado</th>
+                            <th style="text-align:right;">Sueldo Bruto</th>
+                            <th style="text-align:right;">Desc. AFP/ONP</th>
+                            <th style="text-align:right;">Desc. Imp. Renta</th>
+                            <th style="text-align:right;">Sueldo Neto</th>
+                        </tr>
+                    </thead>
+                    <tbody id="planillaTableBody">
+                        <tr>
+                            <td colspan="5" class="empty-state">Cargando datos de planilla...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="footer-info">
+            <p>Sistema de Contabilidad OMEGA SAC © 2026 · Planilla de empleados</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/professional.js"></script>
+
+    <script>
+        function formatearMoneda(valor) {
+            const numero = Number(valor || 0);
+            return `S/ ${numero.toLocaleString('es-PE', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            })}`;
+        }
+
+        async function cargarPlanilla() {
+            const tbody = document.getElementById('planillaTableBody');
+            if (!tbody) return;
+
+            if (!initSupabase()) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No se pudo conectar con Supabase.</td></tr>';
+                return;
+            }
+
+            const { data, error } = await supabaseClient
+                .from('planillas')
+                .select(`
+                    empleado_id,
+                    total_bruto,
+                    descuento_pension,
+                    descuento_ir,
+                    total_neto,
+                    empleados_planilla (nombre)
+                `)
+                .order('id', { ascending: true });
+
+            if (error) {
+                console.error('Error al cargar planilla:', error);
+                tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Error al cargar datos: ${error.message}</td></tr>`;
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No hay registros de planilla para mostrar.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map((fila) => {
+                const empleado = fila.empleados_planilla?.nombre || fila.empleado_id || 'Sin empleado';
+                return `
+                    <tr>
+                        <td>${empleado}</td>
+                        <td style="text-align:right;">${formatearMoneda(fila.total_bruto)}</td>
+                        <td style="text-align:right;">${formatearMoneda(fila.descuento_pension)}</td>
+                        <td style="text-align:right;">${formatearMoneda(fila.descuento_ir)}</td>
+                        <td style="text-align:right; font-weight:700; color:#2e7d32;">${formatearMoneda(fila.total_neto)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            updateDateTime();
+            setInterval(updateDateTime, 60000);
+            await cargarPlanilla();
+        });
+    </script>
+</body>
+</html>
