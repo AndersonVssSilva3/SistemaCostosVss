@@ -967,20 +967,9 @@ async function initDefaultData() {
         }
 
         // ==================== 3. ASIENTOS ====================
-        const asientosExistentes = await DB.getAll('asientos');
-        if (asientosExistentes.length === 0) {
-            console.log('📦 Insertando asientos de ejemplo...');
-            await supabaseClient.from('asientos').insert([{
-                numero: 'AS-001', fecha: '2026-09-04', tipo: 'normal',
-                glosa: 'Venta de demostración cobrada en cuenta corriente',
-                lineas: [
-                    { cuenta: '104', nombre: 'Cuentas Corrientes', debe: 11800, haber: 0 },
-                    { cuenta: '401', nombre: 'IGV', debe: 0, haber: 1800 },
-                    { cuenta: '701', nombre: 'Mercaderías', debe: 0, haber: 10000 }
-                ],
-                estado: 'validado'
-            }]);
-        }
+        // ==================== 3. ASIENTOS ====================
+        // ⚠️ El asiento de ejemplo fue eliminado.
+        // Los datos se cargan únicamente desde seed-plaza-vea.js
 
         console.log('✅ Init completa');
     } catch (error) {
