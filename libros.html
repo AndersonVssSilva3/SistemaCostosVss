@@ -144,14 +144,30 @@
     <!-- PLANILLAS -->
     <div class="tab-content" id="lib-planillas">
         <div class="card">
-            <h2>👥 Planillas</h2>
+            <h2>👥 Planillas · Plaza Vea</h2>
             <div class="btn-group" style="margin-bottom:15px;">
                 <button class="btn btn-info" onclick="openModal('modalPlanilla')">➕ Agregar Trabajador</button>
+                <button class="btn btn-success" onclick="exportarPlanillasCSV()">📥 Exportar CSV</button>
             </div>
             <div class="table-container">
                 <table>
                     <thead>
-                        <tr><th>Código</th><th>Nombre</th><th>Cargo</th><th>Sueldo Bruto</th><th>AFP/ONP</th><th>ESSALUD</th><th>Impuesto</th><th>Neto</th><th>Acciones</th></tr>
+                        <tr>
+                            <th>Período</th>
+                            <th>Empleado</th>
+                            <th>DNI</th>
+                            <th>Cargo</th>
+                            <th style="text-align:right;">Sueldo Base</th>
+                            <th style="text-align:right;">Asig. Fam.</th>
+                            <th style="text-align:right;">Bonif.</th>
+                            <th style="text-align:right;">Gratif.</th>
+                            <th style="text-align:right;">Total Bruto</th>
+                            <th style="text-align:right;">ONP/AFP</th>
+                            <th style="text-align:right;">IR 5ta</th>
+                            <th style="text-align:right;">Neto a Pagar</th>
+                            <th style="text-align:right;">Essalud</th>
+                            <th style="text-align:right;">CTS</th>
+                        </tr>
                     </thead>
                     <tbody id="planillasTable"></tbody>
                 </table>
@@ -244,8 +260,7 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-config.js"></script>
+
 
 <!-- Fallback: textCell antes de cualquier script -->
 <script>
@@ -259,11 +274,9 @@
             .replace(/'/g, '&#39;');
     };
 </script>
-
-<!-- 1. CDN de Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- 2. Configuración Supabase -->
 <script src="js/supabase-config.js"></script>
+
 <!-- 3. Base de datos -->
 <script src="js/db.js"></script>
 <!-- 4. Resto -->

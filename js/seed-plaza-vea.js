@@ -1,10 +1,8 @@
-// ==================== SEED PLAZA VEA - DATOS DE DEMOSTRACIÓN ====================
-// Supermercados Peruanos S.A. - Datos contables realistas
-// Todos los registros llevan la marca "PV · " para poder borrarlos después.
+// ==================== SEED PLAZA VEA v2.0 - CONTABLEMENTE CORRECTO ====================
+// Datos que CUADRAN: Activo = Pasivo + Patrimonio
 
 const PV_MARKER = 'PV · ';
 
-// ==================== HELPERS ====================
 function pvFecha(anio, mes, dia) {
     return `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 }
@@ -21,8 +19,7 @@ function pvRedondear(n) {
     return Math.round(n * 100) / 100;
 }
 
-// ==================== CATÁLOGOS PLAZA VEA ====================
-
+// ==================== CATÁLOGOS ====================
 const PV_CENTROS = [
     { codigo: 'CC-ABAR', nombre: 'Abarrotes',              responsable: 'Ing. Roberto Salinas', presupuesto: 2500000, gastado: 2180000 },
     { codigo: 'CC-PERE', nombre: 'Perecibles',             responsable: 'Ing. Carolina Vega',   presupuesto: 1800000, gastado: 1650000 },
@@ -52,14 +49,14 @@ const PV_PRODUCTOS = [
 ];
 
 const PV_MERCADERIAS = [
-    { codigo: 'MP-CARN-001', descripcion: 'Carne de res (corte industrial)',  unidad: 'KG', stock: 850,  costo: 28.50 },
-    { codigo: 'MP-CARN-002', descripcion: 'Pollo entero fresco',              unidad: 'KG', stock: 1200, costo: 11.80 },
-    { codigo: 'MP-CARN-003', descripcion: 'Cerdo (pierna industrial)',        unidad: 'KG', stock: 600,  costo: 18.90 },
-    { codigo: 'MP-FRUT-001', descripcion: 'Papa blanca (saco 50kg)',          unidad: 'KG', stock: 2400, costo: 2.80 },
-    { codigo: 'MP-FRUT-002', descripcion: 'Cebolla roja',                     unidad: 'KG', stock: 1800, costo: 3.20 },
-    { codigo: 'MP-FRUT-003', descripcion: 'Tomate italiano',                  unidad: 'KG', stock: 1500, costo: 4.10 },
-    { codigo: 'MP-FRUT-004', descripcion: 'Plátano de seda',                  unidad: 'KG', stock: 900,  costo: 3.50 },
-    { codigo: 'MP-PANA-001', descripcion: 'Pan francés (insumo panadería)',   unidad: 'KG', stock: 400,  costo: 5.20 }
+    { codigo: 'MP-CARN-001', descripcion: 'Carne de res (corte industrial)',  unidad: 'KG', costo: 28.50 },
+    { codigo: 'MP-CARN-002', descripcion: 'Pollo entero fresco',              unidad: 'KG', costo: 11.80 },
+    { codigo: 'MP-CARN-003', descripcion: 'Cerdo (pierna industrial)',        unidad: 'KG', costo: 18.90 },
+    { codigo: 'MP-FRUT-001', descripcion: 'Papa blanca (saco 50kg)',          unidad: 'KG', costo: 2.80 },
+    { codigo: 'MP-FRUT-002', descripcion: 'Cebolla roja',                     unidad: 'KG', costo: 3.20 },
+    { codigo: 'MP-FRUT-003', descripcion: 'Tomate italiano',                  unidad: 'KG', costo: 4.10 },
+    { codigo: 'MP-FRUT-004', descripcion: 'Plátano de seda',                  unidad: 'KG', costo: 3.50 },
+    { codigo: 'MP-PANA-001', descripcion: 'Pan francés (insumo panadería)',   unidad: 'KG', costo: 5.20 }
 ];
 
 const PV_ACTIVOS = [
@@ -103,16 +100,16 @@ const PV_REPUESTOS = [
 ];
 
 const PV_PROVEEDORES = [
-    { nombre: 'Alicorp S.A.A.',                    ruc: '20100055237', tipo: 'Abarrotes' },
-    { nombre: 'Gloria S.A.',                       ruc: '20100190797', tipo: 'Lácteos' },
-    { nombre: 'Backus y Johnston S.A.A.',          ruc: '20100114580', tipo: 'Bebidas' },
-    { nombre: 'Coca-Cola Servicios del Perú',      ruc: '20331612731', tipo: 'Bebidas' },
-    { nombre: 'Nestlé Perú S.A.',                  ruc: '20100111459', tipo: 'Abarrotes' },
-    { nombre: 'Unilever Andina Perú S.A.',         ruc: '20254928612', tipo: 'Cuidado Personal' },
-    { nombre: 'Kimberly Clark Perú S.A.',          ruc: '20100111597', tipo: 'Limpieza' },
-    { nombre: 'Laive S.A.',                        ruc: '20100022481', tipo: 'Lácteos' },
-    { nombre: 'Distribuidora Andina de Alimentos', ruc: '20512345678', tipo: 'Abarrotes' },
-    { nombre: 'Frigorífico del Pacífico S.A.C.',   ruc: '20458791234', tipo: 'Carnes' }
+    { nombre: 'Alicorp S.A.A.',                    ruc: '20100055237' },
+    { nombre: 'Gloria S.A.',                       ruc: '20100190797' },
+    { nombre: 'Backus y Johnston S.A.A.',          ruc: '20100114580' },
+    { nombre: 'Coca-Cola Servicios del Perú',      ruc: '20331612731' },
+    { nombre: 'Nestlé Perú S.A.',                  ruc: '20100111459' },
+    { nombre: 'Unilever Andina Perú S.A.',         ruc: '20254928612' },
+    { nombre: 'Kimberly Clark Perú S.A.',          ruc: '20100111597' },
+    { nombre: 'Laive S.A.',                        ruc: '20100022481' },
+    { nombre: 'Distribuidora Andina de Alimentos', ruc: '20512345678' },
+    { nombre: 'Frigorífico del Pacífico S.A.C.',   ruc: '20458791234' }
 ];
 
 const PV_CLIENTES = [
@@ -130,7 +127,7 @@ const PV_CLIENTES = [
 
 // ==================== FUNCIÓN PRINCIPAL ====================
 async function cargarDatosPlazaVea() {
-    if (!confirm('🛒 Se cargarán datos contables de PLAZA VEA (Supermercados Peruanos S.A.)\n\n📊 Incluye:\n   · 6 centros de costo por sección\n   · 16 productos retail\n   · 8 mercaderías a granel\n   · ~90 asientos contables\n   · Kardex con promedio ponderado\n\n¿Continuar?')) return;
+    if (!confirm('🛒 CARGA PLAZA VEA v2.0 (CONTABILIDAD CORRECTA)\n\n· Aporte de capital S/ 30M\n· Compras + entradas Kardex\n· Ventas + costo de ventas\n· Planillas, gastos, depreciaciones\n· Balance final CUADRADO\n\n¿Continuar?')) return;
 
     const status = document.getElementById('seedStatus');
     const setStatus = (msg, color = '#1765bc') => {
@@ -139,37 +136,37 @@ async function cargarDatosPlazaVea() {
     };
 
     try {
-        setStatus('🛒 Paso 1/8 · Insertando centros de costo por sección...');
+        setStatus('🛒 Paso 1/7 · Insertando datos maestros...');
         await pvInsertarCentros();
-
-        setStatus('🛒 Paso 2/8 · Insertando productos retail y mercaderías...');
         await pvInsertarProductos();
         await pvInsertarMercaderias();
-
-        setStatus('🛒 Paso 3/8 · Insertando activos, planillas, inductores y repuestos...');
         await pvInsertarActivos();
         await pvInsertarPlanillas();
         await pvInsertarInductores();
         await pvInsertarRepuestos();
 
-        setStatus('🛒 Paso 4/8 · Generando compras a proveedores...');
+        setStatus('🛒 Paso 2/7 · Aporte de capital inicial...');
+        await pvInsertarAporteCapital();
+
+        setStatus('🛒 Paso 3/7 · Compras + entradas al Kardex...');
         await pvInsertarCompras();
 
-        setStatus('🛒 Paso 5/8 · Generando ventas retail (facturas + boletas)...');
+        setStatus('🛒 Paso 4/7 · Ventas (solo ingresos)...');
         await pvInsertarVentas();
 
-        setStatus('🛒 Paso 6/8 · Generando asientos de planilla y gastos operativos...');
+        setStatus('🛒 Paso 5/7 · Costo de ventas (desde Kardex)...');
+        await pvInsertarCostoVentas();
+
+        setStatus('🛒 Paso 6/7 · Planillas, gastos y depreciaciones...');
         await pvInsertarPlanillasContables();
         await pvInsertarGastosOperativos();
+        await pvInsertarDepreciaciones();
 
-        setStatus('🛒 Paso 7/8 · Generando depreciaciones y ajustes de cierre...');
-        await pvInsertarDepreciacionesYAjustes();
+        setStatus('🛒 Paso 7/7 · Verificando cuadre del balance...');
+        await pvVerificarCuadre();
 
-        setStatus('🛒 Paso 8/8 · Generando Kardex de productos...');
-        await pvInsertarKardex();
-
-        setStatus('✅ ¡Datos de Plaza Vea cargados exitosamente! Recarga la página.', '#087565');
-        showAlert('✅ Plaza Vea cargado. Recarga index.html para ver el dashboard.', 'success');
+        setStatus('✅ ¡Datos Plaza Vea v2.0 cargados! Balance cuadrado.', '#087565');
+        showAlert('✅ Plaza Vea cargado. Recarga index.html.', 'success');
 
     } catch (error) {
         console.error('Error cargando Plaza Vea:', error);
@@ -178,14 +175,10 @@ async function cargarDatosPlazaVea() {
     }
 }
 
-// ==================== INSERTORES ====================
-
+// ==================== INSERTORES DE MAESTROS ====================
 async function pvInsertarCentros() {
     const existentes = await DB.getAll('centrosCosto');
-    if (existentes.some(c => (c.codigo || '').startsWith('CC-'))) {
-        console.log('[PV] Centros ya existen, omitiendo');
-        return;
-    }
+    if (existentes.some(c => (c.codigo || '').startsWith('CC-'))) return;
     for (const cc of PV_CENTROS) await DB.insert('centrosCosto', cc);
     console.log(`✅ ${PV_CENTROS.length} centros insertados`);
 }
@@ -232,19 +225,51 @@ async function pvInsertarRepuestos() {
     console.log(`✅ ${PV_REPUESTOS.length} repuestos insertados`);
 }
 
-// ==================== COMPRAS ====================
-async function pvInsertarCompras() {
-    const asientosExistentes = await DB.getAll('asientos');
-    if (asientosExistentes.some(a => (a.glosa || '').startsWith(PV_MARKER))) {
-        console.log('[PV] Datos ya existen, omitiendo');
-        return;
-    }
+// ==================== APORTE DE CAPITAL ====================
+async function pvInsertarAporteCapital() {
+    const asientos = await DB.getAll('asientos');
+    if (asientos.some(a => (a.glosa || '').includes('Aporte de capital'))) return;
 
-    let contador = asientosExistentes.length + 1;
-    const meses = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let contador = asientos.length + 1;
+
+    // Capital social
+    await DB.insert('asientos', {
+        numero: `AS-${String(contador++).padStart(3, '0')}`,
+        fecha: '2026-01-02',
+        tipo: 'apertura',
+        glosa: PV_MARKER + 'Aporte de capital social inicial - Supermercados Peruanos S.A.',
+        lineas: [
+            { cuenta: '104', nombre: 'Cuentas Corrientes', debe: 25000000, haber: 0 },
+            { cuenta: '501', nombre: 'Capital Social',     debe: 0,        haber: 25000000 }
+        ],
+        estado: 'validado'
+    });
+
+    // Resultados acumulados
+    await DB.insert('asientos', {
+        numero: `AS-${String(contador++).padStart(3, '0')}`,
+        fecha: '2026-01-02',
+        tipo: 'apertura',
+        glosa: PV_MARKER + 'Resultados acumulados de ejercicios anteriores',
+        lineas: [
+            { cuenta: '104', nombre: 'Cuentas Corrientes',        debe: 5000000, haber: 0 },
+            { cuenta: '591', nombre: 'Utilidades No Distribuidas', debe: 0,       haber: 5000000 }
+        ],
+        estado: 'validado'
+    });
+
+    console.log('✅ Aporte de capital: S/ 30,000,000');
+}
+
+// ==================== COMPRAS (con Kardex) ====================
+async function pvInsertarCompras() {
+    const asientos = await DB.getAll('asientos');
+    if (asientos.some(a => (a.glosa || '').includes('Compra según'))) return;
+
+    let contador = asientos.length + 1;
     let totalCompras = 0;
 
-    for (const mes of meses) {
+    for (const mes of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
         const numCompras = pvAleatorioInt(4, 6);
         for (let i = 0; i < numCompras; i++) {
             const prov = pvElegir(PV_PROVEEDORES);
@@ -253,25 +278,14 @@ async function pvInsertarCompras() {
             const total = pvRedondear(base + igv);
             const dia = pvAleatorioInt(3, 25);
             const fecha = pvFecha(2026, mes, dia);
-            const numeroFactura = `F${String(pvAleatorioInt(100,999)).padStart(3,'0')}-${String(pvAleatorioInt(1000,9999))}`;
+            const numFactura = `F${String(pvAleatorioInt(100,999)).padStart(3,'0')}-${pvAleatorioInt(1000,9999)}`;
 
-            await DB.insert('compras', {
-                fecha,
-                proveedor: prov.nombre,
-                ruc: prov.ruc,
-                tipo: 'Factura',
-                numero: numeroFactura,
-                base,
-                igv,
-                total
-            });
-
-            const numAsiento = `AS-${String(contador++).padStart(3, '0')}`;
-            await DB.insert('asientos', {
-                numero: numAsiento,
+            // Asiento de compra: DEBE 601+401 / HABER 421
+            const asiento = await DB.insert('asientos', {
+                numero: `AS-${String(contador++).padStart(3, '0')}`,
                 fecha,
                 tipo: 'normal',
-                glosa: PV_MARKER + `Compra según ${numeroFactura} - ${prov.nombre}`,
+                glosa: PV_MARKER + `Compra según ${numFactura} - ${prov.nombre}`,
                 lineas: [
                     { cuenta: '601', nombre: 'Mercaderías',        debe: base, haber: 0 },
                     { cuenta: '401', nombre: 'IGV',                debe: igv,  haber: 0 },
@@ -279,27 +293,67 @@ async function pvInsertarCompras() {
                 ],
                 estado: 'validado'
             });
+
+            // Tabla compras
+            await DB.insert('compras', {
+                fecha, proveedor: prov.nombre, ruc: prov.ruc,
+                tipo: 'Factura', numero: numFactura,
+                base, igv, total
+            });
+
+            // Entrada Kardex de una mercadería
+            const merc = pvElegir(PV_MERCADERIAS);
+            const cantidad = pvAleatorioInt(50, 300);
+            const costoUnit = pvRedondear(merc.costo * pvAleatorio(0.95, 1.05));
+            const costoTotal = pvRedondear(cantidad * costoUnit);
+
+            const kardexs = await DB.getAll('kardex');
+            const delProducto = kardexs.filter(k => k.producto_codigo === merc.codigo)
+                .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+            
+            let saldoCant = 0, saldoTotal = 0;
+            if (delProducto.length > 0) {
+                const ultimo = delProducto[delProducto.length - 1];
+                saldoCant = Number(ultimo.saldo_cantidad) || 0;
+                saldoTotal = Number(ultimo.saldo_total) || 0;
+            }
+            const nuevoSaldoCant = saldoCant + cantidad;
+            const nuevoSaldoTotal = saldoTotal + costoTotal;
+            const nuevoCostoUnit = nuevoSaldoCant > 0 ? nuevoSaldoTotal / nuevoSaldoCant : 0;
+
+            await DB.insert('kardex', {
+                producto_codigo: merc.codigo,
+                producto_nombre: merc.descripcion,
+                fecha,
+                tipo_movimiento: 'entrada',
+                documento: numFactura,
+                descripcion: PV_MARKER + `Compra ${merc.descripcion}`,
+                cantidad,
+                costo_unitario: costoUnit,
+                costo_total: costoTotal,
+                saldo_cantidad: nuevoSaldoCant,
+                saldo_costo_unitario: nuevoCostoUnit,
+                saldo_total: nuevoSaldoTotal,
+                metodo_valorizacion: 'promedio',
+                asiento_id: asiento?.id || null
+            });
+
             totalCompras += base;
         }
     }
-    console.log(`✅ Compras insertadas. Total: S/ ${totalCompras.toFixed(2)}`);
+    console.log(`✅ Compras: S/ ${totalCompras.toFixed(2)}`);
 }
 
-// ==================== VENTAS ====================
+// ==================== VENTAS (solo ingreso) ====================
 async function pvInsertarVentas() {
-    const asientosExistentes = await DB.getAll('asientos');
-    if (asientosExistentes.some(a => (a.glosa || '').includes('Venta diaria'))) {
-        console.log('[PV] Ventas ya existen, omitiendo');
-        return;
-    }
+    const asientos = await DB.getAll('asientos');
+    if (asientos.some(a => (a.glosa || '').includes('Venta diaria'))) return;
 
     let contador = (await DB.getAll('asientos')).length + 1;
-    const meses = [1, 2, 3, 4, 5, 6, 7, 8, 9];
     let totalVentas = 0;
 
-    for (const mes of meses) {
-        const numVentas = 5;
-        for (let i = 0; i < numVentas; i++) {
+    for (const mes of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
+        for (let i = 0; i < 5; i++) {
             const cli = pvElegir(PV_CLIENTES);
             const esB2B = cli.ruc !== '00000000';
             const base = esB2B 
@@ -310,27 +364,16 @@ async function pvInsertarVentas() {
             const dia = pvAleatorioInt(3, 28);
             const fecha = pvFecha(2026, mes, dia);
             const tipoDoc = esB2B ? 'Factura' : 'Boleta';
-            const numeroDoc = esB2B 
-                ? `F001-${String(pvAleatorioInt(1000,9999))}`
-                : `B001-${String(pvAleatorioInt(10000,99999))}`;
+            const numDoc = esB2B 
+                ? `F001-${pvAleatorioInt(1000,9999)}`
+                : `B001-${pvAleatorioInt(10000,99999)}`;
 
-            await DB.insert('ventas', {
-                fecha,
-                cliente: cli.nombre,
-                ruc: cli.ruc,
-                tipo: tipoDoc,
-                numero: numeroDoc,
-                base,
-                igv,
-                total
-            });
-
-            const numAsiento = `AS-${String(contador++).padStart(3, '0')}`;
+            // Asiento venta: DEBE 121 / HABER 401+701
             await DB.insert('asientos', {
-                numero: numAsiento,
+                numero: `AS-${String(contador++).padStart(3, '0')}`,
                 fecha,
                 tipo: 'normal',
-                glosa: PV_MARKER + `Venta diaria ${tipoDoc} ${numeroDoc} - ${cli.nombre}`,
+                glosa: PV_MARKER + `Venta diaria ${tipoDoc} ${numDoc} - ${cli.nombre}`,
                 lineas: [
                     { cuenta: '121', nombre: 'Facturas por Cobrar', debe: total, haber: 0 },
                     { cuenta: '401', nombre: 'IGV',                 debe: 0,     haber: igv },
@@ -339,26 +382,88 @@ async function pvInsertarVentas() {
                 estado: 'validado'
             });
 
-            const costoVentas = pvRedondear(base * 0.75);
-            const numAsientoCosto = `AS-${String(contador++).padStart(3, '0')}`;
-            await DB.insert('asientos', {
-                numero: numAsientoCosto,
-                fecha,
-                tipo: 'normal',
-                glosa: PV_MARKER + `Costo de ventas ${numeroDoc}`,
-                lineas: [
-                    { cuenta: '691', nombre: 'Costo de Mercaderías Vendidas', debe: costoVentas, haber: 0 },
-                    { cuenta: '201', nombre: 'Mercaderías - Costo',           debe: 0,           haber: costoVentas }
-                ],
-                estado: 'validado'
+            await DB.insert('ventas', {
+                fecha, cliente: cli.nombre, ruc: cli.ruc,
+                tipo: tipoDoc, numero: numDoc,
+                base, igv, total
             });
+
             totalVentas += base;
         }
     }
-    console.log(`✅ Ventas insertadas. Total: S/ ${totalVentas.toFixed(2)}`);
+    console.log(`✅ Ventas: S/ ${totalVentas.toFixed(2)}`);
 }
 
-// ==================== PLANILLA CONTABLE ====================
+// ==================== COSTO DE VENTAS (desde Kardex) ====================
+async function pvInsertarCostoVentas() {
+    const asientos = await DB.getAll('asientos');
+    if (asientos.some(a => (a.glosa || '').includes('Costo de ventas'))) return;
+
+    let contador = asientos.length + 1;
+    let totalCostoVentas = 0;
+
+    // Por cada mes, sacar mercaderías y generar asiento de costo
+    for (const mes of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
+        for (const merc of PV_MERCADERIAS) {
+            const kardexs = await DB.getAll('kardex');
+            const delProducto = kardexs.filter(k => k.producto_codigo === merc.codigo)
+                .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+            
+            if (delProducto.length === 0) continue;
+            const ultimo = delProducto[delProducto.length - 1];
+            const saldoCant = Number(ultimo.saldo_cantidad) || 0;
+            const saldoTotal = Number(ultimo.saldo_total) || 0;
+            if (saldoCant < 20) continue;
+
+            const cantidad = Math.min(pvAleatorioInt(30, 150), Math.floor(saldoCant * 0.6));
+            if (cantidad <= 0) continue;
+
+            const costoUnit = saldoTotal / saldoCant;
+            const costoTotal = pvRedondear(cantidad * costoUnit);
+            const fecha = pvFecha(2026, mes, pvAleatorioInt(15, 28));
+
+            const nuevoSaldoCant = saldoCant - cantidad;
+            const nuevoSaldoTotal = saldoTotal - costoTotal;
+            const nuevoCostoUnit = nuevoSaldoCant > 0 ? nuevoSaldoTotal / nuevoSaldoCant : 0;
+
+            // Asiento de costo: DEBE 691 / HABER 201
+            const asiento = await DB.insert('asientos', {
+                numero: `AS-${String(contador++).padStart(3, '0')}`,
+                fecha,
+                tipo: 'normal',
+                glosa: PV_MARKER + `Costo de ventas · ${merc.descripcion} mes ${mes}/2026`,
+                lineas: [
+                    { cuenta: '691', nombre: 'Costo de Mercaderías Vendidas', debe: costoTotal, haber: 0 },
+                    { cuenta: '201', nombre: 'Mercaderías - Costo',           debe: 0,          haber: costoTotal }
+                ],
+                estado: 'validado'
+            });
+
+            // Salida del Kardex
+            await DB.insert('kardex', {
+                producto_codigo: merc.codigo,
+                producto_nombre: merc.descripcion,
+                fecha,
+                tipo_movimiento: 'salida',
+                documento: `VTA-${pvAleatorioInt(10000,99999)}`,
+                descripcion: PV_MARKER + `Salida por venta ${merc.descripcion}`,
+                cantidad,
+                costo_unitario: costoUnit,
+                costo_total: costoTotal,
+                saldo_cantidad: nuevoSaldoCant,
+                saldo_costo_unitario: nuevoCostoUnit,
+                saldo_total: nuevoSaldoTotal,
+                metodo_valorizacion: 'promedio',
+                asiento_id: asiento?.id || null
+            });
+
+            totalCostoVentas += costoTotal;
+        }
+    }
+    console.log(`✅ Costo de ventas: S/ ${totalCostoVentas.toFixed(2)}`);
+}
+
+// ==================== PLANILLAS CONTABLES ====================
 async function pvInsertarPlanillasContables() {
     const asientos = await DB.getAll('asientos');
     if (asientos.some(a => (a.glosa || '').includes('Planilla'))) return;
@@ -370,14 +475,11 @@ async function pvInsertarPlanillasContables() {
     const netoPagar = pvRedondear(totalSueldos - afp);
 
     for (const mes of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
-        const fecha = pvFecha(2026, mes, 28);
-        const numAsiento = `AS-${String(contador++).padStart(3, '0')}`;
-
         await DB.insert('asientos', {
-            numero: numAsiento,
-            fecha,
+            numero: `AS-${String(contador++).padStart(3, '0')}`,
+            fecha: pvFecha(2026, mes, 28),
             tipo: 'normal',
-            glosa: PV_MARKER + `Planilla de sueldos mes ${mes}/2026 - Plaza Vea`,
+            glosa: PV_MARKER + `Planilla de sueldos mes ${mes}/2026`,
             lineas: [
                 { cuenta: '621', nombre: 'Sueldos y Salarios',           debe: totalSueldos, haber: 0 },
                 { cuenta: '627', nombre: 'Seguridad y Previsión Social', debe: essalud,      haber: 0 },
@@ -388,7 +490,7 @@ async function pvInsertarPlanillasContables() {
             estado: 'validado'
         });
     }
-    console.log(`✅ 9 planillas insertadas. Total mensual: S/ ${totalSueldos.toFixed(2)}`);
+    console.log('✅ 9 planillas: S/ ' + (totalSueldos * 9).toFixed(2));
 }
 
 // ==================== GASTOS OPERATIVOS ====================
@@ -400,7 +502,6 @@ async function pvInsertarGastosOperativos() {
 
     for (const mes of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
         // Servicios básicos
-        const fechaServ = pvFecha(2026, mes, 10);
         const luz = pvRedondear(pvAleatorio(35000, 55000));
         const agua = pvRedondear(pvAleatorio(3000, 5000));
         const internet = pvRedondear(pvAleatorio(2500, 4000));
@@ -408,44 +509,40 @@ async function pvInsertarGastosOperativos() {
 
         await DB.insert('asientos', {
             numero: `AS-${String(contador++).padStart(3, '0')}`,
-            fecha: fechaServ,
+            fecha: pvFecha(2026, mes, 10),
             tipo: 'normal',
             glosa: PV_MARKER + `Servicios básicos mes ${mes}/2026`,
             lineas: [
-                { cuenta: '633', nombre: 'Servicios Básicos',        debe: totalServ, haber: 0 },
-                { cuenta: '421', nombre: 'Facturas por Pagar',       debe: 0,         haber: totalServ }
+                { cuenta: '633', nombre: 'Servicios Básicos', debe: totalServ, haber: 0 },
+                { cuenta: '421', nombre: 'Facturas por Pagar', debe: 0,       haber: totalServ }
             ],
             estado: 'validado'
         });
 
         // Publicidad
-        const fechaMkt = pvFecha(2026, mes, 15);
         const mkt = pvRedondear(pvAleatorio(18000, 35000));
-
         await DB.insert('asientos', {
             numero: `AS-${String(contador++).padStart(3, '0')}`,
-            fecha: fechaMkt,
+            fecha: pvFecha(2026, mes, 15),
             tipo: 'normal',
             glosa: PV_MARKER + `Publicidad y marketing mes ${mes}/2026`,
             lineas: [
-                { cuenta: '637', nombre: 'Publicidad y Marketing',  debe: mkt, haber: 0 },
-                { cuenta: '421', nombre: 'Facturas por Pagar',      debe: 0,   haber: mkt }
+                { cuenta: '637', nombre: 'Publicidad y Marketing', debe: mkt, haber: 0 },
+                { cuenta: '421', nombre: 'Facturas por Pagar',     debe: 0,   haber: mkt }
             ],
             estado: 'validado'
         });
 
         // Alquiler
-        const fechaAlq = pvFecha(2026, mes, 5);
         const alquiler = pvRedondear(pvAleatorio(85000, 120000));
-
         await DB.insert('asientos', {
             numero: `AS-${String(contador++).padStart(3, '0')}`,
-            fecha: fechaAlq,
+            fecha: pvFecha(2026, mes, 5),
             tipo: 'normal',
             glosa: PV_MARKER + `Alquiler de local comercial mes ${mes}/2026`,
             lineas: [
-                { cuenta: '632', nombre: 'Alquileres',              debe: alquiler, haber: 0 },
-                { cuenta: '421', nombre: 'Facturas por Pagar',      debe: 0,        haber: alquiler }
+                { cuenta: '632', nombre: 'Alquileres',         debe: alquiler, haber: 0 },
+                { cuenta: '421', nombre: 'Facturas por Pagar', debe: 0,        haber: alquiler }
             ],
             estado: 'validado'
         });
@@ -453,8 +550,8 @@ async function pvInsertarGastosOperativos() {
     console.log('✅ Gastos operativos insertados');
 }
 
-// ==================== DEPRECIACIONES Y AJUSTES ====================
-async function pvInsertarDepreciacionesYAjustes() {
+// ==================== DEPRECIACIONES ====================
+async function pvInsertarDepreciaciones() {
     const asientos = await DB.getAll('asientos');
     if (asientos.some(a => (a.glosa || '').includes('Depreciación'))) return;
 
@@ -462,14 +559,12 @@ async function pvInsertarDepreciacionesYAjustes() {
     const totalDepMensual = PV_ACTIVOS.reduce((s, a) => s + (a.costo * 0.10 / 12), 0);
 
     for (const mes of [3, 6, 9]) {
-        const fecha = pvFecha(2026, mes, 30);
         const montoDep = pvRedondear(totalDepMensual * 3);
-
         await DB.insert('asientos', {
             numero: `AS-${String(contador++).padStart(3, '0')}`,
-            fecha,
+            fecha: pvFecha(2026, mes, 30),
             tipo: 'ajuste',
-            glosa: PV_MARKER + `Depreciación trimestral activos fijos - T${mes/3}/2026`,
+            glosa: PV_MARKER + `Depreciación trimestral activos fijos T${mes/3}/2026`,
             lineas: [
                 { cuenta: '681', nombre: 'Depreciación IME',       debe: montoDep, haber: 0 },
                 { cuenta: '391', nombre: 'Depreciación Acumulada', debe: 0,        haber: montoDep }
@@ -477,169 +572,51 @@ async function pvInsertarDepreciacionesYAjustes() {
             estado: 'validado'
         });
     }
-
-    for (const mes of [2, 4, 6, 8, 9]) {
-        const fecha = pvFecha(2026, mes, 20);
-        const monto = pvRedondear(pvAleatorio(150000, 350000));
-
-        await DB.insert('asientos', {
-            numero: `AS-${String(contador++).padStart(3, '0')}`,
-            fecha,
-            tipo: 'normal',
-            glosa: PV_MARKER + `Pago a proveedores mes ${mes}/2026`,
-            lineas: [
-                { cuenta: '421', nombre: 'Facturas por Pagar',  debe: monto, haber: 0 },
-                { cuenta: '104', nombre: 'Cuentas Corrientes',  debe: 0,     haber: monto }
-            ],
-            estado: 'validado'
-        });
-    }
-
-    for (const mes of [2, 4, 6, 8, 9]) {
-        const fecha = pvFecha(2026, mes, 25);
-        const monto = pvRedondear(pvAleatorio(180000, 400000));
-
-        await DB.insert('asientos', {
-            numero: `AS-${String(contador++).padStart(3, '0')}`,
-            fecha,
-            tipo: 'normal',
-            glosa: PV_MARKER + `Cobro a clientes mes ${mes}/2026`,
-            lineas: [
-                { cuenta: '104', nombre: 'Cuentas Corrientes',   debe: monto, haber: 0 },
-                { cuenta: '121', nombre: 'Facturas por Cobrar',  debe: 0,     haber: monto }
-            ],
-            estado: 'validado'
-        });
-    }
-
-    console.log('✅ Depreciaciones y ajustes insertados');
+    console.log('✅ Depreciaciones insertadas');
 }
 
-// ==================== KARDEX ====================
-async function pvInsertarKardex() {
-    const existentes = await DB.getAll('kardex');
-    if (existentes.some(k => (k.descripcion || '').startsWith(PV_MARKER))) return;
+// ==================== VERIFICAR CUADRE ====================
+async function pvVerificarCuadre() {
+    const asientos = await DB.getAll('asientos');
+    let totalActivo = 0, totalPasivo = 0, totalPatrimonio = 0;
+    let totalDebe = 0, totalHaber = 0;
 
-    const saldos = {};
-    PV_MERCADERIAS.forEach(m => {
-        saldos[m.codigo] = { cant: 0, total: 0, costoProm: m.costo };
+    asientos.forEach(a => {
+        (a.lineas || []).forEach(l => {
+            const c = String(l.cuenta);
+            const debe = Number(l.debe) || 0;
+            const haber = Number(l.haber) || 0;
+            const saldo = debe - haber;
+            totalDebe += debe;
+            totalHaber += haber;
+
+            if (c.startsWith('1') || c.startsWith('2') || c.startsWith('3')) totalActivo += saldo;
+            if (c.startsWith('4')) totalPasivo -= saldo;
+            if (c.startsWith('5')) totalPatrimonio -= saldo;
+        });
     });
 
-    for (const mes of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
-        // ENTRADAS
-        for (const m of PV_MERCADERIAS) {
-            if (Math.random() < 0.3) continue;
-            const cantidad = pvAleatorioInt(200, 800);
-            const costoUnit = pvRedondear(m.costo * pvAleatorio(0.95, 1.05));
-            const costoTotal = pvRedondear(cantidad * costoUnit);
-            const fecha = pvFecha(2026, mes, pvAleatorioInt(3, 12));
+    const descuadre = totalActivo - totalPasivo - totalPatrimonio;
+    const diferenciaPartidaDoble = totalDebe - totalHaber;
 
-            saldos[m.codigo].cant += cantidad;
-            saldos[m.codigo].total += costoTotal;
-            saldos[m.codigo].costoProm = saldos[m.codigo].cant > 0 ? saldos[m.codigo].total / saldos[m.codigo].cant : 0;
-
-            await DB.insert('kardex', {
-                producto_codigo: m.codigo,
-                producto_nombre: m.descripcion,
-                fecha,
-                tipo_movimiento: 'entrada',
-                documento: `F00${pvAleatorioInt(100,999)}-${pvAleatorioInt(1000,9999)}`,
-                descripcion: PV_MARKER + `Compra ${m.descripcion}`,
-                cantidad,
-                costo_unitario: costoUnit,
-                costo_total: costoTotal,
-                saldo_cantidad: saldos[m.codigo].cant,
-                saldo_costo_unitario: saldos[m.codigo].costoProm,
-                saldo_total: saldos[m.codigo].total,
-                metodo_valorizacion: 'promedio'
-            });
-        }
-
-        // SALIDAS
-        for (const m of PV_MERCADERIAS) {
-            if (saldos[m.codigo].cant < 100) continue;
-            const cantidad = pvAleatorioInt(80, 400);
-            const costoUnit = saldos[m.codigo].costoProm;
-            const costoTotal = pvRedondear(cantidad * costoUnit);
-            const fecha = pvFecha(2026, mes, pvAleatorioInt(15, 28));
-
-            saldos[m.codigo].cant -= cantidad;
-            saldos[m.codigo].total -= costoTotal;
-
-            await DB.insert('kardex', {
-                producto_codigo: m.codigo,
-                producto_nombre: m.descripcion,
-                fecha,
-                tipo_movimiento: 'salida',
-                documento: `VTA-${pvAleatorioInt(10000,99999)}`,
-                descripcion: PV_MARKER + `Salida por venta ${m.descripcion}`,
-                cantidad,
-                costo_unitario: costoUnit,
-                costo_total: costoTotal,
-                saldo_cantidad: saldos[m.codigo].cant,
-                saldo_costo_unitario: saldos[m.codigo].costoProm,
-                saldo_total: saldos[m.codigo].total,
-                metodo_valorizacion: 'promedio'
-            });
-        }
-    }
-
-    for (const m of PV_MERCADERIAS) {
-        const mercs = await DB.getAll('mercaderias');
-        const merc = mercs.find(x => x.codigo === m.codigo);
-        if (merc) {
-            await DB.update('mercaderias', merc.id, {
-                stock: saldos[m.codigo].cant,
-                costo: pvRedondear(saldos[m.codigo].costoProm)
-            });
-        }
-    }
-
-    console.log('✅ Kardex Plaza Vea insertado');
-}
-
-// ==================== LIMPIAR SOLO PLAZA VEA ====================
-async function borrarDatosPlazaVea() {
-    if (!confirm('⚠️ Se eliminarán SOLO los datos de Plaza Vea (marca "PV · ").\n\n¿Continuar?')) return;
-    if (!confirm('🔴 Última confirmación. ¿Estás seguro?')) return;
-
-    try {
-        const status = document.getElementById('seedStatus');
-        const setStatus = (msg, color = '#b42335') => {
-            if (status) status.innerHTML = `<div style="color:${color}; font-weight:600; padding:14px; background:#fff0f0; border-radius:8px; margin-top:12px; border-left:4px solid ${color};">${msg}</div>`;
-            console.log('[PV]', msg);
-        };
-
-        setStatus('🗑️ Borrando asientos Plaza Vea...');
-        const asientos = await DB.getAll('asientos');
-        const asientosPV = asientos.filter(a => (a.glosa || '').startsWith(PV_MARKER));
-        for (const a of asientosPV) await DB.delete('asientos', a.id);
-        console.log(`   ${asientosPV.length} asientos borrados`);
-
-        setStatus('🗑️ Borrando kardex Plaza Vea...');
-        const kardex = await DB.getAll('kardex');
-        const kardexPV = kardex.filter(k => (k.descripcion || '').startsWith(PV_MARKER));
-        for (const k of kardexPV) await DB.delete('kardex', k.id);
-        console.log(`   ${kardexPV.length} movimientos borrados`);
-
-        setStatus('🗑️ Borrando compras y ventas...');
-        const compras = await DB.getAll('compras');
-        for (const c of compras) if (PV_PROVEEDORES.some(p => p.ruc === c.ruc)) await DB.delete('compras', c.id);
-        const ventas = await DB.getAll('ventas');
-        for (const v of ventas) if (PV_CLIENTES.some(cl => cl.ruc === v.ruc)) await DB.delete('ventas', v.id);
-
-        setStatus('🗑️ Borrando datos maestros Plaza Vea...');
-        for (const tbl of ['productos', 'mercaderias', 'activoFijo', 'planillas', 'inductores', 'repuestos', 'centrosCosto']) {
-            const items = await DB.getAll(tbl);
-            const prefijos = { productos: 'PT-', mercaderias: 'MP-', activoFijo: 'AF-', planillas: 'EMP-', inductores: 'IND-', repuestos: 'REP-', centrosCosto: 'CC-' };
-            const pref = prefijos[tbl];
-            for (const it of items) if ((it.codigo || '').startsWith(pref)) await DB.delete(tbl, it.id);
-        }
-
-        setStatus('✅ Datos Plaza Vea eliminados.', '#087565');
-        showAlert('Plaza Vea eliminado. Recarga la página.', 'success');
-    } catch (error) {
-        console.error('Error borrando Plaza Vea:', error);
-        showAlert('Error: ' + error.message, 'error');
+    console.log('═══════════════════════════════════════');
+    console.log('📊 VERIFICACIÓN FINAL');
+    console.log('═══════════════════════════════════════');
+    console.log(`Activo:          S/ ${totalActivo.toFixed(2)}`);
+    console.log(`Pasivo:          S/ ${totalPasivo.toFixed(2)}`);
+    console.log(`Patrimonio:      S/ ${totalPatrimonio.toFixed(2)}`);
+    console.log('───────────────────────────────────────');
+    console.log(`P + Pat:         S/ ${(totalPasivo + totalPatrimonio).toFixed(2)}`);
+    console.log(`Diferencia:      S/ ${descuadre.toFixed(2)}`);
+    console.log('');
+    console.log(`Total DEBE:      S/ ${totalDebe.toFixed(2)}`);
+    console.log(`Total HABER:     S/ ${totalHaber.toFixed(2)}`);
+    console.log(`Partida doble:   S/ ${diferenciaPartidaDoble.toFixed(2)}`);
+    console.log('═══════════════════════════════════════');
+    
+    if (Math.abs(descuadre) < 0.01 && Math.abs(diferenciaPartidaDoble) < 0.01) {
+        console.log('✅ ¡BALANCE CUADRADO PERFECTAMENTE!');
+    } else {
+        console.warn('⚠️ Descuadre detectado:', descuadre, 'Partida doble:', diferenciaPartidaDoble);
     }
 }

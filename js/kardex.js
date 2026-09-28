@@ -1,11 +1,17 @@
-// ==================== KARDEX - CONTROL DE INVENTARIOS ====================
-// Método de valorización: PROMEDIO PONDERADO MÓVIL (el más usado en Perú)
+// ==================== KARDEX v2.0 - CONTABLEMENTE CORRECTO ====================
+// Método: PROMEDIO PONDERADO MÓVIL
+//
+// REGLAS CONTABLES:
+//   · ENTRADA → NO genera asiento (la compra ya lo hizo en módulo Compras)
+//   · SALIDA  → SÍ genera asiento: DEBE 691 / HABER 201
+//   · AJUSTE  → SÍ genera asiento: DEBE 659 / HABER 201 (o al revés)
+//   · El Kardex solo actualiza stock, no duplica contabilidad
 
 let kardexTipoActual = 'entrada';
 
 // ==================== INIT ====================
 async function initKardex() {
-    console.log('📦 Iniciando módulo Kardex...');
+    console.log('📦 Iniciando módulo Kardex v2.0...');
     try {
         await cargarSelectProductos();
         await renderKardex();
@@ -85,29 +91,22 @@ async function guardarMovimientoKardex() {
                   || mercaderias.find(m => m.codigo === producto_codigo);
         const producto_nombre = prod ? (prod.nombre || prod.descripcion) : producto_codigo;
 
-        // Calcular saldo actual
+        // Obtener saldo actual ANTES del movimiento
         const movimientos = await DB.getAll('kardex');
-        const delProducto = movimientos.filter(m => m.producto_codigo === producto_codigo);
+        const delProducto = movimientos
+            .filter(m => m.producto_codigo === producto_codigo)
+            .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+
         let saldoCantidad = 0, saldoTotal = 0;
-        delProducto.forEach(m => {
-            const cant = Number(m.saldo_cantidad) || 0;
-            const tot = Number(m.saldo_total) || 0;
-            if (cant > saldoCantidad || saldoCantidad === 0) {
-                saldoCantidad = cant;
-                saldoTotal = tot;
-            }
-        });
-        // El último movimiento (por fecha) es el saldo actual
         if (delProducto.length > 0) {
-            const ultimo = delProducto.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))[0];
+            const ultimo = delProducto[delProducto.length - 1];
             saldoCantidad = Number(ultimo.saldo_cantidad) || 0;
             saldoTotal = Number(ultimo.saldo_total) || 0;
         }
 
-        // Calcular costo unitario según método
+        // Calcular costo unitario
         let costo_unit_final = costo_unitario;
         if (kardexTipoActual === 'salida') {
-            // Salida usa el costo promedio actual del Kardex
             costo_unit_final = saldoCantidad > 0 ? saldoTotal / saldoCantidad : costo_unitario;
         }
 
@@ -115,66 +114,70 @@ async function guardarMovimientoKardex() {
 
         // Nuevos saldos
         let nuevoSaldoCantidad, nuevoSaldoTotal;
-        if (kardexTipoActual === 'entrada') {
-            nuevoSaldoCantidad = saldoCantidad + cantidad;
-            nuevoSaldoTotal = saldoTotal + costo_total;
-        } else if (kardexTipoActual === 'salida') {
+        if (kardexTipoActual === 'salida') {
             nuevoSaldoCantidad = saldoCantidad - cantidad;
             nuevoSaldoTotal = saldoTotal - costo_total;
-        } else { // ajuste
+        } else {
+            // entrada o ajuste positivo
             nuevoSaldoCantidad = saldoCantidad + cantidad;
             nuevoSaldoTotal = saldoTotal + costo_total;
         }
 
         const nuevoSaldoCostoUnit = nuevoSaldoCantidad > 0 ? nuevoSaldoTotal / nuevoSaldoCantidad : 0;
 
-        // ==================== PASO 1: Crear ASIENTO CONTABLE ====================
-        let lineasAsiento = [];
-        let glosaAsiento = '';
+        // ==================== GENERAR ASIENTO CONTABLE ====================
+        // SOLO si es salida o ajuste. Entrada NO genera asiento.
+        let asientoCreado = null;
+        let numAsiento = null;
 
-        if (kardexTipoActual === 'entrada') {
-            // Entrada por compra: DEBE 20 Mercaderías / HABER 42 Cuentas por Pagar
-            glosaAsiento = `Entrada de inventario · ${producto_nombre} · ${documento}`;
-            lineasAsiento = [
-                { cuenta: '201', nombre: 'Mercaderías - Costo', debe: costo_total, haber: 0 },
-                { cuenta: '421', nombre: 'Facturas por Pagar', debe: 0, haber: costo_total }
-            ];
-        } else if (kardexTipoActual === 'salida') {
-            // Salida por venta: DEBE 69 Costo de Ventas / HABER 20 Mercaderías
-            glosaAsiento = `Salida de inventario · ${producto_nombre} · ${documento}`;
-            lineasAsiento = [
-                { cuenta: '691', nombre: 'Costo de Mercaderías Vendidas', debe: costo_total, haber: 0 },
-                { cuenta: '201', nombre: 'Mercaderías - Costo', debe: 0, haber: costo_total }
-            ];
-        } else {
-            // Ajuste: DEBE 68 Valuación / HABER 20 Mercaderías (o al revés según signo)
-            const esPositivo = costo_total >= 0;
-            glosaAsiento = `Ajuste de inventario · ${producto_nombre} · ${documento}`;
-            lineasAsiento = esPositivo ? [
-                { cuenta: '201', nombre: 'Mercaderías - Costo', debe: costo_total, haber: 0 },
-                { cuenta: '659', nombre: 'Otros Gastos de Gestión', debe: 0, haber: costo_total }
+        if (kardexTipoActual === 'salida') {
+            // Salida por consumo/venta: DEBE 691 / HABER 201
+            const asientos = await DB.getAll('asientos');
+            numAsiento = 'AS-' + String(asientos.length + 1).padStart(3, '0');
+
+            asientoCreado = await DB.insert('asientos', {
+                numero: numAsiento,
+                fecha,
+                tipo: 'normal',
+                glosa: `Salida de inventario · ${producto_nombre} · ${documento}`,
+                lineas: [
+                    { cuenta: '691', nombre: 'Costo de Mercaderías Vendidas', debe: costo_total, haber: 0 },
+                    { cuenta: '201', nombre: 'Mercaderías - Costo',           debe: 0,           haber: costo_total }
+                ],
+                estado: 'validado'
+            });
+            console.log('✅ Asiento de salida generado:', numAsiento);
+
+        } else if (kardexTipoActual === 'ajuste') {
+            // Ajuste: puede ser positivo (sobrante) o negativo (faltante)
+            const asientos = await DB.getAll('asientos');
+            numAsiento = 'AS-' + String(asientos.length + 1).padStart(3, '0');
+
+            const esSobrante = cantidad > 0;
+            const lineas = esSobrante ? [
+                { cuenta: '201', nombre: 'Mercaderías - Costo',      debe: costo_total, haber: 0 },
+                { cuenta: '659', nombre: 'Otros Gastos de Gestión',  debe: 0,           haber: costo_total }
             ] : [
-                { cuenta: '659', nombre: 'Otros Gastos de Gestión', debe: Math.abs(costo_total), haber: 0 },
-                { cuenta: '201', nombre: 'Mercaderías - Costo', debe: 0, haber: Math.abs(costo_total) }
+                { cuenta: '659', nombre: 'Otros Gastos de Gestión',  debe: costo_total, haber: 0 },
+                { cuenta: '201', nombre: 'Mercaderías - Costo',      debe: 0,           haber: costo_total }
             ];
+
+            asientoCreado = await DB.insert('asientos', {
+                numero: numAsiento,
+                fecha,
+                tipo: 'ajuste',
+                glosa: `Ajuste de inventario · ${producto_nombre} · ${documento}`,
+                lineas,
+                estado: 'validado'
+            });
+            console.log('✅ Asiento de ajuste generado:', numAsiento);
+
+        } else {
+            // ENTRADA: NO genera asiento
+            console.log('ℹ️ Entrada registrada sin asiento (ya existe en módulo Compras)');
         }
 
-        // Insertar el asiento
-        const asientosExistentes = await DB.getAll('asientos');
-        const numAsiento = 'AS-' + String(asientosExistentes.length + 1).padStart(3, '0');
-
-        const asientoCreado = await DB.insert('asientos', {
-            numero: numAsiento,
-            fecha: fecha,
-            tipo: 'normal',
-            glosa: glosaAsiento,
-            lineas: lineasAsiento,
-            estado: 'validado'
-        });
-
-        console.log('✅ Asiento generado:', numAsiento);
-
-        // ==================== PASO 2: Crear MOVIMIENTO KARDEX ====================
+        // ==================== GUARDAR MOVIMIENTO KARDEX ====================
         await DB.insert('kardex', {
             producto_codigo,
             producto_nombre,
@@ -192,18 +195,24 @@ async function guardarMovimientoKardex() {
             asiento_id: asientoCreado?.id || null
         });
 
-        // ==================== PASO 3: Actualizar STOCK ====================
+        // ==================== ACTUALIZAR STOCK ====================
         if (prod) {
             const tabla = productos.includes(prod) ? 'productos' : 'mercaderias';
-            const campoCosto = tabla === 'mercaderias' ? 'costo' : 'precio';
-            await DB.update(tabla, prod.id, {
-                stock: nuevoSaldoCantidad,
-                [campoCosto]: tabla === 'mercaderias' ? nuevoSaldoCostoUnit : prod.precio
-            });
+            const updateData = { stock: nuevoSaldoCantidad };
+            if (tabla === 'mercaderias') {
+                updateData.costo = nuevoSaldoCostoUnit;
+            }
+            await DB.update(tabla, prod.id, updateData);
         }
 
         closeModal('modalKardexMov');
-        showAlert(`✅ Movimiento registrado · Asiento ${numAsiento} generado`, 'success');
+        
+        if (kardexTipoActual === 'entrada') {
+            showAlert(`✅ Entrada registrada · Stock actualizado (sin asiento, ya está en Compras)`, 'success');
+        } else {
+            showAlert(`✅ ${kardexTipoActual === 'salida' ? 'Salida' : 'Ajuste'} registrado · Asiento ${numAsiento} generado`, 'success');
+        }
+        
         await renderKardex();
 
     } catch (error) {
@@ -211,6 +220,7 @@ async function guardarMovimientoKardex() {
         showAlert('Error: ' + error.message, 'error');
     }
 }
+
 // ==================== RENDER MOVIMIENTOS ====================
 async function renderKardex() {
     try {
@@ -313,7 +323,6 @@ async function generarKardexProducto() {
         document.getElementById('kardexProductoTable').innerHTML =
             html || '<tr><td colspan="12" style="text-align:center; color:#999;">Sin movimientos en el rango</td></tr>';
 
-        // Resumen
         const prod = movimientos[0];
         document.getElementById('kardexResumen').innerHTML = prod ? `
             <div class="dashboard-grid">
@@ -346,7 +355,6 @@ async function generarInventarioValorizado() {
         const hasta = document.getElementById('invValFecha').value;
         const movimientos = await DB.getAll('kardex');
 
-        // Agrupar por producto
         const productos = {};
         movimientos.filter(m => m.fecha <= hasta).forEach(m => {
             if (!productos[m.producto_codigo]) {
@@ -420,15 +428,11 @@ async function renderAjustes() {
 function filterKardex() {
     const search = (document.getElementById('kxSearchProducto').value || '').toLowerCase();
     const tipo = document.getElementById('kxFilterTipo').value;
-    const desde = document.getElementById('kxFilterDesde').value;
-    const hasta = document.getElementById('kxFilterHasta').value;
 
     document.querySelectorAll('#kardexTable tr').forEach(row => {
         const text = row.textContent.toLowerCase();
         let visible = text.includes(search);
-
         if (tipo && !row.textContent.toLowerCase().includes(tipo)) visible = false;
-
         row.style.display = visible ? '' : 'none';
     });
 }

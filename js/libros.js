@@ -242,12 +242,44 @@ async function renderInventarios() {
 // ==================== PLANILLAS ====================
 async function guardarPlanilla() {
     try {
+        const sueldo = parseFloat(document.getElementById('planSueldo').value) || 0;
+        const sistema = 'ONP';  // Por defecto
+        const asig = 0;
+        const bonif = 0;
+        const bruto = sueldo + asig + bonif;
+        const descOnp = sistema === 'ONP' ? Math.round(bruto * 0.13 * 100) / 100 : 0;
+        const descAfp = sistema === 'AFP' ? Math.round(bruto * 0.13 * 100) / 100 : 0;
+        const descIr = bruto > 3500 ? Math.round((bruto - 3500) * 0.14 * 100) / 100 : 0;
+        const neto = bruto - descOnp - descAfp - descIr;
+        const essalud = Math.round(sueldo * 0.09 * 100) / 100;
+        const cts = Math.round(sueldo * 0.0833 * 100) / 100;
+        
+        // Generar período actual
+        const hoy = new Date();
+        const periodo = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+        
         await DB.insert('planillas', {
-            codigo: document.getElementById('planCodigo').value,
-            nombre: document.getElementById('planNombre').value,
-            cargo: document.getElementById('planCargo').value,
-            sueldo: parseFloat(document.getElementById('planSueldo').value) || 0
+            empleado_nombre: document.getElementById('planNombre').value,
+            empleado_dni: document.getElementById('planCodigo').value,  // Reutilizamos el campo código para DNI
+            empleado_cargo: document.getElementById('planCargo').value,
+            periodo: periodo,
+            fecha_pago: new Date().toISOString().split('T')[0],
+            sistema_pension: sistema,
+            sueldo_basico: sueldo,
+            asignacion_familiar: asig,
+            bonificacion: bonif,
+            total_bruto: bruto,
+            descuento_onp: descOnp,
+            descuento_afp: descAfp,
+            descuento_ir: descIr,
+            total_descuentos: descOnp + descAfp + descIr,
+            total_neto: neto,
+            essalud: essalud,
+            cts: cts,
+            costo_total_empleador: neto + essalud + cts,
+            estado: 'validado'
         });
+        
         closeModal('modalPlanilla');
         await renderPlanillas();
         showAlert('Trabajador agregado', 'success');
@@ -262,25 +294,47 @@ async function renderPlanillas() {
         const tbody = document.getElementById('planillasTable');
         if (!tbody) return;
 
-        tbody.innerHTML = planillas.map(p => {
-            const sueldo = Number(p.sueldo);
-            const afp = sueldo * 0.13;
-            const essalud = sueldo * 0.09;
-            const impuesto = sueldo > 3500 ? (sueldo - 3500) * 0.08 : 0;
-            const neto = sueldo - afp - impuesto;
+        if (planillas.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="14" style="text-align:center; color:#999;">Sin planillas registradas</td></tr>';
+            return;
+        }
+
+        // Ordenar por período descendente
+        const ordenadas = planillas.sort((a, b) => (b.periodo || '').localeCompare(a.periodo || ''));
+
+        tbody.innerHTML = ordenadas.map(p => {
+            const sueldo = Number(p.sueldo_basico) || 0;
+            const asigFam = Number(p.asignacion_familiar) || 0;
+            const bonif = Number(p.bonificacion) || 0;
+            const gratif = (Number(p.gratificacion_julio) || 0) + (Number(p.gratificacion_diciembre) || 0);
+            const bruto = Number(p.total_bruto) || 0;
+            const onp = Number(p.descuento_onp) || 0;
+            const afp = Number(p.descuento_afp) || 0;
+            const ir = Number(p.descuento_ir) || 0;
+            const neto = Number(p.total_neto) || 0;
+            const essalud = Number(p.essalud) || 0;
+            const cts = Number(p.cts) || 0;
+            
             return `
             <tr>
-                <td>${textCell(p.codigo)}</td>
-                <td>${textCell(p.nombre)}</td>
-                <td>${textCell(p.cargo)}</td>
+                <td>${textCell(p.periodo)}</td>
+                <td>${textCell(p.empleado_nombre)}</td>
+                <td>${textCell(p.empleado_dni)}</td>
+                <td>${textCell(p.empleado_cargo)}</td>
                 <td style="text-align:right;">${sueldo.toFixed(2)}</td>
-                <td style="text-align:right;">${afp.toFixed(2)}</td>
+                <td style="text-align:right;">${asigFam > 0 ? asigFam.toFixed(2) : '—'}</td>
+                <td style="text-align:right;">${bonif > 0 ? bonif.toFixed(2) : '—'}</td>
+                <td style="text-align:right;">${gratif > 0 ? gratif.toFixed(2) : '—'}</td>
+                <td style="text-align:right;"><strong>${bruto.toFixed(2)}</strong></td>
+                <td style="text-align:right;">${(onp + afp).toFixed(2)}</td>
+                <td style="text-align:right;">${ir.toFixed(2)}</td>
+                <td style="text-align:right; color:#087565; font-weight:700;">${neto.toFixed(2)}</td>
                 <td style="text-align:right;">${essalud.toFixed(2)}</td>
-                <td style="text-align:right;">${impuesto.toFixed(2)}</td>
-                <td style="text-align:right;"><strong>${neto.toFixed(2)}</strong></td>
-                <td><button class="delete-btn" onclick="eliminarPlanilla(${p.id})">🗑️</button></td>
+                <td style="text-align:right;">${cts.toFixed(2)}</td>
             </tr>`;
-        }).join('') || '<tr><td colspan="9" style="text-align:center; color:#999;">Sin trabajadores registrados</td></tr>';
+        }).join('');
+
+        console.log(`✅ Planillas renderizadas: ${ordenadas.length} registros`);
     } catch (error) {
         console.error('Error renderizando planillas:', error);
     }
@@ -314,15 +368,37 @@ function calcVentaIGV() {
 
 function showTab(tabId, btn) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.getElementById(tabId).classList.add('active');
+    const tabEl = document.getElementById(tabId);
+    if (tabEl) tabEl.classList.add('active');
+    
     document.querySelectorAll('.sub-nav button').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
 
     // Cargar datos específicos del tab activo
+    console.log('📂 Cambiando a tab:', tabId);
+    
     if (tabId === 'lib-mayor') updateCuentaSelects().then(() => generarLibroMayor());
     if (tabId === 'lib-diario') generarLibroDiario();
     if (tabId === 'lib-compras') renderCompras();
     if (tabId === 'lib-ventas') renderVentas();
     if (tabId === 'lib-inventarios') renderInventarios();
-    if (tabId === 'lib-planillas') renderPlanillas();
+    if (tabId === 'lib-planillas') {
+        console.log('👥 Cargando planillas...');
+        renderPlanillas();
+    }
+}
+async function exportarPlanillasCSV() {
+    const planillas = await DB.getAll('planillas');
+    let csv = '\uFEFFPeríodo;Empleado;DNI;Cargo;Sueldo Base;Asig Fam;Bonif;Gratif;Total Bruto;ONP/AFP;IR 5ta;Neto;Essalud;CTS\n';
+    planillas.forEach(p => {
+        csv += `"${p.periodo}";"${p.empleado_nombre}";"${p.empleado_dni}";"${p.empleado_cargo}";${p.sueldo_basico};${p.asignacion_familiar};${p.bonificacion};${p.gratificacion_julio};${p.total_bruto};${(Number(p.descuento_onp) + Number(p.descuento_afp))};${p.descuento_ir};${p.total_neto};${p.essalud};${p.cts}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'planillas-plaza-vea.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    showAlert('✅ Planillas exportadas', 'success');
 }
