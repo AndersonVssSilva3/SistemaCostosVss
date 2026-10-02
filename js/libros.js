@@ -108,20 +108,112 @@ async function generarLibroMayor() {
 // ==================== COMPRAS ====================
 async function guardarCompra() {
     try {
+        // ==================== 1. RECOGER DATOS DEL FORMULARIO ====================
+        const fecha = document.getElementById('compraFecha').value;
+        const proveedor = document.getElementById('compraProveedor').value.trim();
+        const ruc = document.getElementById('compraRuc').value.trim();
+        const tipo = document.getElementById('compraTipo').value;
+        const numero = document.getElementById('compraNumero').value.trim();
+        const base = parseFloat(document.getElementById('compraBase').value) || 0;
+        const igv = parseFloat(document.getElementById('compraIgv').value) || 0;
+        const total = parseFloat(document.getElementById('compraTotal').value) || 0;
+        
+        // Datos del producto para Kardex
+        const producto_codigo = document.getElementById('compraProducto').value;
+        const cantidad = parseFloat(document.getElementById('compraCantidad').value) || 0;
+        const costoUnit = parseFloat(document.getElementById('compraCostoUnit').value) || 0;
+        
+        // ==================== 2. VALIDACIONES ====================
+        if (!fecha) { showAlert('Ingrese la fecha', 'error'); return; }
+        if (!proveedor) { showAlert('Ingrese el proveedor', 'error'); return; }
+        if (base <= 0) { showAlert('Ingrese la base imponible', 'error'); return; }
+        if (!producto_codigo) { showAlert('Seleccione el producto que ingresa al almacén', 'error'); return; }
+        if (cantidad <= 0) { showAlert('La cantidad debe ser mayor a 0', 'error'); return; }
+        if (costoUnit <= 0) { showAlert('El costo unitario debe ser mayor a 0', 'error'); return; }
+        
+        // ==================== 3. GUARDAR COMPRA ====================
         await DB.insert('compras', {
-            fecha: document.getElementById('compraFecha').value,
-            proveedor: document.getElementById('compraProveedor').value,
-            ruc: document.getElementById('compraRuc').value,
-            tipo: document.getElementById('compraTipo').value,
-            numero: document.getElementById('compraNumero').value,
-            base: parseFloat(document.getElementById('compraBase').value) || 0,
-            igv: parseFloat(document.getElementById('compraIgv').value) || 0,
-            total: parseFloat(document.getElementById('compraTotal').value) || 0
+            fecha, proveedor, ruc, tipo, numero, base, igv, total
         });
+        
+        // ==================== 4. CREAR ASIENTO CONTABLE ====================
+        const asientos = await DB.getAll('asientos');
+        const numAsiento = 'AS-' + String(asientos.length + 1).padStart(3, '0');
+        
+        await DB.insert('asientos', {
+            numero: numAsiento,
+            fecha,
+            tipo: 'normal',
+            glosa: `Compra según ${numero} - ${proveedor}`,
+            lineas: [
+                { cuenta: '201', nombre: 'Mercaderías - Costo', debe: base, haber: 0 },
+                { cuenta: '401', nombre: 'IGV', debe: igv, haber: 0 },
+                { cuenta: '421', nombre: 'Facturas por Pagar', debe: 0, haber: total }
+            ],
+            estado: 'validado'
+        });
+        
+        // ==================== 5. CREAR ENTRADA EN KARDEX ====================
+        const productos = await DB.getAll('productos');
+        const mercaderias = await DB.getAll('mercaderias');
+        const prod = productos.find(p => p.codigo === producto_codigo)
+                  || mercaderias.find(m => m.codigo === producto_codigo);
+        const producto_nombre = prod ? (prod.nombre || prod.descripcion) : producto_codigo;
+        
+        // Calcular saldo actual del producto
+        const kardexs = await DB.getAll('kardex');
+        const delProducto = kardexs
+            .filter(k => k.producto_codigo === producto_codigo)
+            .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+        
+        let saldoCant = 0, saldoTotal = 0;
+        if (delProducto.length > 0) {
+            const ultimo = delProducto[delProducto.length - 1];
+            saldoCant = Number(ultimo.saldo_cantidad) || 0;
+            saldoTotal = Number(ultimo.saldo_total) || 0;
+        }
+        
+        const costoTotal = cantidad * costoUnit;
+        const nuevoSaldoCant = saldoCant + cantidad;
+        const nuevoSaldoTotal = saldoTotal + costoTotal;
+        const nuevoCostoProm = nuevoSaldoCant > 0 ? nuevoSaldoTotal / nuevoSaldoCant : 0;
+        
+        await DB.insert('kardex', {
+            producto_codigo,
+            producto_nombre,
+            fecha,
+            tipo_movimiento: 'entrada',
+            documento: numero,
+            descripcion: `Compra según ${numero} - ${proveedor}`,
+            cantidad,
+            costo_unitario: costoUnit,
+            costo_total: costoTotal,
+            saldo_cantidad: nuevoSaldoCant,
+            saldo_costo_unitario: nuevoCostoProm,
+            saldo_total: nuevoSaldoTotal,
+            metodo_valorizacion: 'promedio',
+            asiento_id: null
+        });
+        
+        // ==================== 6. ACTUALIZAR STOCK DEL PRODUCTO ====================
+        if (prod) {
+            const tabla = productos.includes(prod) ? 'productos' : 'mercaderias';
+            const updateData = { stock: nuevoSaldoCant };
+            if (tabla === 'mercaderias') {
+                updateData.costo = nuevoCostoProm;
+            }
+            await DB.update(tabla, prod.id, updateData);
+        }
+        
+        // ==================== 7. CERRAR Y REFRESCAR ====================
         closeModal('modalCompra');
         await renderCompras();
-        showAlert('Compra registrada', 'success');
+        await renderInventarios();
+        
+        showAlert(`✅ Compra registrada · Asiento ${numAsiento} + Entrada Kardex`, 'success');
+        
     } catch (error) {
+        console.error('Error guardando compra:', error);
         showAlert('Error: ' + error.message, 'error');
     }
 }
@@ -401,4 +493,67 @@ async function exportarPlanillasCSV() {
     a.click();
     URL.revokeObjectURL(url);
     showAlert('✅ Planillas exportadas', 'success');
+}
+// ==================== MODAL DE COMPRA CON KARDEX ====================
+
+async function abrirModalCompra() {
+    // Cargar productos en el select
+    await cargarProductosEnSelectCompras();
+    
+    // Resetear formulario
+    document.getElementById('compraFecha').value = new Date().toISOString().split('T')[0];
+    document.getElementById('compraProveedor').value = '';
+    document.getElementById('compraRuc').value = '';
+    document.getElementById('compraNumero').value = '';
+    document.getElementById('compraProducto').value = '';
+    document.getElementById('compraCantidad').value = '1';
+    document.getElementById('compraCostoUnit').value = '';
+    document.getElementById('compraBase').value = '';
+    document.getElementById('compraIgv').value = '';
+    document.getElementById('compraTotal').value = '';
+    
+    openModal('modalCompra');
+}
+
+async function cargarProductosEnSelectCompras() {
+    try {
+        const productos = await DB.getAll('productos');
+        const mercaderias = await DB.getAll('mercaderias');
+        
+        const todos = [
+            ...productos.map(p => ({ codigo: p.codigo, nombre: p.nombre, tipo: 'Producto', precio: p.precio })),
+            ...mercaderias.map(m => ({ codigo: m.codigo, nombre: m.descripcion, tipo: 'Mercadería', precio: m.costo }))
+        ];
+        
+        const options = todos.map(p =>
+            `<option value="${textCell(p.codigo)}" data-precio="${p.precio || 0}" data-tipo="${p.tipo}">${textCell(p.codigo)} - ${textCell(p.nombre)} (${p.tipo})</option>`
+        ).join('');
+        
+        const select = document.getElementById('compraProducto');
+        if (select) select.innerHTML = '<option value="">Seleccione producto...</option>' + options;
+        
+        console.log(`✅ ${todos.length} productos cargados en select de compras`);
+    } catch (error) {
+        console.error('Error cargando productos:', error);
+    }
+}
+
+async function onProductoCompraChange() {
+    const select = document.getElementById('compraProducto');
+    const option = select.options[select.selectedIndex];
+    const precio = parseFloat(option?.dataset?.precio) || 0;
+    
+    if (precio > 0) {
+        document.getElementById('compraCostoUnit').value = precio.toFixed(2);
+        calcCompraDesdeCosto();
+    }
+}
+
+function calcCompraDesdeCosto() {
+    const cantidad = parseFloat(document.getElementById('compraCantidad').value) || 0;
+    const costoUnit = parseFloat(document.getElementById('compraCostoUnit').value) || 0;
+    const base = cantidad * costoUnit;
+    
+    document.getElementById('compraBase').value = base.toFixed(2);
+    calcCompraIGV();
 }
