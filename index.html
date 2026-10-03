@@ -3,104 +3,353 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VSS S.A.C. · Sistema Integral de Costos</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
-    <link rel="stylesheet" href="sistema-contable/css/styles.css">
-    <link rel="stylesheet" href="sistema-contable/css/professional.css">
-    <link rel="stylesheet" href="sistema-contable/css/plaza-vea.css">
-    <link rel="stylesheet" href="sistema-contable/css/plaza-vea-3d.css">
+    <title>VSS S.A.C. · Iniciar Sesión</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔐</text></svg>">
     <style>
-        body { padding-left: 0 !important; }
-        .portal-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 24px;
-            margin-top: 30px;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(227, 6, 19, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(23, 101, 188, 0.15) 0%, transparent 50%),
+                linear-gradient(135deg, #f5f7fa 0%, #e4e8ee 100%);
+            padding: 20px;
         }
-        .portal-card {
-            background: white;
-            border-radius: 16px;
-            padding: 40px 24px;
+        
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 45px 40px;
+            box-shadow: 
+                0 20px 60px rgba(16, 43, 70, 0.12),
+                0 8px 20px rgba(16, 43, 70, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-container::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #E30613 0%, #F58220 50%, #FFD100 100%);
+        }
+        
+        .login-logo {
             text-align: center;
-            text-decoration: none;
+            margin-bottom: 30px;
+        }
+        
+        .login-logo-icon {
+            font-size: 56px;
+            margin-bottom: 10px;
+            display: block;
+            filter: drop-shadow(0 4px 8px rgba(227, 6, 19, 0.2));
+        }
+        
+        .login-logo h1 {
+            font-size: 28px;
             color: #162c44;
-            box-shadow: 0 4px 16px rgba(16,43,70,.08), inset 0 1px 0 rgba(255,255,255,.9);
-            border: 1px solid rgba(255,255,255,.7);
-            transition: all .4s cubic-bezier(.16, 1, .3, 1);
-            border-top: 4px solid #1765bc;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .login-logo h1 span { color: #E30613; }
+        
+        .login-logo p {
+            font-size: 13px;
+            color: #56677b;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .login-form-group { margin-bottom: 20px; }
+        
+        .login-form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #34465b;
+            margin-bottom: 8px;
+            letter-spacing: 0.3px;
+        }
+        
+        .login-form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e0e6ed;
+            border-radius: 10px;
+            font-size: 15px;
+            color: #162c44;
+            transition: all 0.3s ease;
+            background: #fafbfc;
+        }
+        
+        .login-form-group input:focus {
+            outline: none;
+            border-color: #E30613;
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(227, 6, 19, 0.08);
+        }
+        
+        .login-form-group input::placeholder { color: #a8b3c0; }
+        
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #E30613, #B00510);
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(227, 6, 19, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            margin-top: 10px;
+        }
+        
+        .login-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(227, 6, 19, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+        
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .login-message {
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            display: none;
+            font-weight: 600;
+        }
+        
+        .login-message.error {
+            background: #fef2f2;
+            color: #b42335;
+            border-left: 4px solid #b42335;
             display: block;
         }
-        .portal-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 20px 40px rgba(16,43,70,.12), inset 0 1px 0 rgba(255,255,255,.9);
+        
+        .login-message.success {
+            background: #f0fdf9;
+            color: #087565;
+            border-left: 4px solid #087565;
+            display: block;
         }
-        .portal-card .icon { font-size: 4em; margin-bottom: 16px; }
-        .portal-card h3 {
-            font-size: 20px;
-            margin-bottom: 8px;
-            font-weight: 700;
-            color: #162c44;
-        }
-        .portal-card p {
+        
+        .login-footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 24px;
+            border-top: 1px solid #e5ebf2;
+            font-size: 12px;
             color: #56677b;
-            font-size: 14px;
         }
-        .portal-card.contable { border-top-color: #1765bc; }
-        .portal-card.ordenes { border-top-color: #E30613; }
-        .portal-card.conjuntos { border-top-color: #087565; }
-        .portal-card.abc { border-top-color: #F58220; }
+        
+        .login-footer strong {
+            color: #162c44;
+            display: block;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+        
+        .login-hint {
+            background: #f0f7ff;
+            border: 1px solid #c7ddf2;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #214f7a;
+            margin-top: 20px;
+            line-height: 1.5;
+        }
+        
+        .login-hint strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #1765bc;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <div>
-        <div class="company-name">VSS S.A.C. · RUC 20601234567</div>
-        <h1>🏭 Sistema Integral de Costos</h1>
+<div class="login-container">
+    <div class="login-logo">
+        <span class="login-logo-icon">🏭</span>
+        <h1>VSS <span>S.A.C.</span></h1>
+        <p>Sistema Integral de Costos</p>
     </div>
-</div>
-
-<div class="main-content" style="max-width: 1200px; margin: 40px auto; padding: 20px;">
-
-    <div class="dash-welcome" style="background:white; padding:30px; border-radius:16px; margin-bottom:30px;">
-        <div>
-            <div class="eyebrow">PORTAL DE SISTEMAS</div>
-            <h2 style="font-size:32px; font-weight:700; letter-spacing:-1px; margin:10px 0;">Seleccione un sistema</h2>
-            <p style="color:#56677b;">4 sistemas integrados para la gestión contable y de costos</p>
+    
+    <div id="loginMessage" class="login-message"></div>
+    
+    <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="login-form-group">
+            <label for="loginEmail">Correo electrónico</label>
+            <input type="email" id="loginEmail" placeholder="usuario@vss.com" required autocomplete="email">
         </div>
+        
+        <div class="login-form-group">
+            <label for="loginPassword">Contraseña</label>
+            <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+        
+        <button type="submit" id="loginBtn" class="login-btn">
+            🔐 Iniciar Sesión
+        </button>
+    </form>
+    
+    <div class="login-footer">
+        <strong>VSS S.A.C.</strong>
+        RUC 20601234567 · Sistema Integral de Costos
     </div>
-
-    <div class="portal-grid">
-        <a href="sistema-contable/index.html" class="portal-card contable">
-            <div class="icon">📊</div>
-            <h3>Sistema Contable</h3>
-            <p>Contabilidad general, Kardex, Libros, EEFF, Ratios</p>
-        </a>
-
-        <a href="sistema-ordenes/index.html" class="portal-card ordenes">
-            <div class="icon">🏭</div>
-            <h3>Órdenes de Trabajo</h3>
-            <p>Costeo por órdenes de producción industrial</p>
-        </a>
-
-        <a href="sistema-costos-conjuntos/index.html" class="portal-card conjuntos">
-            <div class="icon">🧬</div>
-            <h3>Costos Conjuntos</h3>
-            <p>Producción conjunta, subproductos y coproductos</p>
-        </a>
-
-        <a href="sistema-costeo-abc/index.html" class="portal-card abc">
-            <div class="icon">🎯</div>
-            <h3>Costeo ABC</h3>
-            <p>Costeo basado en actividades e inductores</p>
-        </a>
-    </div>
-
-    <div class="footer-info" style="text-align:center; margin-top:50px; color:#56677b; font-size:13px;">
-        VSS S.A.C. © 2026 · Sistema Integral de Costos
-    </div>
-
 </div>
+
+<!-- ⬇️⬇️⬇️ SCRIPTS DE SUPABASE (IMPRESCINDIBLES) ⬇️⬇️⬇️ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="sistema-contable/js/supabase-config.js"></script>
+
+<script>
+    // ==================== LOGIN CON SUPABASE AUTH ====================
+    
+    function mostrarMensaje(msg, tipo = 'error') {
+        const el = document.getElementById('loginMessage');
+        el.textContent = msg;
+        el.className = 'login-message ' + tipo;
+    }
+    
+    async function handleLogin(event) {
+        event.preventDefault();
+        
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        const btn = document.getElementById('loginBtn');
+        
+        if (!email || !password) {
+            mostrarMensaje('Complete correo y contraseña', 'error');
+            return;
+        }
+        
+        // Verificar que supabaseClient esté disponible
+        if (typeof supabaseClient === 'undefined') {
+            mostrarMensaje('❌ Error: Supabase no cargado. Recarga la página.', 'error');
+            return;
+        }
+        
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Verificando...';
+        document.getElementById('loginMessage').className = 'login-message';
+        
+        try {
+            console.log('🔐 Intentando login con:', email);
+            
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
+            
+            if (error) {
+                console.error('❌ Error de Supabase:', error);
+                
+                let msg = '❌ Error: ' + error.message;
+                if (error.message.includes('Invalid login')) {
+                    msg = '❌ Correo o contraseña incorrectos';
+                } else if (error.message.includes('Email not confirmed')) {
+                    msg = '❌ Debes confirmar tu correo primero';
+                } else if (error.message.includes('rate limit')) {
+                    msg = '⏰ Demasiados intentos. Espera unos minutos.';
+                }
+                
+                mostrarMensaje(msg, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '🔐 Iniciar Sesión';
+                return;
+            }
+            
+            console.log('✅ Login exitoso:', data.user.email);
+            
+            localStorage.setItem('vss_session', JSON.stringify({
+                email: data.user.email,
+                user_id: data.user.id,
+                login_at: new Date().toISOString(),
+                user: data.user.email.split('@')[0]
+            }));
+            
+            mostrarMensaje('✅ Login exitoso. Redirigiendo...', 'success');
+            
+            setTimeout(() => {
+                window.location.href = 'sistema-contable/index.html';
+            }, 700);
+            
+        } catch (error) {
+            console.error('❌ Error catch:', error);
+            mostrarMensaje('❌ Error: ' + error.message, 'error');
+            btn.disabled = false;
+            btn.innerHTML = '🔐 Iniciar Sesión';
+        }
+    }
+    
+    // ==================== VERIFICAR SESIÓN AL CARGAR ====================
+    window.addEventListener('DOMContentLoaded', async () => {
+        console.log('🔍 Verificando Supabase...');
+        console.log('   supabase:', typeof supabase);
+        console.log('   supabaseClient:', typeof supabaseClient);
+        
+        if (typeof supabaseClient === 'undefined') {
+            console.error('❌ supabaseClient NO está definido');
+            mostrarMensaje('⚠️ Error de configuración. Recarga la página.', 'error');
+            return;
+        }
+        
+        console.log('✅ Supabase listo');
+        
+        // Verificar si ya hay una sesión activa
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            
+            if (session) {
+                console.log('✅ Sesión activa:', session.user.email);
+                localStorage.setItem('vss_session', JSON.stringify({
+                    email: session.user.email,
+                    user_id: session.user.id,
+                    login_at: new Date().toISOString(),
+                    user: session.user.email.split('@')[0]
+                }));
+                window.location.href = 'sistema-contable/index.html';
+            }
+        } catch (e) {
+            console.warn('Error verificando sesión:', e);
+        }
+    });
+</script>
 
 </body>
 </html>

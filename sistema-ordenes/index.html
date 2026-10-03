@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="css/vss-3d.css">
     <link rel="stylesheet" href="css/fab-menu.css">
     <link rel="stylesheet" href="css/ordenes.css">
+
 </head>
 <body>
 
@@ -168,6 +169,23 @@
         await initDashboardOT();
     });
 </script>
+<script>
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) {
+            alert('❌ Error: No se pudo conectar con Supabase');
+            return;
+        }
+        await initDefaultData();
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
 
+        document.getElementById('dashAnio').textContent = new Date().getFullYear();
+        document.getElementById('dashFechaHoy').textContent = new Date().toLocaleDateString('es-PE', {
+            day: '2-digit', month: 'short', year: 'numeric'
+        });
+
+        await initDashboard();
+    });
+</script>
 </body>
 </html>

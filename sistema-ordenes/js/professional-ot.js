@@ -50,10 +50,12 @@ function construirSidebar() {
                 ).join('')}
             </nav>
             <div class="sidebar-bottom">
-                <strong>VSS FÁBRICA S.A.C.</strong>
+                <strong>VSS S.A.C.</strong>
                 RUC 20601234567<br>
-                Área Industrial<br>
                 Soles peruanos · PEN
+                <button onclick="cerrarSesion()" style="margin-top:10px; width:100%; padding:8px; background:rgba(255,255,255,0.1); color:white; border:1px solid rgba(255,255,255,0.2); border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">
+                    🚪 Cerrar Sesión
+                </button>
             </div>
         </aside>
     `;
@@ -122,4 +124,22 @@ function exportTable(card) {
     a.download = 'reporte-ot.csv';
     a.click();
     URL.revokeObjectURL(url);
+}
+async function cerrarSesion() {
+    if (!confirm('¿Cerrar sesión?')) return;
+    
+    try {
+        // Cerrar sesión en Supabase
+        if (typeof supabaseClient !== 'undefined') {
+            await supabaseClient.auth.signOut();
+        }
+    } catch (e) {
+        console.warn('Error cerrando sesión en Supabase:', e);
+    }
+    
+    // Limpiar localStorage
+    localStorage.removeItem('vss_session');
+    
+    // Redirigir al login
+    window.location.href = '../index.html';
 }

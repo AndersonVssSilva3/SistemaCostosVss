@@ -59,10 +59,12 @@ function construirSidebar() {
                 ).join('')}
             </nav>
             <div class="sidebar-bottom">
-                <strong>PLAZA VEA</strong>
-                Supermercados Peruanos S.A.<br>
-                RUC 20492068702<br>
+                <strong>VSS S.A.C.</strong>
+                RUC 20601234567<br>
                 Soles peruanos · PEN
+                <button onclick="cerrarSesion()" style="margin-top:10px; width:100%; padding:8px; background:rgba(255,255,255,0.1); color:white; border:1px solid rgba(255,255,255,0.2); border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; transition:all .2s;">
+                    🚪 Cerrar Sesión
+                </button>
             </div>
         </aside>
     `;
@@ -182,4 +184,22 @@ function exportTable(card) {
 // ==================== DEMO SEED ====================
 async function cargarDatosDemo() {
     if (typeof window.cargarDatosDemo === 'function') return;  // ya definida
+}
+async function cerrarSesion() {
+    if (!confirm('¿Cerrar sesión?')) return;
+    
+    try {
+        // Cerrar sesión en Supabase
+        if (typeof supabaseClient !== 'undefined') {
+            await supabaseClient.auth.signOut();
+        }
+    } catch (e) {
+        console.warn('Error cerrando sesión en Supabase:', e);
+    }
+    
+    // Limpiar localStorage
+    localStorage.removeItem('vss_session');
+    
+    // Redirigir al login
+    window.location.href = '../index.html';
 }

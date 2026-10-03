@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Plaza Vea - Sistema Contable</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛒</text></svg>">
+    <title>VSS S.A.C. · Sistema Contable</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/professional.css">
     <link rel="stylesheet" href="css/plaza-vea.css">
-    <link rel="stylesheet" href="css/plaza-vea-3d.css"> 
+    <link rel="stylesheet" href="css/plaza-vea-3d.css">
     <link rel="stylesheet" href="css/fab-menu.css">
 </head>
 <body>
 
 <div class="header">
     <div>
-        <div class="company-name">Supermercados Peruanos S.A.</div>
-        <h1>🛒 Plaza Vea · Panel de Control</h1>
+        <div class="company-name">VSS S.A.C.</div>
+        <h1>📊 Sistema Contable · Panel de Control</h1>
     </div>
     <div class="datetime" id="currentDateTime"></div>
 </div>
@@ -24,12 +24,11 @@
 <div class="main-content">
     <div id="alertContainer"></div>
 
-    <!-- ==================== MÉTRICAS PRINCIPALES ==================== -->
     <div class="dash-welcome">
         <div>
-            <div class="eyebrow">PANEL DE CONTROL · SUPERMERCADOS PERUANOS S.A.</div>
-            <h2>🛒 Plaza Vea · Ejercicio <span id="dashAnio"></span></h2>
-            <p>Sistema de contabilidad · Soles peruanos (PEN) · Datos actualizados en tiempo real</p>
+            <div class="eyebrow">PANEL DE CONTROL · VSS S.A.C.</div>
+            <h2>📊 Sistema Contable · Ejercicio <span id="dashAnio"></span></h2>
+            <p>Sistema de contabilidad · Soles peruanos (PEN) · Datos en tiempo real</p>
         </div>
         <div class="dash-date">
             <div class="dash-date-label">Actualizado</div>
@@ -64,7 +63,6 @@
         </div>
     </div>
 
-    <!-- ==================== ESTADO DE RESULTADOS + GASTOS ==================== -->
     <div class="overview-grid">
         <div class="card">
             <h2>📊 Estado de Resultados</h2>
@@ -76,7 +74,6 @@
         </div>
     </div>
 
-    <!-- ==================== GRÁFICO VENTAS VS COMPRAS ==================== -->
     <div class="card">
         <h2>📊 Ventas vs Compras · Últimos 6 meses</h2>
         <div class="chart-legend">
@@ -86,7 +83,6 @@
         <div class="chart-container-horizontal" id="dashVentasComprasChart"></div>
     </div>
 
-    <!-- ==================== TOP PRODUCTOS + ACTIVIDAD ==================== -->
     <div class="overview-grid">
         <div class="card">
             <h2>🏆 Top 5 Productos por Valor</h2>
@@ -119,13 +115,11 @@
         </div>
     </div>
 
-    <!-- ==================== ALERTAS DE STOCK ==================== -->
     <div class="card">
         <h2>⚠️ Alertas de Stock Bajo</h2>
         <div id="dashAlertasStock" class="alert-stock-grid"></div>
     </div>
 
-    <!-- ==================== ACCESOS RÁPIDOS ==================== -->
     <div class="card">
         <h2>⚡ Accesos Rápidos</h2>
         <div class="quick-actions">
@@ -155,13 +149,13 @@
             </a>
         </div>
     </div>
-    <!-- ==================== RATIOS FINANCIEROS CLAVE ==================== -->
+
     <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
             <h2 style="margin:0; border:0; padding:0;">📊 Ratios Financieros Clave</h2>
             <a href="ratios.html" class="btn btn-primary" style="text-decoration:none;">Ver análisis completo →</a>
         </div>
-        
+
         <div class="kpi-ratios-grid">
             <div class="kpi-ratio" id="kpiLiquidez">
                 <div class="kpi-header">
@@ -172,7 +166,7 @@
                 <div class="kpi-value">—</div>
                 <div class="kpi-benchmark">Benchmark: > 1.50</div>
             </div>
-            
+
             <div class="kpi-ratio" id="kpiMargenBruto">
                 <div class="kpi-header">
                     <div class="kpi-icon">📈</div>
@@ -182,7 +176,7 @@
                 <div class="kpi-value">—</div>
                 <div class="kpi-benchmark">Benchmark: 25% – 30%</div>
             </div>
-            
+
             <div class="kpi-ratio" id="kpiEndeudamiento">
                 <div class="kpi-header">
                     <div class="kpi-icon">💰</div>
@@ -192,7 +186,7 @@
                 <div class="kpi-value">—</div>
                 <div class="kpi-benchmark">Benchmark: < 0.60</div>
             </div>
-            
+
             <div class="kpi-ratio" id="kpiRoe">
                 <div class="kpi-header">
                     <div class="kpi-icon">💎</div>
@@ -204,9 +198,10 @@
             </div>
         </div>
     </div>
+
     <div class="footer-info">
-        <p>Plaza Vea · Supermercados Peruanos S.A. © 2026 | RUC 20492068702</p>
-        <p>Sistema Contable · Soles peruanos · Desarrollado sobre Supabase</p>
+        <p>VSS S.A.C. © 2026 | RUC 20601234567</p>
+        <p>Sistema Contable · Soles peruanos · Supabase</p>
     </div>
 </div>
 
@@ -220,6 +215,9 @@
     };
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SCRIPTS (orden importante) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js"></script>
 <script src="js/db.js"></script>
@@ -229,6 +227,40 @@
 <script src="js/dashboard.js"></script>
 <script src="js/professional.js"></script>
 <script src="js/fab-menu.js"></script>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ✅ GUARD DE AUTENTICACIÓN (DESPUÉS de todos los scripts) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<script>
+    (async function() {
+        console.log('🔒 Verificando autenticación...');
+        
+        if (typeof supabaseClient === 'undefined') {
+            console.error('❌ supabaseClient no está definido');
+            window.location.replace('../index.html');
+            return;
+        }
+        
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            
+            if (!session) {
+                console.warn('🔒 Sin sesión activa. Redirigiendo al login...');
+                window.location.replace('../index.html');
+                return;
+            }
+            
+            console.log('✅ Sesión válida:', session.user.email);
+        } catch (e) {
+            console.error('❌ Error verificando sesión:', e);
+            window.location.replace('../index.html');
+        }
+    })();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- INIT DEL DASHBOARD -->
+<!-- ═══════════════════════════════════════════════════════════ -->
 <script>
     document.addEventListener('DOMContentLoaded', async function() {
         if (!initSupabase()) {
@@ -239,7 +271,6 @@
         updateDateTime();
         setInterval(updateDateTime, 60000);
 
-        // Fecha y año en el dashboard
         document.getElementById('dashAnio').textContent = new Date().getFullYear();
         document.getElementById('dashFechaHoy').textContent = new Date().toLocaleDateString('es-PE', {
             day: '2-digit', month: 'short', year: 'numeric'
