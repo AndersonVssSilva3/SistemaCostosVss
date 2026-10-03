@@ -12,7 +12,7 @@ async function initDashboard() {
             cargarTopProductosKardex(),
             cargarActividadReciente(),
             cargarAlertasStock(),
-            cargarRatiosClave(),          // ⬅️ NUEVO
+            cargarRatiosClave(),
         ]);
         console.log('✅ Dashboard listo');
     } catch (error) {
@@ -80,9 +80,11 @@ function totalHaberPorPrefijo(asientos, prefijo) {
 
 // ==================== 1. MÉTRICAS PRINCIPALES ====================
 async function cargarMetricasPrincipales() {
-    const [asientos, kardex] = await Promise.all([
+    const [asientos, kardex, comprasTabla, ventasTabla] = await Promise.all([
         DB.getAll('asientos'),
-        DB.getAll('kardex')
+        DB.getAll('kardex'),
+        DB.getAll('compras'),
+        DB.getAll('ventas')
     ]);
 
     // Total Activo (elemento 1, 2, 3 descontando 19, 29, 39 que son acreedoras)
@@ -101,11 +103,11 @@ async function cargarMetricasPrincipales() {
         });
     });
 
-    // Total Ventas (70x)
-    const ventas = totalHaberPorPrefijo(asientos, '70');
+    // Total Ventas — leer de la tabla ventas (base imponible, sin IGV)
+    const ventas = ventasTabla.reduce((s, v) => s + (Number(v.base) || 0), 0);
 
-    // Total Compras (60x)
-    const compras = totalDebePorPrefijo(asientos, '60');
+    // Total Compras — leer de la tabla compras (base imponible, sin IGV)
+    const compras = comprasTabla.reduce((s, c) => s + (Number(c.base) || 0), 0);
 
     // Valor Inventario (kardex: entradas - salidas)
     let inventario = 0;
@@ -203,7 +205,12 @@ async function cargarEstadoResultados() {
 
 // ==================== 3. VENTAS VS COMPRAS ÚLTIMOS 6 MESES ====================
 async function cargarVentasComprasMes() {
-    const asientos = await DB.getAll('asientos');
+    // Leer directamente de las tablas (más confiable)
+    const [compras, ventas] = await Promise.all([
+        DB.getAll('compras'),
+        DB.getAll('ventas')
+    ]);
+
     const meses = [];
 
     // Últimos 6 meses
@@ -218,17 +225,20 @@ async function cargarVentasComprasMes() {
         });
     }
 
-    asientos.forEach(a => {
-        if (!a.fecha) return;
-        const key = a.fecha.substring(0, 7);
+    // Sumar compras (base imponible, sin IGV)
+    compras.forEach(c => {
+        if (!c.fecha) return;
+        const key = c.fecha.substring(0, 7);
         const mes = meses.find(m => m.key === key);
-        if (!mes) return;
+        if (mes) mes.compras += Number(c.base) || 0;
+    });
 
-        (a.lineas || []).forEach(l => {
-            const c = String(l.cuenta);
-            if (c.startsWith('70')) mes.ventas += Number(l.haber) || 0;
-            if (c.startsWith('60')) mes.compras += Number(l.debe) || 0;
-        });
+    // Sumar ventas (base imponible, sin IGV)
+    ventas.forEach(v => {
+        if (!v.fecha) return;
+        const key = v.fecha.substring(0, 7);
+        const mes = meses.find(m => m.key === key);
+        if (mes) mes.ventas += Number(v.base) || 0;
     });
 
     const maxVal = Math.max(...meses.map(m => Math.max(m.ventas, m.compras)), 1);
@@ -490,6 +500,7 @@ async function cargarAlertasStock() {
         `;
     }).join('');
 }
+
 // ==================== RATIOS CLAVE EN EL DASHBOARD ====================
 async function cargarRatiosClave() {
     if (typeof Ratios === 'undefined') {
@@ -501,7 +512,6 @@ async function cargarRatiosClave() {
         const resultado = await Ratios.calcularTodos();
         const r = resultado.ratios;
         
-        // Actualizar las 4 tarjetas de ratios clave
         actualizarTarjetaRatio('kpiLiquidez', r.liquidezCorriente, 'x');
         actualizarTarjetaRatio('kpiMargenBruto', r.margenBruto, '%');
         actualizarTarjetaRatio('kpiEndeudamiento', r.endeudamientoTotal, 'pct');
@@ -534,7 +544,6 @@ function actualizarTarjetaRatio(elementId, ratio, tipo) {
     el.querySelector('.kpi-semaforo').textContent = sem.icon;
     el.querySelector('.kpi-benchmark').textContent = ratio.benchmark;
     
-    // Actualizar clase de color
     el.classList.remove('kpi-ok', 'kpi-warn', 'kpi-bad');
     el.classList.add('kpi-' + sem.clase);
 }

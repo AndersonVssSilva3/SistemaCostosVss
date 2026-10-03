@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plaza Vea - Sistema Contable</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛒</text></svg>">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/professional.css">
+    <link rel="stylesheet" href="css/plaza-vea.css">
+    <link rel="stylesheet" href="css/plaza-vea-3d.css"> 
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <div class="company-name">Supermercados Peruanos S.A.</div>
+        <h1>🛒 Operaciones · Asientos</h1>
+    </div>
+    <div style="display:flex; align-items:center; gap:15px;">
+        <a href="index.html" class="home-btn">🏠 Inicio</a>
+        <div class="datetime" id="currentDateTime"></div>
+    </div>
+</div>
+
+<div class="main-content">
+    <div id="alertContainer"></div>
+
+    <div class="card">
+        <h2>📋 Registro de Asientos Contables</h2>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Fecha del Asiento</label>
+                <input type="date" id="asientoFecha" value="2026-09-04">
+            </div>
+            <div class="form-group">
+                <label>N° Asiento</label>
+                <input type="text" id="asientoNumero" readonly>
+            </div>
+            <div class="form-group">
+                <label>Tipo de Asiento</label>
+                <select id="asientoTipo">
+                    <option value="normal">Normal</option>
+                    <option value="ajuste">Ajuste</option>
+                    <option value="apertura">Apertura</option>
+                    <option value="cierre">Cierre</option>
+                </select>
+            </div>
+        </div>
+
+        <h3>Detalle del Asiento</h3>
+        <div id="asientoLines"></div>
+
+        <div class="btn-group">
+            <button class="btn btn-info" onclick="addAsientoLine()">➕ Agregar Línea</button>
+        </div>
+
+        <div class="totals-row" style="margin-top:15px;">
+            <div>TOTALES</div>
+            <div></div>
+            <div id="totalDebe">0.00</div>
+            <div id="totalHaber">0.00</div>
+            <div id="diferencia">0.00</div>
+            <div></div>
+        </div>
+
+        <div id="balanceCheck" class="balance-check balance-ok">
+            ✅ El asiento está cuadrado
+        </div>
+
+        <div class="glosa-box">
+            <label style="font-weight:700; color:#c62828;">Glosa / Descripción:</label>
+            <div style="position:relative;">
+                <textarea id="asientoGlosa" placeholder="Ej: Se vendió 1.000 unidades al valor de venta de s/.10.00..." style="padding-right:55px;"></textarea>
+                <button type="button" id="btnMicrofono" class="btn-microfono" onclick="toggleDictado()" title="Dictar por voz">
+                    🎤
+                </button>
+            </div>
+            <small id="dictadoStatus" style="display:none; color:#c62828; font-weight:600; margin-top:5px;"></small>
+        </div>
+
+        <p class="field-help">Seleccione una subcuenta y registre un importe en Debe o Haber por línea. La glosa debe explicar la operación y su sustento.</p>
+
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="guardarAsiento()">💾 Guardar Asiento</button>
+            <button class="btn btn-warning" onclick="limpiarAsiento()">🧹 Limpiar</button>
+            <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📋 Asientos Registrados</h2>
+        <div class="search-box">
+            <input type="text" id="searchAsiento" placeholder="Buscar por número, fecha o glosa..." onkeyup="filterAsientos()">
+            <select id="filterTipo" onchange="filterAsientos()">
+                <option value="">Todos los tipos</option>
+                <option value="normal">Normal</option>
+                <option value="ajuste">Ajuste</option>
+                <option value="apertura">Apertura</option>
+                <option value="cierre">Cierre</option>
+            </select>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>N°</th><th>Fecha</th><th>Tipo</th><th>Cuenta</th>
+                        <th>Debe</th><th>Haber</th><th>Glosa</th><th>Estado</th><th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="asientosTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="footer-info">
+        <p>Sistema de Contabilidad OMEGA SAC © 2026</p>
+    </div>
+</div>
+<!-- Fallback: definir textCell antes que cualquier script -->
+<script>
+    window.textCell = window.textCell || function(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    };
+    console.log('✅ textCell definido como fallback');
+</script>
+<!-- 1. CDN de Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- 2. Configuración Supabase (crea supabaseClient) -->
+<script src="js/supabase-config.js"></script>
+<!-- 3. Base de datos -->
+<script src="js/db.js"></script>
+<!-- 4. Resto -->
+<script src="js/utils.js"></script>
+<script src="js/accounting.js"></script>
+<script src="js/operaciones.js"></script>
+<script src="js/professional.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) {
+            alert('❌ Error: No se pudo conectar con Supabase');
+            return;
+        }
+        await initDefaultData();
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        await initOperaciones();
+    });
+</script>
+
+</body>
+</html>

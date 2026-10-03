@@ -71,13 +71,17 @@ function construirSidebar() {
     console.log('✅ Sidebar construido');
 }
 
+
 // ==================== INICIALIZACIÓN UI ====================
 document.addEventListener('DOMContentLoaded', async () => {
     const current = location.pathname.split('/').pop() || 'index.html';
 
     // -------- Barra lateral (PRIMERO, siempre) --------
     construirSidebar();
-
+    // Después de construirSidebar();
+    if (typeof initFabMenu === 'function') {
+        initFabMenu();
+    }
     const main = document.querySelector('.main-content');
     if (main) main.id = 'workspace';
 

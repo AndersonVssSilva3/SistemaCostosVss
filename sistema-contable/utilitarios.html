@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plaza Vea - Sistema Contable</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛒</text></svg>">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/professional.css">
+    <link rel="stylesheet" href="css/plaza-vea.css">
+    <link rel="stylesheet" href="css/plaza-vea-3d.css"> 
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <div class="company-name">Supermercados Peruanos S.A.</div>
+        <h1>🛒 Herramientas</h1>
+    </div>
+    <div style="display:flex; align-items:center; gap:15px;">
+        <a href="index.html" class="home-btn">🏠 Inicio</a>
+        <div class="datetime" id="currentDateTime"></div>
+    </div>
+</div>
+
+<div class="sub-nav">
+    <button class="active" onclick="showTab('util-backup', this)">⚙️ Backup</button>
+    <button onclick="showTab('util-estadisticas', this)">⚙️ Estadísticas</button>
+    <button onclick="showTab('util-manual', this)">⚙️ Manual</button>
+</div>
+
+<div class="main-content">
+    <div id="alertContainer"></div>
+
+    <div class="tab-content active" id="util-backup">
+        <div class="card">
+            <h2>⚙️ Backup del Sistema</h2>
+            <p style="margin-bottom:15px; color:#666;">Exporte o importe todos los datos del sistema.</p>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="cargarDatosPlazaVea()">🛒 Cargar datos Plaza Vea</button>
+                <button class="btn btn-danger"  onclick="borrarDatosPlazaVea()">🗑️ Borrar Plaza Vea</button>
+                <button class="btn btn-success" onclick="exportarBackup()">📥 Exportar Backup (JSON)</button>
+                <button class="btn btn-warning" onclick="document.getElementById('importFile').click()">📤 Importar Backup</button>
+                <input type="file" id="importFile" accept=".json" style="display:none" onchange="importarBackup(event)">
+                <button class="btn btn-danger" onclick="limpiarTodo()">🗑️ Iniciar base vacía</button>
+            </div>
+            <div id="backupInfo" style="margin-top:20px;"></div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="util-estadisticas">
+        <div class="card">
+            <h2>⚙️ Estadísticas</h2>
+            <div class="dashboard-grid">
+                <div class="stat-card"><h4>Total Asientos</h4><div class="value" id="statAsientos">0</div></div>
+                <div class="stat-card"><h4>Total Ventas</h4><div class="value" id="statVentas">S/ 0.00</div></div>
+                <div class="stat-card"><h4>Total Compras</h4><div class="value" id="statCompras">S/ 0.00</div></div>
+                <div class="stat-card"><h4>Cuentas Activas</h4><div class="value" id="statCuentas">0</div></div>
+            </div>
+            <h3 style="margin-top:20px;">Distribución de Gastos por Centro de Costo</h3>
+            <div class="chart-container" id="statsChart"></div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="util-manual">
+        <div class="card">
+            <h2>⚙️ Manual de Usuario</h2>
+            <div style="line-height:1.8;">
+                <h3>1. Operaciones - Asientos Contables</h3>
+                <p>Permite registrar asientos contables con cuentas del plan contable. Cada asiento debe tener el Debe igual al Haber (partida doble).</p>
+                <ul style="margin:10px 0 10px 30px;">
+                    <li>Haga clic en "Agregar Línea" para añadir cuentas al asiento</li>
+                    <li>Seleccione la cuenta contable, indique si es Debe o Haber y el monto</li>
+                    <li>Escriba la glosa descriptiva de la operación</li>
+                    <li>El sistema valida que Debe = Haber antes de guardar</li>
+                </ul>
+
+                <h3>2. Libros Contables</h3>
+                <p>Genera automáticamente los libros oficiales: Diario, Mayor, Compras, Ventas, Inventarios y Planillas.</p>
+
+                <h3>3. Estados Financieros (EEFF)</h3>
+                <p>Genera Balance General, Estado de Ganancias y Pérdidas, Flujo de Efectivo y Balance de Comprobación.</p>
+
+                <h3>4. Costos</h3>
+                <p>Módulo de costeo: Libro Mayor de Fábrica, Hoja de Costos, Costos Fijos/Variables y Costo de Ventas.</p>
+
+                <h3>5. Cierre</h3>
+                <p>Ajustes contables y cierre del ejercicio fiscal.</p>
+
+                <h3>6. Tablas</h3>
+                <p>Administración del plan de cuentas, productos, mercaderías, activo fijo, centros de costo, inductores y repuestos.</p>
+
+                <h3>7. Utilitarios</h3>
+                <p>Backup, estadísticas y manual de usuario.</p>
+
+                <div class="nic-niif-info" style="margin-top:20px;">
+                    <h4>Normas Aplicables</h4>
+                    <p><strong>NIC</strong> → Normas Internacionales de Contabilidad (USA)</p>
+                    <p><strong>NIIF</strong> → Normas Internacionales de Información Financiera (Inglaterra, Londres)</p>
+                </div>
+            </div>
+            <div id="seedStatus"></div>
+        </div>
+    </div>
+
+    <div class="footer-info"><p>Sistema de Contabilidad OMEGA SAC © 2026</p></div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/accounting.js"></script>
+<script src="js/utilitarios.js"></script>
+<script src="js/professional.js"></script>
+<script src="js/seed-plaza-vea.js"></script>   <!-- reemplaza a seed-demo.js -->
+<script>
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) {
+            alert('❌ Error: No se pudo conectar con Supabase');
+            return;
+        }
+        await initDefaultData();
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        // await initTU_MODULO(); // ← el que corresponda
+    });
+</script>
+
+</body>
+</html>
