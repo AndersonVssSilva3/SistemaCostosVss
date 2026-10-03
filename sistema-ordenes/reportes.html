@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VSS Fábrica · Reportes</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☷</text></svg>">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/professional.css">
+    <link rel="stylesheet" href="css/vss.css">
+    <link rel="stylesheet" href="css/vss-3d.css">
+    <link rel="stylesheet" href="css/fab-menu.css">
+    <link rel="stylesheet" href="css/ordenes.css">
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <div class="company-name">VSS Fábrica S.A.C.</div>
+        <h1>☷ Reportes y Análisis</h1>
+    </div>
+    <div class="datetime" id="currentDateTime"></div>
+</div>
+
+<div class="main-content">
+    <div id="alertContainer"></div>
+
+    <!-- KPIs principales -->
+    <div class="metrics">
+        <div class="metric metric-activo">
+            <div class="metric-icon">💰</div>
+            <div class="metric-label">Costo Total Producción</div>
+            <strong id="repCostoTotal">S/ 0.00</strong>
+            <small>MP + MOD + CIF</small>
+        </div>
+        <div class="metric metric-ventas">
+            <div class="metric-icon">📦</div>
+            <div class="metric-label">Costo Unitario Promedio</div>
+            <strong id="repCostoUnitProm">S/ 0.00</strong>
+            <small>Por unidad producida</small>
+        </div>
+        <div class="metric metric-compras">
+            <div class="metric-icon">🎯</div>
+            <div class="metric-label">Margen Bruto Promedio</div>
+            <strong id="repMargenProm">0.0%</strong>
+            <small>Ventas vs Costos</small>
+        </div>
+        <div class="metric metric-inventario">
+            <div class="metric-icon">💎</div>
+            <div class="metric-label">ROI Producción</div>
+            <strong id="repROI">0.0%</strong>
+            <small>Retorno de la inversión</small>
+        </div>
+    </div>
+
+    <!-- Composición del costo -->
+    <div class="card">
+        <h2>📊 Composición del Costo de Producción</h2>
+        <div id="repComposicion"></div>
+    </div>
+
+    <!-- Rentabilidad por OT -->
+    <div class="overview-grid">
+        <div class="card">
+            <h2>📈 Rentabilidad por OT</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>OT</th>
+                            <th style="text-align:right;">Costo</th>
+                            <th style="text-align:right;">Venta</th>
+                            <th style="text-align:right;">Utilidad</th>
+                            <th style="text-align:right;">Margen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="repRentabilidad"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card">
+            <h2>⚙️ Distribución CIF</h2>
+            <div id="repCIF"></div>
+        </div>
+    </div>
+
+    <div class="footer-info">
+        <p>VSS Fábrica S.A.C. © 2026 | RUC 20601234567</p>
+    </div>
+</div>
+
+<script>
+    window.textCell = window.textCell || function(value) {
+        if (value === null || value === undefined) return '';
+        return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    };
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/accounting.js"></script>
+<script src="js/fab-menu.js"></script>
+<script src="js/reportes.js"></script>
+<script src="js/professional-ot.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) { alert('❌ Error'); return; }
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        await initReportes();
+    });
+</script>
+
+</body>
+</html>

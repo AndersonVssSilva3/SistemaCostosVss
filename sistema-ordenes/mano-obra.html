@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VSS Fábrica · Mano de Obra</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👷</text></svg>">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/professional.css">
+    <link rel="stylesheet" href="css/vss.css">
+    <link rel="stylesheet" href="css/vss-3d.css">
+    <link rel="stylesheet" href="css/fab-menu.css">
+    <link rel="stylesheet" href="css/ordenes.css">
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <div class="company-name">VSS Fábrica S.A.C.</div>
+        <h1>👷 Mano de Obra</h1>
+    </div>
+    <div class="datetime" id="currentDateTime"></div>
+</div>
+
+<div class="main-content">
+    <div id="alertContainer"></div>
+
+    <!-- Resumen -->
+    <div class="metrics" id="moMetricas">
+        <div class="metric metric-activo">
+            <div class="metric-icon">👷</div>
+            <div class="metric-label">MOD Total</div>
+            <strong id="moTotalMOD">S/ 0.00</strong>
+            <small>Mano de obra directa</small>
+        </div>
+        <div class="metric metric-ventas">
+            <div class="metric-icon">⚙️</div>
+            <div class="metric-label">MOI Total</div>
+            <strong id="moTotalMOI">S/ 0.00</strong>
+            <small>Mano de obra indirecta</small>
+        </div>
+        <div class="metric metric-compras">
+            <div class="metric-icon">💰</div>
+            <div class="metric-label">Total Mano de Obra</div>
+            <strong id="moTotalGeneral">S/ 0.00</strong>
+            <small>MOD + MOI</small>
+        </div>
+    </div>
+
+    <!-- Tabla de MO por OT -->
+    <div class="card">
+        <h2>👷 Mano de Obra por Orden de Trabajo</h2>
+        <div class="btn-group" style="margin-bottom:15px;">
+            <button class="btn btn-primary" onclick="exportarMOCSV()">📥 Exportar CSV</button>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>OT</th>
+                        <th>Tipo</th>
+                        <th>Concepto</th>
+                        <th style="text-align:right;">Monto</th>
+                    </tr>
+                </thead>
+                <tbody id="moTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="footer-info">
+        <p>VSS Fábrica S.A.C. © 2026 | RUC 20601234567</p>
+    </div>
+</div>
+
+<script>
+    window.textCell = window.textCell || function(value) {
+        if (value === null || value === undefined) return '';
+        return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    };
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/accounting.js"></script>
+<script src="js/fab-menu.js"></script>
+<script src="js/mano-obra.js"></script>
+<script src="js/professional-ot.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) { alert('❌ Error'); return; }
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        await initManoObra();
+    });
+</script>
+
+</body>
+</html>

@@ -87,7 +87,7 @@
         0 2px 6px rgba(0, 0, 0, 0.15),
         inset 0 1px 0 rgba(255, 255, 255, 0.3),
         inset 0 -2px 4px rgba(0, 0, 0, 0.15);
-    /* ❌ position: relative; — ELIMINADA */
+    z-index: 20;/* ❌ position: relative; — ELIMINADA */
 }
 
 .fab-item:hover {
@@ -216,4 +216,25 @@
         height: 48px;
         font-size: 18px;
     }
+}
+/* Sistema actual */
+.fab-item.fab-item-actual {
+    /* Mantener mismo tamaño y posición */
+    opacity: 1;
+    pointer-events: auto;   /* SÍ se puede clickear */
+}
+
+
+.fab-item.fab-item-actual::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #087565;
+    border: 2px solid white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    z-index: 1;
 }

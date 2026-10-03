@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VSS Fábrica · Sistema de Órdenes</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/professional.css">
+    <link rel="stylesheet" href="css/vss.css">
+    <link rel="stylesheet" href="css/vss-3d.css">
+    <link rel="stylesheet" href="css/fab-menu.css">
+    <link rel="stylesheet" href="css/ordenes.css">
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <div class="company-name">VSS Fábrica S.A.C.</div>
+        <h1>🏭 Dashboard Industrial</h1>
+    </div>
+    <div class="datetime" id="currentDateTime"></div>
+</div>
+
+<div class="main-content">
+    <div id="alertContainer"></div>
+
+    <!-- Bienvenida -->
+    <div class="dash-welcome">
+        <div>
+            <div class="eyebrow">PANEL DE CONTROL · ÁREA INDUSTRIAL</div>
+            <h2>🏭 Sistema de Órdenes de Trabajo</h2>
+            <p>Costeo por órdenes de producción · Período Septiembre 2026</p>
+        </div>
+        <div class="dash-date">
+            <div class="dash-date-label">Actualizado</div>
+            <div class="dash-date-value" id="dashFechaHoy"></div>
+        </div>
+    </div>
+
+    <!-- Métricas principales -->
+    <div class="metrics">
+        <div class="metric metric-activo">
+            <div class="metric-icon">📋</div>
+            <div class="metric-label">Órdenes Activas</div>
+            <strong id="otTotalOTs">0</strong>
+            <small>En proceso de producción</small>
+        </div>
+        <div class="metric metric-ventas">
+            <div class="metric-icon">📦</div>
+            <div class="metric-label">Unidades Producidas</div>
+            <strong id="otTotalUnidades">0</strong>
+            <small>Total del período</small>
+        </div>
+        <div class="metric metric-compras">
+            <div class="metric-icon">💰</div>
+            <div class="metric-label">Costo de Producción</div>
+            <strong id="otTotalCosto">S/ 0.00</strong>
+            <small id="otTotalCostoFull">S/ 0.00</small>
+        </div>
+        <div class="metric metric-inventario">
+            <div class="metric-icon">💵</div>
+            <div class="metric-label">Ventas Totales</div>
+            <strong id="otTotalVentas">S/ 0.00</strong>
+            <small id="otTotalVentasFull">S/ 0.00</small>
+        </div>
+    </div>
+
+    <!-- Órdenes de trabajo -->
+    <div class="card">
+        <h2>🏭 Órdenes de Trabajo</h2>
+        <div id="otListaOrdenes" class="ot-lista"></div>
+    </div>
+
+    <!-- Distribución CIF -->
+    <div class="overview-grid">
+        <div class="card">
+            <h2>⚙️ Distribución de CIF</h2>
+            <div id="otCifDistribucion"></div>
+        </div>
+        <div class="card">
+            <h2>📊 Ventas vs Costos por OT</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>OT</th>
+                            <th style="text-align:right;">Costo</th>
+                            <th style="text-align:right;">Venta</th>
+                            <th style="text-align:right;">Utilidad</th>
+                            <th style="text-align:right;">Margen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="otVentasTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Accesos rápidos -->
+    <div class="card">
+        <h2>⚡ Accesos Rápidos</h2>
+        <div class="quick-actions">
+            <a href="ordenes.html" class="quick-action">
+                <div class="quick-action-icon">📋</div>
+                <div class="quick-action-label">Ver Órdenes</div>
+            </a>
+            <a href="materia-prima.html" class="quick-action">
+                <div class="quick-action-icon">📦</div>
+                <div class="quick-action-label">Materia Prima</div>
+            </a>
+            <a href="mano-obra.html" class="quick-action">
+                <div class="quick-action-icon">👷</div>
+                <div class="quick-action-label">Mano de Obra</div>
+            </a>
+            <a href="cif.html" class="quick-action">
+                <div class="quick-action-icon">⚙️</div>
+                <div class="quick-action-label">CIF</div>
+            </a>
+            <a href="mayor-fabrica.html" class="quick-action">
+                <div class="quick-action-icon">📊</div>
+                <div class="quick-action-label">Mayor Fábrica</div>
+            </a>
+            <a href="eeff-ot.html" class="quick-action">
+                <div class="quick-action-icon">📈</div>
+                <div class="quick-action-label">Estados Financieros</div>
+            </a>
+        </div>
+    </div>
+
+    <div class="footer-info">
+        <p>VSS Fábrica S.A.C. © 2026 | RUC 20601234567</p>
+        <p>Sistema de Órdenes de Trabajo · Soles peruanos · Supabase</p>
+    </div>
+</div>
+
+<!-- Fallback textCell -->
+<script>
+    window.textCell = window.textCell || function(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    };
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/accounting.js"></script>
+<script src="js/ordenes.js"></script>
+<script src="js/fab-menu.js"></script>
+<script src="js/professional-ot.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) {
+            alert('❌ Error: No se pudo conectar con Supabase');
+            return;
+        }
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+
+        document.getElementById('dashFechaHoy').textContent = new Date().toLocaleDateString('es-PE', {
+            day: '2-digit', month: 'short', year: 'numeric'
+        });
+
+        await initDashboardOT();
+    });
+</script>
+
+</body>
+</html>

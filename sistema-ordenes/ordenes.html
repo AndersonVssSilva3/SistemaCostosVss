@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VSS Fábrica · Órdenes de Trabajo</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/professional.css">
+    <link rel="stylesheet" href="css/vss.css">
+    <link rel="stylesheet" href="css/vss-3d.css">
+    <link rel="stylesheet" href="css/fab-menu.css">
+    <link rel="stylesheet" href="css/ordenes.css">
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <div class="company-name">VSS Fábrica S.A.C.</div>
+        <h1>📋 Órdenes de Trabajo</h1>
+    </div>
+    <div class="datetime" id="currentDateTime"></div>
+</div>
+
+<div class="main-content">
+    <div id="alertContainer"></div>
+
+    <!-- LISTA DE OT -->
+    <div class="card">
+        <h2>📋 Órdenes de Trabajo Registradas</h2>
+        <div class="btn-group" style="margin-bottom:15px;">
+            <button class="btn btn-primary" onclick="exportarOTCSV()">📥 Exportar CSV</button>
+            <button class="btn btn-warning" onclick="window.print()">🖨️ Imprimir</button>
+        </div>
+        <div class="search-box">
+            <input type="text" id="searchOT" placeholder="Buscar OT..." onkeyup="filterOrdenes()">
+            <select id="filterEstadoOT" onchange="filterOrdenes()">
+                <option value="">Todos los estados</option>
+                <option value="en_proceso">En proceso</option>
+                <option value="terminada">Terminadas</option>
+            </select>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>N° OT</th>
+                        <th>Descripción</th>
+                        <th>Período</th>
+                        <th style="text-align:right;">Unidades</th>
+                        <th style="text-align:right;">Costo MP</th>
+                        <th style="text-align:right;">Costo MOD</th>
+                        <th style="text-align:right;">Costo CIF</th>
+                        <th style="text-align:right;">Costo Total</th>
+                        <th style="text-align:right;">Costo Unit.</th>
+                        <th style="text-align:center;">Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="otTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- DETALLE DE OT SELECCIONADA -->
+    <div class="card" id="otDetalle" style="display:none;">
+        <h2 id="otDetalleTitulo">📊 Detalle de la OT</h2>
+        
+        <div class="ot-detalle-grid">
+            <!-- Columna 1: Info -->
+            <div class="ot-detalle-info">
+                <h3>Información General</h3>
+                <div class="info-row"><strong>N° OT:</strong> <span id="detOTNumero">—</span></div>
+                <div class="info-row"><strong>Descripción:</strong> <span id="detOTDesc">—</span></div>
+                <div class="info-row"><strong>Inicio:</strong> <span id="detOTFechaInicio">—</span></div>
+                <div class="info-row"><strong>Fin:</strong> <span id="detOTFechaFin">—</span></div>
+                <div class="info-row"><strong>Estado:</strong> <span id="detOTEstado">—</span></div>
+                <div class="info-row"><strong>Unidades:</strong> <span id="detOTUnidades">—</span></div>
+                <div class="info-row"><strong>Costo Unitario:</strong> <span id="detOTCostoUnit">—</span></div>
+            </div>
+            
+            <!-- Columna 2: Costos -->
+            <div class="ot-detalle-costos">
+                <h3>Composición del Costo</h3>
+                <div id="detOTCostosResumen"></div>
+            </div>
+        </div>
+
+        <h3 style="margin-top:30px;">📦 Materia Prima Utilizada</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Código MP</th>
+                        <th style="text-align:right;">Cantidad</th>
+                        <th style="text-align:right;">Costo Unit.</th>
+                        <th style="text-align:right;">Costo Total</th>
+                    </tr>
+                </thead>
+                <tbody id="detOTMateriaPrima"></tbody>
+            </table>
+        </div>
+
+        <h3 style="margin-top:20px;">👷 Mano de Obra</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Concepto</th>
+                        <th style="text-align:right;">Monto</th>
+                    </tr>
+                </thead>
+                <tbody id="detOTManoObra"></tbody>
+            </table>
+        </div>
+
+        <h3 style="margin-top:20px;">⚙️ Costos Indirectos (CIF)</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Concepto</th>
+                        <th>Inductor</th>
+                        <th style="text-align:right;">%</th>
+                        <th style="text-align:right;">Monto</th>
+                    </tr>
+                </thead>
+                <tbody id="detOTCif"></tbody>
+            </table>
+        </div>
+
+        <h3 style="margin-top:20px;">💵 Venta</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Monto</th>
+                        <th>Tipo Pago</th>
+                        <th style="text-align:right;">Utilidad</th>
+                        <th style="text-align:right;">Margen</th>
+                    </tr>
+                </thead>
+                <tbody id="detOTVenta"></tbody>
+            </table>
+        </div>
+        
+        <div class="btn-group" style="margin-top:20px;">
+            <button class="btn btn-danger" onclick="cerrarDetalleOT()">✕ Cerrar Detalle</button>
+        </div>
+    </div>
+
+    <div class="footer-info">
+        <p>VSS Fábrica S.A.C. © 2026 | RUC 20601234567</p>
+    </div>
+</div>
+
+<script>
+    window.textCell = window.textCell || function(value) {
+        if (value === null || value === undefined) return '';
+        return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    };
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/accounting.js"></script>
+<script src="js/fab-menu.js"></script>
+<script src="js/ordenes-page.js"></script>
+<script src="js/professional-ot.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) {
+            alert('❌ Error: No se pudo conectar con Supabase');
+            return;
+        }
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        await initOrdenesPage();
+    });
+</script>
+
+</body>
+</html>

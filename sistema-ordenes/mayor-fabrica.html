@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VSS Fábrica · Mayor de Fábrica</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/professional.css">
+    <link rel="stylesheet" href="css/vss.css">
+    <link rel="stylesheet" href="css/vss-3d.css">
+    <link rel="stylesheet" href="css/fab-menu.css">
+    <link rel="stylesheet" href="css/ordenes.css">
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <div class="company-name">VSS Fábrica S.A.C.</div>
+        <h1>📊 Mayor de Fábrica · Cuentas T</h1>
+    </div>
+    <div class="datetime" id="currentDateTime"></div>
+</div>
+
+<div class="main-content">
+    <div id="alertContainer"></div>
+
+    <div class="card">
+        <h2>📊 Mayor de Fábrica - Cuentas Contables</h2>
+        <p style="color:#56677b; margin-bottom:20px;">
+            Cuentas T con movimientos del área industrial (Ejercicio 2026)
+        </p>
+        <div class="btn-group" style="margin-bottom:15px;">
+            <button class="btn btn-primary" onclick="exportarMayorCSV()">📥 Exportar CSV</button>
+            <button class="btn btn-warning" onclick="window.print()">🖨️ Imprimir</button>
+        </div>
+    </div>
+
+    <!-- Grilla de cuentas T -->
+    <div id="mayorGrid" class="mayor-grid"></div>
+
+    <div class="footer-info">
+        <p>VSS Fábrica S.A.C. © 2026 | RUC 20601234567</p>
+        <p>Mayor de Fábrica · Ejercicio 2026</p>
+    </div>
+</div>
+
+<script>
+    window.textCell = window.textCell || function(value) {
+        if (value === null || value === undefined) return '';
+        return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    };
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/accounting.js"></script>
+<script src="js/fab-menu.js"></script>
+<script src="js/mayor-fabrica.js"></script>
+<script src="js/professional-ot.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) { alert('❌ Error'); return; }
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        await initMayorFabrica();
+    });
+</script>
+
+</body>
+</html>
