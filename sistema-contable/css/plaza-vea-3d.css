@@ -409,7 +409,9 @@ body {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-radius: var(--radius-md);
-    overflow: hidden;
+    /* Scroll propio: professional.css limita la altura a 600px; con "hidden" las filas de abajo quedaban ocultas */
+    overflow-y: auto;
+    overflow-x: auto;
 }
 
 table th {
