@@ -89,13 +89,11 @@ async function guardarMP() {
     const stock = parseFloat(document.getElementById('mpStock').value) || 0;
     const costo_unitario = parseFloat(document.getElementById('mpCostoUnit').value) || 0;
 
-    // Validaciones
     if (!codigo) { showAlert('El código es obligatorio', 'error'); return; }
     if (!descripcion) { showAlert('La descripción es obligatoria', 'error'); return; }
     if (stock < 0) { showAlert('El stock no puede ser negativo', 'error'); return; }
     if (costo_unitario < 0) { showAlert('El costo unitario no puede ser negativo', 'error'); return; }
 
-    // Verificar código único
     const todas = await DB.getAll('materiaPrima');
     const existe = todas.find(m => m.codigo === codigo && String(m.id) !== String(id));
     if (existe) {
@@ -126,7 +124,6 @@ async function eliminarMP(id) {
     const mp = await DB.get('materiaPrima', id);
     if (!mp) return;
 
-    // Verificar si tiene asignaciones
     const asignaciones = await DB.getAll('otMateriaPrima');
     const usada = asignaciones.filter(a => a.materia_prima_codigo === mp.codigo);
 
@@ -137,7 +134,6 @@ async function eliminarMP(id) {
     if (!confirm(msg)) return;
 
     try {
-        // Eliminar asignaciones asociadas
         for (const a of usada) {
             await DB.delete('otMateriaPrima', a.id);
         }
@@ -209,19 +205,16 @@ async function renderAsignacionesMP() {
 }
 
 async function openModalAsignacion() {
-    // Cargar OTs
     const ordenes = await DB.getAll('ordenesTrabajo');
     const selectOT = document.getElementById('asigOT');
     selectOT.innerHTML = '<option value="">-- Seleccionar OT --</option>' +
         ordenes.map(o => `<option value="${o.id}">${textCell(o.numero_ot)} - ${textCell(o.descripcion || '')}</option>`).join('');
 
-    // Cargar MP
     const mp = await DB.getAll('materiaPrima');
     const selectMP = document.getElementById('asigMP');
     selectMP.innerHTML = '<option value="">-- Seleccionar MP --</option>' +
         mp.map(m => `<option value="${textCell(m.codigo)}">${textCell(m.codigo)} - ${textCell(m.descripcion)}</option>`).join('');
 
-    // Limpiar
     document.getElementById('asigCantidad').value = '';
     document.getElementById('asigCostoUnit').value = '';
     document.getElementById('asigCostoTotal').value = '';
@@ -265,7 +258,6 @@ async function guardarAsignacion() {
     if (!materia_prima_codigo) { showAlert('Seleccione una MP', 'error'); return; }
     if (cantidad <= 0) { showAlert('La cantidad debe ser mayor a 0', 'error'); return; }
 
-    // Verificar stock disponible
     const mp = await DB.getAll('materiaPrima');
     const m = mp.find(x => x.codigo === materia_prima_codigo);
     if (!m) { showAlert('MP no encontrada', 'error'); return; }
@@ -275,15 +267,30 @@ async function guardarAsignacion() {
     }
 
     try {
-        await DB.insert('otMateriaPrima', {
-            ot_id: Number(ot_id),
-            materia_prima_codigo,
-            cantidad,
-            costo_unitario,
-            costo_total
-        });
+        // Intenta insertar SIN costo_total (por si es columna GENERATED en Supabase)
+        try {
+            await DB.insert('otMateriaPrima', {
+                ot_id: Number(ot_id),
+                materia_prima_codigo,
+                cantidad,
+                costo_unitario
+            });
+        } catch (e) {
+            // Si falla, intenta CON costo_total (por si es columna normal)
+            if (e.message && e.message.toLowerCase().includes('generated')) {
+                await DB.insert('otMateriaPrima', {
+                    ot_id: Number(ot_id),
+                    materia_prima_codigo,
+                    cantidad,
+                    costo_unitario,
+                    costo_total
+                });
+            } else {
+                throw e;
+            }
+        }
 
-        // Actualizar stock de la MP (opcional, según configuración)
+        // Actualizar stock de la MP
         const nuevoStock = Number(m.stock) - cantidad;
         await DB.update('materiaPrima', m.id, { stock: nuevoStock });
 
@@ -304,7 +311,6 @@ async function eliminarAsignacion(id) {
     if (!confirm(`¿Eliminar esta asignación?\n\nSe devolverá el stock de ${asig.materia_prima_codigo}.`)) return;
 
     try {
-        // Devolver stock a la MP
         const mp = await DB.getAll('materiaPrima');
         const m = mp.find(x => x.codigo === asig.materia_prima_codigo);
         if (m) {
@@ -341,3 +347,24 @@ async function exportarMPCSV() {
     URL.revokeObjectURL(url);
     showAlert('✅ Exportado', 'success');
 }
+
+// ═══════════════════════════════════════════════
+// EXPONER FUNCIONES AL SCOPE GLOBAL
+// (necesario porque los onclick del HTML buscan
+//  funciones en window, y algunos navegadores no
+//  las exponen automáticamente si el archivo se
+//  carga con defer o en ciertos contextos)
+// ═══════════════════════════════════════════════
+window.openModalMP          = openModalMP;
+window.editarMP             = editarMP;
+window.guardarMP            = guardarMP;
+window.eliminarMP           = eliminarMP;
+window.openModalAsignacion  = openModalAsignacion;
+window.onMPChange           = onMPChange;
+window.calcCostoAsignacion  = calcCostoAsignacion;
+window.guardarAsignacion    = guardarAsignacion;
+window.eliminarAsignacion   = eliminarAsignacion;
+window.exportarMPCSV        = exportarMPCSV;
+window.initMateriaPrima     = initMateriaPrima;
+
+console.log('✅ materia-prima.js cargado y funciones expuestas');
