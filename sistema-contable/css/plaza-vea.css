@@ -217,6 +217,7 @@
 .btn-danger {
     background: #B00510 !important;
     border-color: #B00510 !important;
+    color: #fff !important;   /* sin esto el texto queda rojo sobre rojo */
 }
 
 /* ==================== MÉTRICAS DEL DASHBOARD ==================== */

@@ -10,6 +10,7 @@ async function initCIF() {
     console.log('⚙️ Iniciando CIF...');
     try {
         await renderCIF();
+        await renderTablaInductores();
         console.log('✅ CIF listo');
     } catch (error) {
         console.error('❌ Error:', error);
@@ -122,6 +123,66 @@ async function renderCIF() {
     document.getElementById('cifOTInfo').innerHTML = `de <strong>${ordenesFiltradas.length}</strong> OT`;
 
     console.log(`✅ CIF renderizado: ${datos.length} conceptos × ${ordenesFiltradas.length} OT`);
+}
+
+// ==================== TABLA DE INDUCTORES ====================
+// Descripción del inductor y cuenta de gasto de cada concepto (misma cuenta que usa el asiento del CIF)
+const INDUCTORES_CIF = {
+    'kWh':        'Kilovatios hora consumidos',
+    'm³':         'Metros cúbicos de agua',
+    'Área':       'Metros cuadrados ocupados',
+    'Personal':   'Número de trabajadores',
+    'HM':         'Horas máquina',
+    'Producción': 'Unidades producidas'
+};
+
+const CUENTA_GASTO_CIF = {
+    'Energía eléctrica': '633 Servicios Básicos',
+    'Agua': '633 Servicios Básicos',
+    'Alquiler de fábrica': '632 Alquileres',
+    'Seguros de fábrica': '636 Seguros',
+    'Mantenimiento': '634 Mantenimiento y Reparaciones'
+};
+
+async function renderTablaInductores() {
+    const head = document.getElementById('inductoresHead');
+    const body = document.getElementById('inductoresBody');
+    if (!head || !body) return;
+
+    const [cif, ordenes] = await Promise.all([DB.getAll('otCif'), DB.getAll('ordenesTrabajo')]);
+    if (cif.length === 0) {
+        body.innerHTML = '<tr><td style="text-align:center; color:#999;">Sin CIF registrados</td></tr>';
+        return;
+    }
+
+    const ots = [...ordenes]
+        .filter(o => cif.some(c => c.ot_id === o.id))
+        .sort((a, b) => (a.numero_ot || '').localeCompare(b.numero_ot || ''));
+
+    const porConcepto = {};
+    cif.forEach(c => {
+        if (!porConcepto[c.concepto]) porConcepto[c.concepto] = { concepto: c.concepto, inductor: c.inductor, total: 0, porOT: {} };
+        const g = porConcepto[c.concepto];
+        g.total += Number(c.monto || 0);
+        g.porOT[c.ot_id] = (g.porOT[c.ot_id] || 0) + Number(c.monto || 0);
+    });
+
+    head.innerHTML = `<tr>
+        <th>Concepto CIF</th><th>Inductor</th><th>Base de distribución</th><th>Cuenta de gasto</th>
+        <th style="text-align:right;">Total CIF</th>
+        ${ots.map(o => `<th style="text-align:right;">% ${textCell(o.numero_ot)}</th>`).join('')}
+    </tr>`;
+
+    body.innerHTML = Object.values(porConcepto).sort((a, b) => b.total - a.total).map(g => `
+        <tr>
+            <td><strong>${textCell(g.concepto)}</strong></td>
+            <td>${g.inductor ? `<span class="status-badge status-valid">${textCell(g.inductor)}</span>` : '<span style="color:#c00;">⚠️ Sin inductor</span>'}</td>
+            <td>${textCell(INDUCTORES_CIF[g.inductor] || g.inductor || '—')}</td>
+            <td>${textCell(CUENTA_GASTO_CIF[g.concepto] || '638 Servicios de Terceros - Otros')}</td>
+            <td style="text-align:right;"><strong>${fmt(g.total)}</strong></td>
+            ${ots.map(o => `<td style="text-align:right;">${g.total > 0 ? ((g.porOT[o.id] || 0) / g.total * 100).toFixed(1) : '0.0'}%</td>`).join('')}
+        </tr>
+    `).join('');
 }
 
 // ==================== FILTRO POR BÚSQUEDA ====================

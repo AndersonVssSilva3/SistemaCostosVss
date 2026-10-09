@@ -1,17 +1,128 @@
-// ==================== KARDEX v2.0 - CONTABLEMENTE CORRECTO ====================
+// ==================== KARDEX v3.0 - EXISTENCIAS DE VSS FÁBRICA ====================
 // Método: PROMEDIO PONDERADO MÓVIL
 //
+// Artículos: los que existen en la base de datos
+//   · materia_prima → Materia Prima        (cuenta 24)
+//   · repuestos     → Insumos              (cuenta 25)
+//   · productos     → Productos Terminados (cuenta 21)
+//   · mercaderias   → Mercaderías          (cuenta 20)
+//
+// Movimientos: tabla kardex (por código exacto) + consumos de MP en las órdenes de trabajo.
+// El saldo inicial de cada artículo es el que cuadra los movimientos con el stock actual.
+//
 // REGLAS CONTABLES:
-//   · ENTRADA → NO genera asiento (la compra ya lo hizo en módulo Compras)
-//   · SALIDA  → SÍ genera asiento: DEBE 691 / HABER 201
-//   · AJUSTE  → SÍ genera asiento: DEBE 659 / HABER 201 (o al revés)
-//   · El Kardex solo actualiza stock, no duplica contabilidad
+//   · ENTRADA → NO genera asiento (la compra ya lo hizo en el módulo Compras)
+//   · SALIDA  → SÍ genera asiento: DEBE cuenta de destino / HABER cuenta de existencias
+//   · AJUSTE  → SÍ genera asiento: DEBE existencias / HABER 656 (sobrante)
 
 let kardexTipoActual = 'entrada';
 
+const TIPOS_EXISTENCIA = [
+    { tabla: 'materia_prima', tipo: 'Materia Prima', campoCosto: 'costo_unitario',
+      cuentaInv: '241', nombreInv: 'Materias Primas',
+      cuentaSalida: '231', nombreSalida: 'Productos en Proceso - Costo' },
+    { tabla: 'repuestos', tipo: 'Insumos', campoCosto: 'costo',
+      cuentaInv: '252', nombreInv: 'Suministros',
+      cuentaSalida: '656', nombreSalida: 'Gastos Diversos' },
+    { tabla: 'productos', tipo: 'Productos Terminados', campoCosto: null,
+      cuentaInv: '211', nombreInv: 'Productos Terminados - Costo',
+      cuentaSalida: '692', nombreSalida: 'Costo de Productos Terminados Vendidos' },
+    { tabla: 'mercaderias', tipo: 'Mercaderías', campoCosto: 'costo',
+      cuentaInv: '201', nombreInv: 'Mercaderías - Costo',
+      cuentaSalida: '691', nombreSalida: 'Costo de Mercaderías Vendidas' }
+];
+
+// ==================== DATOS ====================
+async function cargarExistencias() {
+    const datos = await Promise.all(TIPOS_EXISTENCIA.map(t => DB.getAll(t.tabla)));
+    return TIPOS_EXISTENCIA.flatMap((def, i) => datos[i].map(x => ({
+        id: x.id,
+        codigo: x.codigo,
+        nombre: x.descripcion || x.nombre || x.codigo,
+        unidad: x.unidad || 'UND',
+        stock: Number(x.stock) || 0,
+        costo: Number(def.campoCosto ? x[def.campoCosto] : x.precio) || 0,
+        def
+    }))).sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
+}
+
+async function cargarDatosKardex() {
+    const [existencias, kardex, consumosMP, ordenes] = await Promise.all([
+        cargarExistencias(),
+        DB.getAll('kardex'),
+        DB.getAll('ot_materia_prima'),
+        DB.getAll('ordenes_trabajo')
+    ]);
+    const otMap = {};
+    ordenes.forEach(o => otMap[o.id] = o.numero_ot);
+    return { existencias, kardex, consumosMP, otMap };
+}
+
+const signoMovimiento = m => m.tipo === 'salida' ? -1 : 1;
+
+// Movimientos de un artículo en orden cronológico, con saldos (promedio ponderado)
+function movimientosExistencia(item, { kardex, consumosMP, otMap }) {
+    const movs = kardex
+        .filter(k => k.producto_codigo === item.codigo)
+        .map(k => ({
+            id: k.id,
+            fecha: k.fecha || '',
+            orden: k.created_at || k.fecha || '',
+            tipo: k.tipo_movimiento,
+            documento: k.documento || '',
+            descripcion: k.descripcion || '',
+            cantidad: Number(k.cantidad) || 0,
+            costoUnit: Number(k.costo_unitario) || 0,
+            total: Number(k.costo_total) || 0
+        }));
+
+    if (item.def.tabla === 'materia_prima') {
+        consumosMP
+            .filter(c => c.materia_prima_codigo === item.codigo)
+            .forEach(c => movs.push({
+                id: null,
+                fecha: String(c.created_at || '').substring(0, 10),
+                orden: c.created_at || '',
+                tipo: 'salida',
+                documento: otMap[c.ot_id] || 'OT',
+                descripcion: `Consumo en ${otMap[c.ot_id] || 'OT'}`,
+                cantidad: Number(c.cantidad) || 0,
+                costoUnit: Number(c.costo_unitario) || 0,
+                total: Number(c.costo_total) || 0
+            }));
+    }
+
+    movs.sort((a, b) => a.fecha.localeCompare(b.fecha) || String(a.orden).localeCompare(String(b.orden)));
+
+    const cantInicial = item.stock - movs.reduce((s, m) => s + signoMovimiento(m) * m.cantidad, 0);
+    let saldoCant = cantInicial;
+    let saldoTotal = cantInicial * item.costo;
+    const inicial = { cantidad: cantInicial, costoUnit: item.costo, total: saldoTotal };
+
+    movs.forEach(m => {
+        saldoCant += signoMovimiento(m) * m.cantidad;
+        saldoTotal += signoMovimiento(m) * m.total;
+        m.saldoCant = saldoCant;
+        m.saldoTotal = saldoTotal;
+        m.saldoCU = saldoCant !== 0 ? saldoTotal / saldoCant : 0;
+    });
+
+    return { inicial, movs };
+}
+
+async function siguienteAsientoKardex() {
+    const asientos = await DB.getAll('asientos');
+    let maxNum = 0;
+    asientos.forEach(a => {
+        const m = String(a.numero || '').match(/^AS-(\d+)$/);
+        if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
+    });
+    return 'AS-' + String(maxNum + 1).padStart(3, '0');
+}
+
 // ==================== INIT ====================
 async function initKardex() {
-    console.log('📦 Iniciando módulo Kardex v2.0...');
+    console.log('📦 Iniciando módulo Kardex v3.0...');
     try {
         await cargarSelectProductos();
         await renderKardex();
@@ -23,30 +134,30 @@ async function initKardex() {
     }
 }
 
-// ==================== SELECT DE PRODUCTOS ====================
+// ==================== SELECT DE ARTÍCULOS ====================
 async function cargarSelectProductos() {
     try {
-        const productos = await DB.getAll('productos');
-        const mercaderias = await DB.getAll('mercaderias');
+        const existencias = await cargarExistencias();
 
-        const todos = [
-            ...productos.map(p => ({ codigo: p.codigo, nombre: p.nombre, unidad: 'UND' })),
-            ...mercaderias.map(m => ({ codigo: m.codigo, nombre: m.descripcion, unidad: m.unidad || 'UND' }))
-        ];
+        const options = TIPOS_EXISTENCIA.map(def => {
+            const items = existencias.filter(x => x.def === def);
+            if (items.length === 0) return '';
+            return `<optgroup label="${textCell(def.tipo)}">` + items.map(p =>
+                `<option value="${textCell(p.codigo)}">${textCell(p.codigo)} - ${textCell(p.nombre)} (${textCell(p.unidad)})</option>`
+            ).join('') + '</optgroup>';
+        }).join('');
 
-        const options = todos.map(p =>
-            `<option value="${textCell(p.codigo)}">${textCell(p.codigo)} - ${textCell(p.nombre)} (${textCell(p.unidad)})</option>`
-        ).join('');
+        ['kxProducto', 'kardexProducto'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const actual = el.value;
+            el.innerHTML = '<option value="">Seleccione artículo...</option>' + options;
+            if (actual) el.value = actual;
+        });
 
-        const kxProducto = document.getElementById('kxProducto');
-        if (kxProducto) kxProducto.innerHTML = '<option value="">Seleccione producto...</option>' + options;
-
-        const kardexProducto = document.getElementById('kardexProducto');
-        if (kardexProducto) kardexProducto.innerHTML = '<option value="">Seleccione producto...</option>' + options;
-
-        console.log(`✅ ${todos.length} productos cargados en selects`);
+        console.log(`✅ ${existencias.length} artículos cargados en selects`);
     } catch (error) {
-        console.error('Error cargando productos:', error);
+        console.error('Error cargando artículos:', error);
     }
 }
 
@@ -79,108 +190,69 @@ async function guardarMovimientoKardex() {
     const documento = document.getElementById('kxDocumento').value || '';
     const descripcion = document.getElementById('kxDescripcion').value || '';
 
-    if (!producto_codigo) { showAlert('Seleccione un producto', 'error'); return; }
+    if (!producto_codigo) { showAlert('Seleccione un artículo', 'error'); return; }
     if (!fecha) { showAlert('Ingrese la fecha', 'error'); return; }
     if (cantidad <= 0) { showAlert('La cantidad debe ser mayor a 0', 'error'); return; }
 
     try {
-        // Buscar producto
-        const productos = await DB.getAll('productos');
-        const mercaderias = await DB.getAll('mercaderias');
-        const prod = productos.find(p => p.codigo === producto_codigo)
-                  || mercaderias.find(m => m.codigo === producto_codigo);
-        const producto_nombre = prod ? (prod.nombre || prod.descripcion) : producto_codigo;
+        const existencias = await cargarExistencias();
+        const item = existencias.find(x => x.codigo === producto_codigo);
+        if (!item) { showAlert('Artículo no encontrado', 'error'); return; }
+        const def = item.def;
 
-        // Obtener saldo actual ANTES del movimiento
-        const movimientos = await DB.getAll('kardex');
-        const delProducto = movimientos
-            .filter(m => m.producto_codigo === producto_codigo)
-            .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+        // Saldo actual = stock del catálogo valorizado al costo promedio
+        const saldoCantidad = item.stock;
+        const saldoTotal = item.stock * item.costo;
 
-        let saldoCantidad = 0, saldoTotal = 0;
-        if (delProducto.length > 0) {
-            const ultimo = delProducto[delProducto.length - 1];
-            saldoCantidad = Number(ultimo.saldo_cantidad) || 0;
-            saldoTotal = Number(ultimo.saldo_total) || 0;
-        }
+        if (kardexTipoActual === 'salida' && cantidad > saldoCantidad &&
+            !confirm(`⚠️ Stock insuficiente (${saldoCantidad} ${item.unidad}). ¿Continuar de todos modos?`)) return;
 
-        // Calcular costo unitario
-        let costo_unit_final = costo_unitario;
-        if (kardexTipoActual === 'salida') {
-            costo_unit_final = saldoCantidad > 0 ? saldoTotal / saldoCantidad : costo_unitario;
-        }
-
+        // La salida sale al costo promedio; la entrada y el ajuste al costo ingresado (o al promedio si no se ingresa)
+        const costo_unit_final = kardexTipoActual === 'salida' || costo_unitario <= 0 ? item.costo : costo_unitario;
         const costo_total = cantidad * costo_unit_final;
 
-        // Nuevos saldos
-        let nuevoSaldoCantidad, nuevoSaldoTotal;
-        if (kardexTipoActual === 'salida') {
-            nuevoSaldoCantidad = saldoCantidad - cantidad;
-            nuevoSaldoTotal = saldoTotal - costo_total;
-        } else {
-            // entrada o ajuste positivo
-            nuevoSaldoCantidad = saldoCantidad + cantidad;
-            nuevoSaldoTotal = saldoTotal + costo_total;
-        }
+        const signo = kardexTipoActual === 'salida' ? -1 : 1;
+        const nuevoSaldoCantidad = saldoCantidad + signo * cantidad;
+        const nuevoSaldoTotal = saldoTotal + signo * costo_total;
+        const nuevoSaldoCostoUnit = nuevoSaldoCantidad > 0 ? nuevoSaldoTotal / nuevoSaldoCantidad : item.costo;
 
-        const nuevoSaldoCostoUnit = nuevoSaldoCantidad > 0 ? nuevoSaldoTotal / nuevoSaldoCantidad : 0;
-
-        // ==================== GENERAR ASIENTO CONTABLE ====================
-        // SOLO si es salida o ajuste. Entrada NO genera asiento.
-        let asientoCreado = null;
+        // ==================== ASIENTO CONTABLE ====================
         let numAsiento = null;
+        let asientoCreado = null;
+        const inventario = { cuenta: def.cuentaInv, nombre: def.nombreInv };
 
         if (kardexTipoActual === 'salida') {
-            // Salida por consumo/venta: DEBE 691 / HABER 201
-            const asientos = await DB.getAll('asientos');
-            numAsiento = 'AS-' + String(asientos.length + 1).padStart(3, '0');
-
+            numAsiento = await siguienteAsientoKardex();
             asientoCreado = await DB.insert('asientos', {
                 numero: numAsiento,
                 fecha,
                 tipo: 'normal',
-                glosa: `Salida de inventario · ${producto_nombre} · ${documento}`,
+                glosa: `Salida de ${def.tipo.toLowerCase()} · ${item.nombre} · ${documento}`,
                 lineas: [
-                    { cuenta: '691', nombre: 'Costo de Mercaderías Vendidas', debe: costo_total, haber: 0 },
-                    { cuenta: '201', nombre: 'Mercaderías - Costo',           debe: 0,           haber: costo_total }
+                    { cuenta: def.cuentaSalida, nombre: def.nombreSalida, debe: costo_total, haber: 0 },
+                    { ...inventario, debe: 0, haber: costo_total }
                 ],
                 estado: 'validado'
             });
-            console.log('✅ Asiento de salida generado:', numAsiento);
-
         } else if (kardexTipoActual === 'ajuste') {
-            // Ajuste: puede ser positivo (sobrante) o negativo (faltante)
-            const asientos = await DB.getAll('asientos');
-            numAsiento = 'AS-' + String(asientos.length + 1).padStart(3, '0');
-
-            const esSobrante = cantidad > 0;
-            const lineas = esSobrante ? [
-                { cuenta: '201', nombre: 'Mercaderías - Costo',      debe: costo_total, haber: 0 },
-                { cuenta: '659', nombre: 'Otros Gastos de Gestión',  debe: 0,           haber: costo_total }
-            ] : [
-                { cuenta: '659', nombre: 'Otros Gastos de Gestión',  debe: costo_total, haber: 0 },
-                { cuenta: '201', nombre: 'Mercaderías - Costo',      debe: 0,           haber: costo_total }
-            ];
-
+            numAsiento = await siguienteAsientoKardex();
             asientoCreado = await DB.insert('asientos', {
                 numero: numAsiento,
                 fecha,
                 tipo: 'ajuste',
-                glosa: `Ajuste de inventario · ${producto_nombre} · ${documento}`,
-                lineas,
+                glosa: `Ajuste de inventario (sobrante) · ${item.nombre} · ${documento}`,
+                lineas: [
+                    { ...inventario, debe: costo_total, haber: 0 },
+                    { cuenta: '656', nombre: 'Gastos Diversos', debe: 0, haber: costo_total }
+                ],
                 estado: 'validado'
             });
-            console.log('✅ Asiento de ajuste generado:', numAsiento);
-
-        } else {
-            // ENTRADA: NO genera asiento
-            console.log('ℹ️ Entrada registrada sin asiento (ya existe en módulo Compras)');
         }
 
-        // ==================== GUARDAR MOVIMIENTO KARDEX ====================
+        // ==================== MOVIMIENTO KARDEX ====================
         await DB.insert('kardex', {
             producto_codigo,
-            producto_nombre,
+            producto_nombre: item.nombre,
             fecha,
             tipo_movimiento: kardexTipoActual,
             documento,
@@ -195,26 +267,18 @@ async function guardarMovimientoKardex() {
             asiento_id: asientoCreado?.id || null
         });
 
-        // ==================== ACTUALIZAR STOCK ====================
-        if (prod) {
-            const tabla = productos.includes(prod) ? 'productos' : 'mercaderias';
-            const updateData = { stock: nuevoSaldoCantidad };
-            if (tabla === 'mercaderias') {
-                updateData.costo = nuevoSaldoCostoUnit;
-            }
-            await DB.update(tabla, prod.id, updateData);
-        }
+        // ==================== STOCK Y COSTO PROMEDIO ====================
+        const updateData = { stock: nuevoSaldoCantidad };
+        if (def.campoCosto && kardexTipoActual !== 'salida') updateData[def.campoCosto] = nuevoSaldoCostoUnit;
+        await DB.update(def.tabla, item.id, updateData);
 
         closeModal('modalKardexMov');
-        
-        if (kardexTipoActual === 'entrada') {
-            showAlert(`✅ Entrada registrada · Stock actualizado (sin asiento, ya está en Compras)`, 'success');
-        } else {
-            showAlert(`✅ ${kardexTipoActual === 'salida' ? 'Salida' : 'Ajuste'} registrado · Asiento ${numAsiento} generado`, 'success');
-        }
-        
-        await renderKardex();
+        showAlert(kardexTipoActual === 'entrada'
+            ? '✅ Entrada registrada · Stock actualizado (sin asiento, ya está en Compras)'
+            : `✅ ${kardexTipoActual === 'salida' ? 'Salida' : 'Ajuste'} registrado · Asiento ${numAsiento} generado`, 'success');
 
+        await renderKardex();
+        await renderAjustes();
     } catch (error) {
         console.error('Error guardando movimiento:', error);
         showAlert('Error: ' + error.message, 'error');
@@ -224,35 +288,34 @@ async function guardarMovimientoKardex() {
 // ==================== RENDER MOVIMIENTOS ====================
 async function renderKardex() {
     try {
-        const movimientos = await DB.getAll('kardex');
         const tbody = document.getElementById('kardexTable');
         if (!tbody) return;
 
-        const ordenados = movimientos.sort((a, b) => {
-            const f = (b.fecha || '').localeCompare(a.fecha || '');
-            return f !== 0 ? f : (b.id - a.id);
-        });
+        const datos = await cargarDatosKardex();
+        const filas = datos.existencias.flatMap(item =>
+            movimientosExistencia(item, datos).movs.map(m => ({ ...m, item }))
+        ).sort((a, b) => b.fecha.localeCompare(a.fecha) || String(b.orden).localeCompare(String(a.orden)));
 
-        tbody.innerHTML = ordenados.map(m => `
+        tbody.innerHTML = filas.map(m => `
             <tr>
                 <td>${textCell(m.fecha)}</td>
-                <td>${textCell(m.producto_codigo)} - ${textCell(m.producto_nombre)}</td>
+                <td>${textCell(m.item.codigo)} - ${textCell(m.item.nombre)}<br><small style="color:#56677b;">${textCell(m.item.def.tipo)}</small></td>
                 <td>
-                    <span class="status-badge status-${m.tipo_movimiento === 'entrada' ? 'valid' : m.tipo_movimiento === 'salida' ? 'pending' : 'valid'}">
-                        ${textCell(m.tipo_movimiento)}
+                    <span class="status-badge status-${m.tipo === 'salida' ? 'pending' : 'valid'}">
+                        ${textCell(m.tipo)}
                     </span>
                 </td>
                 <td>${textCell(m.documento)}</td>
                 <td>${textCell(m.descripcion)}</td>
-                <td style="text-align:right;">${Number(m.cantidad).toFixed(3)}</td>
-                <td style="text-align:right;">${Number(m.costo_unitario).toFixed(4)}</td>
-                <td style="text-align:right;">${Number(m.costo_total).toFixed(2)}</td>
-                <td style="text-align:right;"><strong>${Number(m.saldo_cantidad).toFixed(3)}</strong></td>
-                <td><button class="delete-btn" onclick="eliminarMovimientoKardex(${m.id})">🗑️</button></td>
+                <td style="text-align:right;">${m.cantidad.toFixed(3)}</td>
+                <td style="text-align:right;">${m.costoUnit.toFixed(4)}</td>
+                <td style="text-align:right;">${m.total.toFixed(2)}</td>
+                <td style="text-align:right;"><strong>${m.saldoCant.toFixed(3)}</strong></td>
+                <td>${m.id ? `<button class="delete-btn" onclick="eliminarMovimientoKardex(${m.id})">🗑️</button>` : '<small style="color:#56677b;">Desde OT</small>'}</td>
             </tr>
-        `).join('') || '<tr><td colspan="10" style="text-align:center; color:#999;">Sin movimientos registrados</td></tr>';
+        `).join('') || '<tr><td colspan="10" style="text-align:center; color:#999;">Sin movimientos registrados. El saldo actual de cada artículo se ve en "Kardex por Producto" e "Inventario Valorizado".</td></tr>';
 
-        console.log(`✅ Kardex: ${ordenados.length} movimientos`);
+        console.log(`✅ Kardex: ${filas.length} movimientos de ${datos.existencias.length} artículos`);
     } catch (error) {
         console.error('Error renderizando Kardex:', error);
     }
@@ -269,126 +332,115 @@ async function eliminarMovimientoKardex(id) {
     }
 }
 
-// ==================== KARDEX DETALLADO POR PRODUCTO ====================
+// ==================== KARDEX DETALLADO POR ARTÍCULO ====================
 async function generarKardexProducto() {
     const codigo = document.getElementById('kardexProducto').value;
+    const tbody = document.getElementById('kardexProductoTable');
     if (!codigo) {
-        document.getElementById('kardexProductoTable').innerHTML =
-            '<tr><td colspan="12" style="text-align:center; color:#999;">Seleccione un producto</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; color:#999;">Seleccione un artículo</td></tr>';
+        document.getElementById('kardexResumen').innerHTML = '';
         return;
     }
 
     try {
-        const desde = document.getElementById('kardexDesde').value;
-        const hasta = document.getElementById('kardexHasta').value;
+        const desde = document.getElementById('kardexDesde').value || '0000-01-01';
+        const hasta = document.getElementById('kardexHasta').value || '9999-12-31';
 
-        const movimientos = (await DB.getAll('kardex'))
-            .filter(m => m.producto_codigo === codigo && m.fecha >= desde && m.fecha <= hasta)
-            .sort((a, b) => a.fecha.localeCompare(b.fecha));
+        const datos = await cargarDatosKardex();
+        const item = datos.existencias.find(x => x.codigo === codigo);
+        if (!item) return;
 
-        let html = '';
-        let saldoCant = 0, saldoTotal = 0;
+        const { inicial, movs } = movimientosExistencia(item, datos);
 
-        movimientos.forEach(m => {
-            const esEntrada = m.tipo_movimiento === 'entrada';
-            const esSalida = m.tipo_movimiento === 'salida';
-            const esAjuste = m.tipo_movimiento === 'ajuste';
+        // Saldo de apertura: saldo inicial + movimientos anteriores al rango
+        const previos = movs.filter(m => m.fecha < desde);
+        const apertura = previos.length
+            ? { cantidad: previos[previos.length - 1].saldoCant, total: previos[previos.length - 1].saldoTotal }
+            : { cantidad: inicial.cantidad, total: inicial.total };
+        const enRango = movs.filter(m => m.fecha >= desde && m.fecha <= hasta);
 
-            if (esEntrada || (esAjuste && Number(m.cantidad) > 0)) {
-                saldoCant += Number(m.cantidad);
-                saldoTotal += Number(m.costo_total);
-            } else {
-                saldoCant -= Number(m.cantidad);
-                saldoTotal -= Number(m.costo_total);
-            }
+        const celda = (v, dec, bg) => `<td style="text-align:right; background:${bg};">${v === '' ? '' : Number(v).toFixed(dec)}</td>`;
+        const fila = (fecha, doc, desc, ent, sal, saldo) => `<tr>
+            <td>${textCell(fecha)}</td>
+            <td>${textCell(doc)}</td>
+            <td>${textCell(desc)}</td>
+            ${celda(ent ? ent.cantidad : '', 3, '#e8f5e9')}${celda(ent ? ent.costoUnit : '', 4, '#e8f5e9')}${celda(ent ? ent.total : '', 2, '#e8f5e9')}
+            ${celda(sal ? sal.cantidad : '', 3, '#ffebee')}${celda(sal ? sal.costoUnit : '', 4, '#ffebee')}${celda(sal ? sal.total : '', 2, '#ffebee')}
+            <td style="text-align:right; background:#e3f2fd;"><strong>${saldo.cantidad.toFixed(3)}</strong></td>
+            ${celda(saldo.cantidad !== 0 ? saldo.total / saldo.cantidad : 0, 4, '#e3f2fd')}
+            <td style="text-align:right; background:#e3f2fd;"><strong>${saldo.total.toFixed(2)}</strong></td>
+        </tr>`;
 
-            const costoProm = saldoCant > 0 ? saldoTotal / saldoCant : 0;
-
-            html += `<tr>
-                <td>${textCell(m.fecha)}</td>
-                <td>${textCell(m.documento)}</td>
-                <td>${textCell(m.descripcion)}</td>
-                <td style="text-align:right; background:#e8f5e9;">${esEntrada ? Number(m.cantidad).toFixed(3) : ''}</td>
-                <td style="text-align:right; background:#e8f5e9;">${esEntrada ? Number(m.costo_unitario).toFixed(4) : ''}</td>
-                <td style="text-align:right; background:#e8f5e9;">${esEntrada ? Number(m.costo_total).toFixed(2) : ''}</td>
-                <td style="text-align:right; background:#ffebee;">${esSalida ? Number(m.cantidad).toFixed(3) : ''}</td>
-                <td style="text-align:right; background:#ffebee;">${esSalida ? Number(m.costo_unitario).toFixed(4) : ''}</td>
-                <td style="text-align:right; background:#ffebee;">${esSalida ? Number(m.costo_total).toFixed(2) : ''}</td>
-                <td style="text-align:right; background:#e3f2fd;"><strong>${saldoCant.toFixed(3)}</strong></td>
-                <td style="text-align:right; background:#e3f2fd;">${costoProm.toFixed(4)}</td>
-                <td style="text-align:right; background:#e3f2fd;"><strong>${saldoTotal.toFixed(2)}</strong></td>
-            </tr>`;
+        let html = fila(desde === '0000-01-01' ? '' : desde, '', previos.length ? 'Saldo anterior' : 'Saldo inicial', null, null, apertura);
+        enRango.forEach(m => {
+            const esSalida = m.tipo === 'salida';
+            html += fila(m.fecha, m.documento, m.descripcion, esSalida ? null : m, esSalida ? m : null,
+                { cantidad: m.saldoCant, total: m.saldoTotal });
         });
+        tbody.innerHTML = html;
 
-        document.getElementById('kardexProductoTable').innerHTML =
-            html || '<tr><td colspan="12" style="text-align:center; color:#999;">Sin movimientos en el rango</td></tr>';
-
-        const prod = movimientos[0];
-        document.getElementById('kardexResumen').innerHTML = prod ? `
+        const final = enRango.length
+            ? { cantidad: enRango[enRango.length - 1].saldoCant, total: enRango[enRango.length - 1].saldoTotal }
+            : apertura;
+        document.getElementById('kardexResumen').innerHTML = `
             <div class="dashboard-grid">
                 <div class="stat-card">
-                    <h4>Producto</h4>
-                    <div class="value" style="font-size:1.2em;">${textCell(prod.producto_nombre)}</div>
+                    <h4>${textCell(item.def.tipo)}</h4>
+                    <div class="value" style="font-size:1.2em;">${textCell(item.codigo)} · ${textCell(item.nombre)}</div>
                 </div>
                 <div class="stat-card">
                     <h4>Saldo Cantidad</h4>
-                    <div class="value">${saldoCant.toFixed(3)}</div>
+                    <div class="value">${final.cantidad.toFixed(3)} ${textCell(item.unidad)}</div>
                 </div>
                 <div class="stat-card">
                     <h4>Costo Promedio</h4>
-                    <div class="value">S/ ${(saldoCant > 0 ? saldoTotal / saldoCant : 0).toFixed(4)}</div>
+                    <div class="value">S/ ${(final.cantidad !== 0 ? final.total / final.cantidad : 0).toFixed(4)}</div>
                 </div>
                 <div class="stat-card">
-                    <h4>Valor Total</h4>
-                    <div class="value">S/ ${saldoTotal.toFixed(2)}</div>
+                    <h4>Valor Total · Cuenta ${textCell(item.def.cuentaInv)}</h4>
+                    <div class="value">S/ ${final.total.toFixed(2)}</div>
                 </div>
             </div>
-        ` : '';
+        `;
     } catch (error) {
-        console.error('Error generando Kardex por producto:', error);
+        console.error('Error generando Kardex por artículo:', error);
     }
 }
 
 // ==================== INVENTARIO VALORIZADO ====================
 async function generarInventarioValorizado() {
     try {
-        const hasta = document.getElementById('invValFecha').value;
-        const movimientos = await DB.getAll('kardex');
-
-        const productos = {};
-        movimientos.filter(m => m.fecha <= hasta).forEach(m => {
-            if (!productos[m.producto_codigo]) {
-                productos[m.producto_codigo] = {
-                    codigo: m.producto_codigo,
-                    nombre: m.producto_nombre,
-                    cantidad: 0,
-                    total: 0
-                };
-            }
-            const esEntrada = m.tipo_movimiento === 'entrada';
-            const esAjuste = m.tipo_movimiento === 'ajuste';
-
-            if (esEntrada || (esAjuste && Number(m.cantidad) > 0)) {
-                productos[m.producto_codigo].cantidad += Number(m.cantidad);
-                productos[m.producto_codigo].total += Number(m.costo_total);
-            } else {
-                productos[m.producto_codigo].cantidad -= Number(m.cantidad);
-                productos[m.producto_codigo].total -= Number(m.costo_total);
-            }
-        });
+        const hasta = document.getElementById('invValFecha').value || '9999-12-31';
+        const datos = await cargarDatosKardex();
 
         let totalGeneral = 0;
-        const rows = Object.values(productos).map(p => {
-            const costoProm = p.cantidad > 0 ? p.total / p.cantidad : 0;
-            totalGeneral += p.total;
-            return `<tr>
-                <td>${textCell(p.codigo)}</td>
-                <td>${textCell(p.nombre)}</td>
-                <td>UND</td>
-                <td style="text-align:right;">${p.cantidad.toFixed(3)}</td>
-                <td style="text-align:right;">S/ ${costoProm.toFixed(4)}</td>
-                <td style="text-align:right;"><strong>S/ ${p.total.toFixed(2)}</strong></td>
-            </tr>`;
+        const rows = TIPOS_EXISTENCIA.map(def => {
+            const items = datos.existencias.filter(x => x.def === def);
+            if (items.length === 0) return '';
+
+            let subtotal = 0;
+            const filas = items.map(item => {
+                const { inicial, movs } = movimientosExistencia(item, datos);
+                const hastaFecha = movs.filter(m => m.fecha <= hasta);
+                const ultimo = hastaFecha[hastaFecha.length - 1];
+                const cantidad = ultimo ? ultimo.saldoCant : inicial.cantidad;
+                const total = ultimo ? ultimo.saldoTotal : inicial.total;
+                subtotal += total;
+                return `<tr>
+                    <td>${textCell(item.codigo)}</td>
+                    <td>${textCell(item.nombre)}</td>
+                    <td>${textCell(item.unidad)}</td>
+                    <td style="text-align:right;">${cantidad.toFixed(3)}</td>
+                    <td style="text-align:right;">S/ ${(cantidad !== 0 ? total / cantidad : 0).toFixed(4)}</td>
+                    <td style="text-align:right;"><strong>S/ ${total.toFixed(2)}</strong></td>
+                </tr>`;
+            }).join('');
+            totalGeneral += subtotal;
+
+            return `<tr><td colspan="6" style="background:#eaf1f8; font-weight:800;">${textCell(def.tipo)} · Cuenta ${def.cuentaInv.substring(0, 2)}</td></tr>
+                ${filas}
+                <tr><td colspan="5" style="text-align:right; font-weight:700;">Subtotal ${textCell(def.tipo)}</td>
+                    <td style="text-align:right; font-weight:800;">S/ ${subtotal.toFixed(2)}</td></tr>`;
         });
 
         document.getElementById('invValTable').innerHTML =
@@ -402,17 +454,21 @@ async function generarInventarioValorizado() {
 // ==================== AJUSTES ====================
 async function renderAjustes() {
     try {
-        const movimientos = (await DB.getAll('kardex'))
-            .filter(m => m.tipo_movimiento === 'ajuste')
-            .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
-
         const tbody = document.getElementById('kardexAjustesTable');
         if (!tbody) return;
 
-        tbody.innerHTML = movimientos.map(m => `
+        const [existencias, kardex] = await Promise.all([cargarExistencias(), DB.getAll('kardex')]);
+        const porCodigo = {};
+        existencias.forEach(x => porCodigo[x.codigo] = x);
+
+        const ajustes = kardex
+            .filter(m => m.tipo_movimiento === 'ajuste' && porCodigo[m.producto_codigo])
+            .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+
+        tbody.innerHTML = ajustes.map(m => `
             <tr>
                 <td>${textCell(m.fecha)}</td>
-                <td>${textCell(m.producto_codigo)} - ${textCell(m.producto_nombre)}</td>
+                <td>${textCell(m.producto_codigo)} - ${textCell(porCodigo[m.producto_codigo].nombre)}</td>
                 <td>${textCell(m.documento)}</td>
                 <td>${textCell(m.descripcion)}</td>
                 <td style="text-align:right;">${Number(m.cantidad).toFixed(3)}</td>
@@ -445,7 +501,7 @@ function showTabKardex(tabId, btn) {
     if (btn) btn.classList.add('active');
 
     if (tabId === 'kx-movimientos') renderKardex();
-    if (tabId === 'kx-kardex') cargarSelectProductos();
+    if (tabId === 'kx-kardex') cargarSelectProductos().then(generarKardexProducto);
     if (tabId === 'kx-valorizado') generarInventarioValorizado();
     if (tabId === 'kx-ajustes') renderAjustes();
 }

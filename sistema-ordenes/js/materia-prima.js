@@ -11,6 +11,7 @@ async function initMateriaPrima() {
     try {
         await renderMP();
         await renderAsignacionesMP();
+        await renderKardexMP();
         console.log('✅ Materia Prima lista');
     } catch (error) {
         console.error('❌ Error:', error);
@@ -294,10 +295,17 @@ async function guardarAsignacion() {
         const nuevoStock = Number(m.stock) - cantidad;
         await DB.update('materiaPrima', m.id, { stock: nuevoStock });
 
-        showAlert('✅ Asignación guardada', 'success');
+        // Asiento 23 ← 24 y costo de la OT
+        const ordenes = await DB.getAll('ordenesTrabajo');
+        const ot = ordenes.find(o => o.id === Number(ot_id));
+        const numAsiento = await registrarAsientoConsumoMP(materia_prima_codigo, ot?.numero_ot || 'OT', costo_total);
+        await actualizarCostosOT(ot_id);
+
+        showAlert(`✅ Asignación guardada · Asiento ${numAsiento} generado`, 'success');
         closeModal('modalAsignacion');
         await renderMP();
         await renderAsignacionesMP();
+        await renderKardexMP();
     } catch (error) {
         console.error('Error guardando asignación:', error);
         showAlert('Error: ' + error.message, 'error');
@@ -319,12 +327,131 @@ async function eliminarAsignacion(id) {
         }
 
         await DB.delete('otMateriaPrima', id);
+        await actualizarCostosOT(asig.ot_id);
         showAlert('✅ Asignación eliminada', 'success');
         await renderMP();
         await renderAsignacionesMP();
+        await renderKardexMP();
     } catch (error) {
         console.error('Error:', error);
         showAlert('Error al eliminar: ' + error.message, 'error');
+    }
+}
+
+// ═══════════════════════════════════════════════
+// KARDEX POR MATERIA PRIMA
+// ═══════════════════════════════════════════════
+
+async function renderKardexMP() {
+    const select = document.getElementById('kardexMP');
+    const tbody = document.getElementById('kardexMPTable');
+    if (!select || !tbody) return;
+
+    const [catalogo, kardex, asignaciones, ordenes] = await Promise.all([
+        DB.getAll('materiaPrima'),
+        DB.getAll('kardex'),
+        DB.getAll('otMateriaPrima'),
+        DB.getAll('ordenesTrabajo')
+    ]);
+    catalogo.sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''));
+
+    const actual = select.value || catalogo[0]?.codigo || '';
+    select.innerHTML = catalogo.map(m =>
+        `<option value="${textCell(m.codigo)}">${textCell(m.codigo)} - ${textCell(m.descripcion)}</option>`
+    ).join('');
+    select.value = actual;
+
+    const mp = catalogo.find(m => m.codigo === actual);
+    if (!mp) {
+        tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Sin materia prima registrada</td></tr>';
+        return;
+    }
+
+    const { filas } = movimientosKardexMP(mp, kardex, asignaciones, ordenes);
+    const num = n => Number(n || 0).toLocaleString('es-PE', { maximumFractionDigits: 2 });
+    const mon = n => Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const celdas = (f, lado) => f.tipo === lado || (lado === 'entrada' && f.tipo === 'inicial')
+        ? `<td style="text-align:right;">${num(f.cantidad)}</td><td style="text-align:right;">${mon(f.costoUnit)}</td><td style="text-align:right;">${mon(f.total)}</td>`
+        : '<td></td><td></td><td></td>';
+
+    tbody.innerHTML = filas.map(f => `
+        <tr${f.tipo === 'inicial' ? ' style="background:#f5f7fa; font-style:italic;"' : ''}>
+            <td>${textCell(f.fecha)}</td>
+            <td>${textCell(f.detalle)}</td>
+            ${celdas(f, 'entrada')}
+            ${celdas(f, 'salida')}
+            <td style="text-align:right;"><strong>${num(f.saldoCant)}</strong></td>
+            <td style="text-align:right;">${mon(f.saldoCU)}</td>
+            <td style="text-align:right;"><strong>${mon(f.saldoValor)}</strong></td>
+        </tr>
+    `).join('');
+}
+
+// ═══════════════════════════════════════════════
+// COMPRA DE MATERIA PRIMA
+// ═══════════════════════════════════════════════
+
+async function openModalCompraMP() {
+    const catalogo = await DB.getAll('materiaPrima');
+    catalogo.sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''));
+    document.getElementById('compraMPCodigo').innerHTML = '<option value="">-- Seleccionar MP --</option>' +
+        catalogo.map(m => `<option value="${textCell(m.codigo)}" data-costo="${Number(m.costo_unitario) || 0}">${textCell(m.codigo)} - ${textCell(m.descripcion)}</option>`).join('');
+
+    document.getElementById('compraMPFecha').value = new Date().toISOString().split('T')[0];
+    ['compraMPProveedor', 'compraMPRuc', 'compraMPDocumento', 'compraMPCantidad', 'compraMPCostoUnit']
+        .forEach(id => document.getElementById(id).value = '');
+    document.getElementById('compraMPPago').value = 'credito';
+    document.getElementById('compraMPIGV').checked = true;
+    calcCompraMP();
+    openModal('modalCompraMP');
+}
+
+function calcCompraMP() {
+    const sel = document.getElementById('compraMPCodigo');
+    const costoInput = document.getElementById('compraMPCostoUnit');
+    // Sugiere el costo actual de la MP al elegirla
+    if (document.activeElement === sel && sel.selectedOptions[0]?.dataset.costo) {
+        costoInput.value = sel.selectedOptions[0].dataset.costo;
+    }
+    const cant = parseFloat(document.getElementById('compraMPCantidad').value) || 0;
+    const cu = parseFloat(costoInput.value) || 0;
+    const base = cant * cu;
+    const igv = document.getElementById('compraMPIGV').checked ? base * IGV_TASA : 0;
+    document.getElementById('compraMPBase').value = fmt(base);
+    document.getElementById('compraMPIgvMonto').value = fmt(igv);
+    document.getElementById('compraMPTotal').value = fmt(base + igv);
+}
+
+async function guardarCompraMP() {
+    const datos = {
+        codigo: document.getElementById('compraMPCodigo').value,
+        fecha: document.getElementById('compraMPFecha').value,
+        proveedor: document.getElementById('compraMPProveedor').value.trim(),
+        ruc: document.getElementById('compraMPRuc').value.trim(),
+        documento: document.getElementById('compraMPDocumento').value.trim(),
+        cantidad: parseFloat(document.getElementById('compraMPCantidad').value) || 0,
+        costoUnit: parseFloat(document.getElementById('compraMPCostoUnit').value) || 0,
+        conIGV: document.getElementById('compraMPIGV').checked,
+        formaPago: document.getElementById('compraMPPago').value
+    };
+
+    if (!datos.codigo) { showAlert('Seleccione la materia prima', 'error'); return; }
+    if (!datos.fecha) { showAlert('Ingrese la fecha', 'error'); return; }
+    if (!datos.proveedor) { showAlert('Ingrese el proveedor', 'error'); return; }
+    if (!datos.documento) { showAlert('Ingrese el número de factura', 'error'); return; }
+    if (datos.cantidad <= 0) { showAlert('La cantidad debe ser mayor a 0', 'error'); return; }
+    if (datos.costoUnit <= 0) { showAlert('El costo unitario debe ser mayor a 0', 'error'); return; }
+
+    try {
+        const r = await registrarCompraMP(datos);
+        closeModal('modalCompraMP');
+        document.getElementById('kardexMP').value = datos.codigo;
+        await renderMP();
+        await renderKardexMP();
+        showAlert(`✅ Compra registrada · Kardex actualizado · Asientos ${r.asientoCompra} (compra) y ${r.asientoDestino} (24 Materias Primas)`, 'success');
+    } catch (error) {
+        console.error('Error registrando compra de MP:', error);
+        showAlert('Error: ' + error.message, 'error');
     }
 }
 
@@ -365,6 +492,10 @@ window.calcCostoAsignacion  = calcCostoAsignacion;
 window.guardarAsignacion    = guardarAsignacion;
 window.eliminarAsignacion   = eliminarAsignacion;
 window.exportarMPCSV        = exportarMPCSV;
+window.renderKardexMP       = renderKardexMP;
+window.openModalCompraMP    = openModalCompraMP;
+window.calcCompraMP         = calcCompraMP;
+window.guardarCompraMP      = guardarCompraMP;
 window.initMateriaPrima     = initMateriaPrima;
 
 console.log('✅ materia-prima.js cargado y funciones expuestas');

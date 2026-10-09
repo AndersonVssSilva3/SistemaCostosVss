@@ -659,6 +659,22 @@ async function guardarPlanilla() {
     }
 }
 
+// Clasificación del personal según su cargo (para costos: MOD va a la OT, MOI al CIF)
+const CLASES_PERSONAL = {
+    MOD:    { nombre: 'Mano de Obra Directa (MOD)',   corto: 'MOD',    badge: 'badge-planta' },
+    MOI:    { nombre: 'Mano de Obra Indirecta (MOI)', corto: 'MOI',    badge: 'badge-logistica' },
+    ADMIN:  { nombre: 'Personal Administrativo',      corto: 'Admin.', badge: 'badge-admin' },
+    VENTAS: { nombre: 'Personal de Ventas',           corto: 'Ventas', badge: 'badge-ventas' }
+};
+
+function clasificarPersonal(cargo) {
+    const c = String(cargo || '').toLowerCase();
+    if (/operari|ayudante de planta|obrer|maquinist|ensamblad/.test(c)) return 'MOD';
+    if (/vend|venta|comercial|marketing|despacho|cajer/.test(c)) return 'VENTAS';
+    if (/planta|producci|calidad|mantenimiento|almacen|supervisor|técnico|tecnico/.test(c)) return 'MOI';
+    return 'ADMIN';
+}
+
 async function renderPlanillas() {
     try {
         const planillas = await DB.getAll('planillas');
@@ -666,14 +682,45 @@ async function renderPlanillas() {
         if (!tbody) return;
 
         if (planillas.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="16" style="text-align:center; color:#999;">Sin planillas registradas</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="17" style="text-align:center; color:#999;">Sin planillas registradas</td></tr>';
             return;
         }
 
+        // Filtro de período (por defecto el más reciente)
+        const selPeriodo = document.getElementById('planillaPeriodo');
+        const periodos = [...new Set(planillas.map(p => p.periodo).filter(Boolean))].sort().reverse();
+        let periodo = 'todos';
+        if (selPeriodo) {
+            periodo = selPeriodo.value || periodos[0] || 'todos';
+            selPeriodo.innerHTML = periodos.map(p => `<option value="${textCell(p)}">${textCell(p)}</option>`).join('') +
+                '<option value="todos">Todos los períodos</option>';
+            selPeriodo.value = periodo;
+        }
+
         const HORAS_MES = 240;
-        const ordenadas = planillas.sort((a, b) => (b.periodo || '').localeCompare(a.periodo || ''));
+        const ordenadas = planillas
+            .filter(p => !periodo || periodo === 'todos' || p.periodo === periodo)
+            .sort((a, b) => (b.periodo || '').localeCompare(a.periodo || '') ||
+                String(a.empleado_nombre).localeCompare(String(b.empleado_nombre)));
+
+        // Resumen por clasificación
+        const resumen = document.getElementById('planillaResumen');
+        if (resumen) {
+            const totales = {};
+            Object.keys(CLASES_PERSONAL).forEach(k => totales[k] = { n: 0, costo: 0 });
+            ordenadas.forEach(p => {
+                const t = totales[clasificarPersonal(p.empleado_cargo)];
+                t.n++;
+                t.costo += Number(p.costo_total_empleador) || 0;
+            });
+            const total = Object.values(totales).reduce((s, t) => s + t.costo, 0);
+            resumen.innerHTML = Object.entries(CLASES_PERSONAL).map(([k, cl]) =>
+                `<div class="inv-resumen-item">${cl.nombre} (${totales[k].n})<strong>S/ ${fmtMayor(totales[k].costo)}</strong></div>`
+            ).join('') + `<div class="inv-resumen-item inv-total">Costo total planilla<strong>S/ ${fmtMayor(total)}</strong></div>`;
+        }
 
         tbody.innerHTML = ordenadas.map(p => {
+            const clase     = CLASES_PERSONAL[clasificarPersonal(p.empleado_cargo)];
             const sueldo    = Number(p.sueldo_basico) || 0;
             const asigFam   = Number(p.asignacion_familiar) || 0;
             const bonif     = Number(p.bonificacion) || 0;
@@ -694,6 +741,7 @@ async function renderPlanillas() {
                 <td>${textCell(p.empleado_nombre)}</td>
                 <td>${textCell(p.empleado_dni)}</td>
                 <td>${textCell(p.empleado_cargo)}</td>
+                <td><span class="badge ${clase.badge}" title="${textCell(clase.nombre)}">${clase.corto}</span></td>
                 <td style="text-align:right;">${sueldo.toFixed(2)}</td>
                 <td style="text-align:right;">${asigFam > 0 ? asigFam.toFixed(2) : '—'}</td>
                 <td style="text-align:right;">${bonif > 0 ? bonif.toFixed(2) : '—'}</td>
@@ -763,15 +811,15 @@ function showTab(tabId, btn) {
 }
 async function exportarPlanillasCSV() {
     const planillas = await DB.getAll('planillas');
-    let csv = '\uFEFFPeríodo;Empleado;DNI;Cargo;Sueldo Base;Asig Fam;Bonif;Gratif;Total Bruto;ONP/AFP;IR 5ta;Neto;Essalud;CTS\n';
+    let csv = '\uFEFFPeríodo;Empleado;DNI;Cargo;Clasificación;Sueldo Base;Asig Fam;Bonif;Gratif;Total Bruto;ONP/AFP;IR 5ta;Neto;Essalud;CTS\n';
     planillas.forEach(p => {
-        csv += `"${p.periodo}";"${p.empleado_nombre}";"${p.empleado_dni}";"${p.empleado_cargo}";${p.sueldo_basico};${p.asignacion_familiar};${p.bonificacion};${p.gratificacion_julio};${p.total_bruto};${(Number(p.descuento_onp) + Number(p.descuento_afp))};${p.descuento_ir};${p.total_neto};${p.essalud};${p.cts}\n`;
+        csv += `"${p.periodo}";"${p.empleado_nombre}";"${p.empleado_dni}";"${p.empleado_cargo}";"${CLASES_PERSONAL[clasificarPersonal(p.empleado_cargo)].nombre}";${p.sueldo_basico};${p.asignacion_familiar};${p.bonificacion};${p.gratificacion_julio};${p.total_bruto};${(Number(p.descuento_onp) + Number(p.descuento_afp))};${p.descuento_ir};${p.total_neto};${p.essalud};${p.cts}\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'planillas-plaza-vea.csv';
+    a.download = 'planillas-vss.csv';
     a.click();
     URL.revokeObjectURL(url);
     showAlert('✅ Planillas exportadas', 'success');

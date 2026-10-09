@@ -24,6 +24,7 @@ const modules = [
     ['mano-obra.html', '▤', 'Mano de Obra'],
     ['cif.html', '▥', 'CIF Indirectos'],
     ['mayor-fabrica.html', '◧', 'Mayor de Fábrica'],
+    ['hoja-costos.html', '▧', 'Hoja de Costos'],
     ['eeff-ot.html', '▣', 'Estados Financieros'],
     ['reportes.html', '☷', 'Reportes']
 ];

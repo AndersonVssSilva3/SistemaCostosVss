@@ -16,22 +16,40 @@ function initSupabase() {
     return false;
 }
 
+// Avisa una sola vez por página que no hay conexión con la base de datos
+let conexionAvisada = false;
+function avisarErrorConexion() {
+    if (conexionAvisada) return;
+    conexionAvisada = true;
+    const msg = '⚠️ No se pudo conectar con la base de datos (Supabase). Revise su conexión a internet y recargue la página (F5).';
+    if (typeof showAlert === 'function') showAlert(msg, 'error');
+    else alert(msg);
+}
+
 // ==================== DB - Capa de abstracción ASÍNCRONA ====================
 const DB = {
     // -------- GET ALL (asíncrono) --------
     async getAll(key) {
         if (!supabaseClient) initSupabase();
         const tableName = this._mapKey(key);
-        const { data, error } = await supabaseClient
-            .from(tableName)
-            .select('*')
-            .order('id', { ascending: true });
-        
-        if (error) {
-            console.error(`Error en getAll(${key}):`, error);
-            return [];
+        // Reintenta cuando falla la conexión (corte de internet o Supabase lento)
+        for (let intento = 1; intento <= 3; intento++) {
+            const { data, error } = await supabaseClient
+                .from(tableName)
+                .select('*')
+                .order('id', { ascending: true });
+
+            if (!error) return data || [];
+
+            const esDeConexion = /fetch|network|timed? ?out/i.test(error.message || '');
+            console.error(`Error en getAll(${key}) · intento ${intento}:`, error);
+            if (!esDeConexion || intento === 3) {
+                if (esDeConexion) avisarErrorConexion();
+                return [];
+            }
+            await new Promise(r => setTimeout(r, 1000 * intento));
         }
-        return data || [];
+        return [];
     },
 
     // -------- GET ONE --------

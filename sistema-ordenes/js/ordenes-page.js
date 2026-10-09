@@ -125,10 +125,12 @@ async function verDetalleOT(otId) {
                 <button class="btn btn-primary" onclick="abrirModalAsignarCIF()">⚙️ + CIF</button>
                 <button class="btn btn-success" onclick="abrirModalRegistrarVenta()">💰 + Venta</button>
                 <button class="btn btn-danger" onclick="cerrarOT(${ot.id})">🔒 Cerrar OT</button>
+                <a class="btn btn-info" href="hoja-costos.html#${ot.id}">🧾 Hoja de Costos</a>
             `;
         } else {
             acciones.innerHTML = `
                 <button class="btn btn-success" onclick="abrirModalRegistrarVenta()">💰 + Venta</button>
+                <a class="btn btn-info" href="hoja-costos.html#${ot.id}">🧾 Hoja de Costos</a>
                 <span style="color:#56677b; font-size:13px; padding:10px;">✅ OT cerrada</span>
             `;
         }
@@ -323,24 +325,17 @@ async function guardarMP() {
             costo_total: costoTotal
         });
 
+        // Salida del almacén: descuenta stock (el kardex de la MP la muestra como salida)
+        const mpItem = (await DB.getAll('materiaPrima')).find(m => m.codigo === codigo);
+        if (mpItem) await DB.update('materiaPrima', mpItem.id, { stock: Number(mpItem.stock) - cantidad });
+
         const ordenes = await DB.getAll('ordenesTrabajo');
         const ot = ordenes.find(o => o.id === otActualId);
-        
-        const numAsiento = await obtenerSiguienteNumAsiento();
 
-        await DB.insert('asientos', {
-            numero: numAsiento,
-            fecha: new Date().toISOString().split('T')[0],
-            tipo: 'normal',
-            glosa: `Asignación MP ${codigo} a ${ot.numero_ot}`,
-            lineas: [
-                { cuenta: '231', nombre: 'Productos en Proceso - Costo', debe: costoTotal, haber: 0 },
-                { cuenta: '241', nombre: 'Materias Primas',                debe: 0,          haber: costoTotal }
-            ],
-            estado: 'validado'
-        });
+        const numAsiento = await registrarAsientoConsumoMP(codigo, ot.numero_ot, costoTotal);
 
         await recalcularCostosOT(otActualId);
+        await cargarMPCatalogo();
         closeModal('modalAsignarMP');
         await verDetalleOT(otActualId);
         await renderOrdenes();
@@ -353,7 +348,13 @@ async function guardarMP() {
 async function eliminarMP(id) {
     if (!confirm('¿Eliminar esta asignación de MP?')) return;
     try {
+        // Devuelve el stock al almacén
+        const asig = await DB.get('otMateriaPrima', id);
+        const mpItem = asig && (await DB.getAll('materiaPrima')).find(m => m.codigo === asig.materia_prima_codigo);
+        if (mpItem) await DB.update('materiaPrima', mpItem.id, { stock: Number(mpItem.stock) + Number(asig.cantidad) });
+
         await DB.delete('otMateriaPrima', id);
+        await cargarMPCatalogo();
         await recalcularCostosOT(otActualId);
         await verDetalleOT(otActualId);
         await renderOrdenes();
@@ -451,6 +452,24 @@ async function abrirModalAsignarCIF() {
     openModal('modalAsignarCIF');
 }
 
+// Inductor que corresponde a cada concepto de CIF (se puede cambiar en el formulario)
+const INDUCTOR_POR_CONCEPTO = {
+    'Energía eléctrica': 'kWh',
+    'Agua': 'm³',
+    'Seguros de fábrica': 'Área',
+    'Alquiler de fábrica': 'Área',
+    'Transporte de personal': 'Personal',
+    'Mantenimiento': 'HM',
+    'Control de calidad': 'Producción'
+};
+
+function onCIFConceptoChange() {
+    const concepto = document.getElementById('cifConcepto').value;
+    if (INDUCTOR_POR_CONCEPTO[concepto]) {
+        document.getElementById('cifInductor').value = INDUCTOR_POR_CONCEPTO[concepto];
+    }
+}
+
 function calcCIFMonto() {
     // Aquí podrías calcular el monto desde el porcentaje si tuvieras el total
     // Por ahora lo dejamos manual
@@ -465,6 +484,7 @@ async function guardarCIF() {
     const monto = parseFloat(document.getElementById('cifMonto').value) || 0;
 
     if (monto <= 0) { showAlert('El monto debe ser mayor a 0', 'error'); return; }
+    if (!inductor) { showAlert('Cada CIF debe tener un inductor', 'error'); return; }
 
     try {
         await DB.insert('otCif', {
@@ -497,17 +517,34 @@ async function guardarCIF() {
 
         const ordenes = await DB.getAll('ordenesTrabajo');
         const ot = ordenes.find(o => o.id === otActualId);
-        
-        const numAsiento = await obtenerSiguienteNumAsiento();
+        const fecha = new Date().toISOString().split('T')[0];
 
+        // 1. El CIF se registra primero como gasto (63)
+        const numAsiento = await obtenerSiguienteNumAsiento();
         await DB.insert('asientos', {
             numero: numAsiento,
-            fecha: new Date().toISOString().split('T')[0],
+            fecha,
             tipo: 'normal',
-            glosa: `${concepto} asignado a ${ot.numero_ot}`,
+            glosa: `CIF ${concepto} (gasto) - ${ot.numero_ot}`,
             lineas: [
-                { cuenta: '231', nombre: 'Productos en Proceso - Costo', debe: monto, haber: 0 },
-                { cuenta: cuentaHaber, nombre: nombreHaber,               debe: 0,     haber: monto }
+                { cuenta: cuentaHaber, nombre: nombreHaber,                                        debe: monto, haber: 0 },
+                { cuenta: '421',       nombre: 'Facturas, Boletas y Otros Comprobantes por Pagar', debe: 0,     haber: monto }
+            ],
+            estado: 'validado'
+        });
+
+        // 2. Destino al mayor de fábrica (923 CIF) y aplicación a la OT (23 Productos en Proceso)
+        const numAsiento2 = await obtenerSiguienteNumAsiento();
+        await DB.insert('asientos', {
+            numero: numAsiento2,
+            fecha,
+            tipo: 'normal',
+            glosa: `Destino CIF ${concepto} (inductor: ${inductor}) a ${ot.numero_ot}`,
+            lineas: [
+                { cuenta: '923', nombre: 'Costos Indirectos de Fabricación',              debe: monto, haber: 0 },
+                { cuenta: '791', nombre: 'Cargas Imputables a Cuentas de Costos y Gastos', debe: 0,     haber: monto },
+                { cuenta: '231', nombre: 'Productos en Proceso - Costo',                  debe: monto, haber: 0 },
+                { cuenta: '923', nombre: 'Costos Indirectos de Fabricación',              debe: 0,     haber: monto }
             ],
             estado: 'validado'
         });
@@ -516,7 +553,7 @@ async function guardarCIF() {
         closeModal('modalAsignarCIF');
         await verDetalleOT(otActualId);
         await renderOrdenes();
-        showAlert(`✅ CIF asignado · Asiento ${numAsiento} generado`, 'success');
+        showAlert(`✅ CIF asignado · Asientos ${numAsiento} (gasto) y ${numAsiento2} (mayor de fábrica → OT)`, 'success');
     } catch (error) {
         console.error('Error:', error);
         showAlert('Error: ' + error.message, 'error');
@@ -673,29 +710,7 @@ async function guardarVenta() {
 }
 // ==================== RECALCULAR COSTOS ====================
 async function recalcularCostosOT(otId) {
-    const [mp, mo, cif] = await Promise.all([
-        DB.getAll('otMateriaPrima'),
-        DB.getAll('otManoObra'),
-        DB.getAll('otCif')
-    ]);
-
-    const costoMP = mp.filter(m => m.ot_id === otId).reduce((s, m) => s + Number(m.costo_total || 0), 0);
-    const costoMO = mo.filter(m => m.ot_id === otId).reduce((s, m) => s + Number(m.monto || 0), 0);
-    const costoCIF = cif.filter(c => c.ot_id === otId).reduce((s, c) => s + Number(c.monto || 0), 0);
-    const costoTotal = costoMP + costoMO + costoCIF;
-
-    const ordenes = await DB.getAll('ordenesTrabajo');
-    const ot = ordenes.find(o => o.id === otId);
-    const unidades = Number(ot.unidades_producidas) || 0;
-    const costoUnit = unidades > 0 ? costoTotal / unidades : 0;
-
-    await DB.update('ordenesTrabajo', otId, {
-        costo_mp: costoMP,
-        costo_mod: costoMO,
-        costo_cif: costoCIF,
-        costo_total: costoTotal,
-        costo_unitario: costoUnit
-    });
+    await actualizarCostosOT(otId);  // js/kardex-mp.js
 }
 
 // ==================== ELIMINAR OT ====================

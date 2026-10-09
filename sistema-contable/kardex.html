@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Plaza Vea - Sistema Contable</title>
+    <title>Kardex - VSS Fábrica S.A.C.</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛒</text></svg>">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/professional.css">
@@ -26,7 +26,7 @@
 
 <div class="sub-nav">
     <button class="active" onclick="showTab('kx-movimientos', this)">📦 Movimientos</button>
-    <button onclick="showTabKardex('kx-kardex', this)">📊 Kardex por Producto</button>
+    <button onclick="showTabKardex('kx-kardex', this)">📊 Kardex por Artículo</button>
     <button onclick="showTabKardex('kx-valorizado', this)">💰 Inventario Valorizado</button>
     <button onclick="showTabKardex('kx-ajustes', this)">⚖️ Ajustes</button>
 </div>
@@ -59,7 +59,7 @@
                     <thead>
                         <tr>
                             <th>Fecha</th>
-                            <th>Producto</th>
+                            <th>Artículo</th>
                             <th>Tipo</th>
                             <th>Documento</th>
                             <th>Descripción</th>
@@ -79,12 +79,12 @@
     <!-- KARDEX POR PRODUCTO -->
     <div class="tab-content" id="kx-kardex">
         <div class="card">
-            <h2>📊 Kardex Detallado por Producto</h2>
+            <h2>📊 Kardex Detallado por Artículo</h2>
             <div class="form-row">
                 <div class="form-group">
                     <label>Producto / Mercadería</label>
                     <select id="kardexProducto" onchange="generarKardexProducto()">
-                        <option value="">Seleccione producto...</option>
+                        <option value="">Seleccione artículo...</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -150,7 +150,7 @@
                     <thead>
                         <tr>
                             <th>Código</th>
-                            <th>Producto</th>
+                            <th>Artículo</th>
                             <th>Unidad</th>
                             <th style="text-align:right;">Stock</th>
                             <th style="text-align:right;">Costo Promedio</th>
@@ -182,7 +182,7 @@
                     <thead>
                         <tr>
                             <th>Fecha</th>
-                            <th>Producto</th>
+                            <th>Artículo</th>
                             <th>Documento</th>
                             <th>Motivo</th>
                             <th style="text-align:right;">Ajuste</th>

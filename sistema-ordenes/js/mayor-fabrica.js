@@ -24,12 +24,14 @@ async function initMayorFabrica() {
 }
 
 async function renderMayorFabrica() {
-    const [ordenes, mp, mo, cif, ventas] = await Promise.all([
+    const [ordenes, mp, mo, cif, ventas, catalogoMP, kardex] = await Promise.all([
         DB.getAll('ordenesTrabajo'),
         DB.getAll('otMateriaPrima'),
         DB.getAll('otManoObra'),
         DB.getAll('otCif'),
-        DB.getAll('otVentas')
+        DB.getAll('otVentas'),
+        DB.getAll('materiaPrima'),
+        DB.getAll('kardex')
     ]);
 
     const container = document.getElementById('mayorGrid');
@@ -72,42 +74,35 @@ async function renderMayorFabrica() {
         });
     });
 
-    // ==================== AGRUPAR MP POR PRODUCTO ====================
-    const mpAgrupado = {};
-    mp.forEach(m => {
-        const key = m.materia_prima_codigo;
-        if (!mpAgrupado[key]) {
-            mpAgrupado[key] = { codigo: key, total: 0, detalle: [] };
-        }
-        const ot = otMap[m.ot_id];
-        mpAgrupado[key].total += Number(m.costo_total || 0);
-        mpAgrupado[key].detalle.push({
-            ot: ot ? ot.numero_ot : '—',
-            cantidad: m.cantidad,
-            monto: Number(m.costo_total || 0)
-        });
-    });
-
     // ==================== CONSTRUIR CUENTAS T ====================
     const cuentasT = [];
 
-    // ───── CUENTA 24: MATERIA PRIMA ─────
-    const mpDebe = Object.values(mpAgrupado).map(g => ({
-        tipo: 'agrupado',
-        detalle: g.codigo,
-        monto: g.total,
-        hijos: g.detalle.map(d => ({
-            detalle: `${d.ot} · ${d.cantidad} und`,
-            monto: d.monto
-        }))
-    }));
-
-    cuentasT.push({
-        codigo: '24',
-        nombre: 'Materia Prima',
-        debe: mpDebe,
-        haber: []
-    });
+    // ───── CUENTA 24: UNA CUENTA T POR CADA MATERIA PRIMA ─────
+    // Debe: saldo inicial + compras (entradas del kardex) · Haber: consumos en cada OT
+    [...catalogoMP]
+        .sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''))
+        .forEach(m => {
+            const { inicial, entradas, salidas } = movimientosKardexMP(m, kardex, mp, ordenes);
+            const debe = [];
+            if (inicial.total !== 0) debe.push({ tipo: 'simple', detalle: 'Saldo inicial', monto: inicial.total });
+            entradas.forEach(e => debe.push({
+                tipo: 'simple',
+                detalle: `Compra ${e.documento || e.fecha} · ${fmtNum(e.cantidad)} ${m.unidad || 'und'}`,
+                monto: e.total
+            }));
+            const haber = salidas.map(s => ({
+                tipo: 'simple',
+                detalle: `${s.documento} · ${fmtNum(s.cantidad)} ${m.unidad || 'und'}`,
+                monto: s.total
+            }));
+            if (debe.length === 0 && haber.length === 0) return;
+            cuentasT.push({
+                codigo: '24',
+                nombre: `Materia Prima ${m.codigo} · ${m.descripcion || ''}`,
+                debe,
+                haber
+            });
+        });
 
     // ───── CUENTA 62: GASTOS DE PERSONAL ─────
     const moDebe = Object.values(modAgrupado).map(g => ({
@@ -142,9 +137,38 @@ async function renderMayorFabrica() {
 
     cuentasT.push({
         codigo: '63',
-        nombre: 'Servicios de Terceros',
+        nombre: 'Servicios de Terceros (CIF como gasto)',
         debe: cifDebe,
         haber: []
+    });
+
+    // ───── CUENTA 923: CIF EN EL MAYOR DE FÁBRICA ─────
+    // Debe: el gasto de cada concepto (con su inductor) · Haber: el total aplicado a cada OT → cuenta 23
+    const cifPorOT = {};
+    cif.forEach(c => {
+        const ot = otMap[c.ot_id];
+        const key = ot ? ot.numero_ot : '—';
+        if (!cifPorOT[key]) cifPorOT[key] = { total: 0, hijos: [] };
+        cifPorOT[key].total += Number(c.monto || 0);
+        cifPorOT[key].hijos.push({ detalle: `${c.concepto} (${c.inductor || 's/inductor'})`, monto: Number(c.monto || 0) });
+    });
+
+    cuentasT.push({
+        codigo: '923',
+        nombre: 'Costos Indirectos de Fabricación',
+        debe: Object.values(cifAgrupado)
+            .sort((a, b) => b.total - a.total)
+            .map(g => ({
+                tipo: 'simple',
+                detalle: `${g.concepto} · ${(cif.find(c => c.concepto === g.concepto) || {}).inductor || 's/inductor'}`,
+                monto: g.total
+            })),
+        haber: Object.keys(cifPorOT).sort().map(k => ({
+            tipo: 'agrupado',
+            detalle: `→ 23 ${k}`,
+            monto: cifPorOT[k].total,
+            hijos: cifPorOT[k].hijos
+        }))
     });
 
     // ───── CUENTA 23: PRODUCTOS EN PROCESO ─────

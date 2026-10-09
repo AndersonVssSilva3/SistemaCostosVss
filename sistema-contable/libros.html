@@ -167,11 +167,16 @@
     <!-- PLANILLAS -->
     <div class="tab-content" id="lib-planillas">
         <div class="card">
-            <h2>👥 Planillas · Plaza Vea</h2>
-            <div class="btn-group" style="margin-bottom:15px;">
+            <h2>👥 Planillas · VSS Fábrica S.A.C.</h2>
+            <div class="btn-group" style="margin-bottom:15px; align-items:center;">
                 <button class="btn btn-info" onclick="openModal('modalPlanilla')">➕ Agregar Trabajador</button>
                 <button class="btn btn-success" onclick="exportarPlanillasCSV()">📥 Exportar CSV</button>
+                <label style="margin-left:auto; font-size:13px; color:#56677b;">Período
+                    <select id="planillaPeriodo" onchange="renderPlanillas()" style="margin-left:6px;"></select>
+                </label>
             </div>
+            <!-- Resumen por tipo de personal: MOD, MOI, Administrativo, Ventas -->
+            <div class="inv-resumen" id="planillaResumen"></div>
             <div class="table-container">
                 <table>
                     <thead>
@@ -180,6 +185,7 @@
                             <th>Empleado</th>
                             <th>DNI</th>
                             <th>Cargo</th>
+                            <th>Clasificación</th>
                             <th style="text-align:right;">Sueldo Base</th>
                             <th style="text-align:right;">Asig. Fam.</th>
                             <th style="text-align:right;">Bonif.</th>
