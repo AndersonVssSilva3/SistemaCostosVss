@@ -1,10 +1,10 @@
-/* ==================== VSS FÁBRICA 3D · GLASSMORPHISM SUTIL ==================== */
-/* Estilo premium para el sistema contable de VSS Fábrica */
+/* ==================== PLAZA VEA 3D · GLASSMORPHISM SUTIL ==================== */
+/* Estilo premium para el sistema contable de Plaza Vea */
 /* Version: 1.0 · Septiembre 2026 */
 
 /* ==================== VARIABLES GLOBALES 3D ==================== */
 :root {
-    /* Colores VSS Fábrica */
+    /* Colores Plaza Vea */
     --pv-rojo:          #E30613;
     --pv-rojo-oscuro:   #B00510;
     --pv-rojo-claro:    #FF1A2E;
@@ -132,7 +132,7 @@ body {
     position: relative;
 }
 
-/* Línea superior con degradado VSS Fábrica */
+/* Línea superior con degradado Plaza Vea */
 .header::before {
     content: '';
     position: absolute;
@@ -618,7 +618,7 @@ table tbody tr:hover {
     text-shadow: 0 1px 0 rgba(255,255,255,.8);
 }
 
-/* ==================== LOGO VSS FÁBRICA CON 3D ==================== */
+/* ==================== LOGO PLAZA VEA CON 3D ==================== */
 .app-brand {
     position: relative;
     padding: 0 16px 24px !important;
@@ -783,7 +783,7 @@ table tbody tr:hover {
     overflow: hidden !important;   /* el scroll va en el nav, no en el aside */
 }
 
-/* Marca "VSS Fábrica" siempre visible arriba */
+/* Marca "Plaza Vea" siempre visible arriba */
 .app-brand {
     flex-shrink: 0 !important;
     padding: 0 16px 16px !important;
@@ -833,7 +833,7 @@ table tbody tr:hover {
     background: rgba(255,255,255,.65);
 }
 
-/* Footer "VSS S.A.C." siempre visible abajo */
+/* Footer "Supermercados Peruanos" siempre visible abajo */
 .sidebar-bottom {
     flex-shrink: 0 !important;
     margin-top: 12px !important;

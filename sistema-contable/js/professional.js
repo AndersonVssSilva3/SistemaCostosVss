@@ -54,8 +54,8 @@ function construirSidebar() {
         <a class="skip-link" href="#workspace">Ir al contenido</a>
         <aside class="app-sidebar">
             <a class="app-brand" href="index.html">
-                🏭 VSS Fábrica
-                <small>SISTEMA CONTABLE</small>
+                VSS
+                <small>FÁBRICA S.A.C.</small>
             </a>
             <div class="nav-caption">Espacio de trabajo</div>
             <nav aria-label="Navegación principal">
@@ -66,8 +66,7 @@ function construirSidebar() {
                 ).join('')}
             </nav>
             <div class="sidebar-bottom">
-                <strong>VSS FÁBRICA</strong>
-                VSS S.A.C.<br>
+                <strong>VSS S.A.C.</strong>
                 RUC 20601234567<br>
                 Soles peruanos · PEN
                 <button onclick="cerrarSesion()" style="margin-top:10px; width:100%; padding:8px; background:rgba(255,255,255,0.1); color:white; border:1px solid rgba(255,255,255,0.2); border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; transition:all .2s;">

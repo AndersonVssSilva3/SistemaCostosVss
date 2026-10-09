@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VSS Fábrica - Sistema Contable</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
+    <title>Plaza Vea - Sistema Contable</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛒</text></svg>">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/professional.css">
     <link rel="stylesheet" href="css/plaza-vea.css">
@@ -15,8 +15,8 @@
 
 <div class="header">
     <div>
-        <div class="company-name">VSS S.A.C.</div>
-        <h1>🏭 Herramientas</h1>
+        <div class="company-name">Supermercados Peruanos S.A.</div>
+        <h1>🛒 Herramientas</h1>
     </div>
     <div style="display:flex; align-items:center; gap:15px;">
         <a href="index.html" class="home-btn">🏠 Inicio</a>
@@ -38,8 +38,8 @@
             <h2>⚙️ Backup del Sistema</h2>
             <p style="margin-bottom:15px; color:#666;">Exporte o importe todos los datos del sistema.</p>
             <div class="btn-group">
-                <button class="btn btn-primary" onclick="cargarDatosPlazaVea()">🏭 Cargar datos VSS Fábrica</button>
-                <button class="btn btn-danger"  onclick="borrarDatosPlazaVea()">🗑️ Borrar VSS Fábrica</button>
+                <button class="btn btn-primary" onclick="cargarDatosPlazaVea()">🛒 Cargar datos Plaza Vea</button>
+                <button class="btn btn-danger"  onclick="borrarDatosPlazaVea()">🗑️ Borrar Plaza Vea</button>
                 <button class="btn btn-success" onclick="exportarBackup()">📥 Exportar Backup (JSON)</button>
                 <button class="btn btn-warning" onclick="document.getElementById('importFile').click()">📤 Importar Backup</button>
                 <input type="file" id="importFile" accept=".json" style="display:none" onchange="importarBackup(event)">

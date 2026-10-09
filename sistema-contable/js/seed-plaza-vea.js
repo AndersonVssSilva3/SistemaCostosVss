@@ -1,4 +1,4 @@
-// ==================== SEED VSS FÁBRICA v2.0 - CONTABLEMENTE CORRECTO ====================
+// ==================== SEED PLAZA VEA v2.0 - CONTABLEMENTE CORRECTO ====================
 // Datos que CUADRAN: Activo = Pasivo + Patrimonio
 
 const PV_MARKER = 'PV · ';
@@ -127,7 +127,7 @@ const PV_CLIENTES = [
 
 // ==================== FUNCIÓN PRINCIPAL ====================
 async function cargarDatosPlazaVea() {
-    if (!confirm('🏭 CARGA VSS FÁBRICA v2.0 (CONTABILIDAD CORRECTA)\n\n· Aporte de capital S/ 30M\n· Compras + entradas Kardex\n· Ventas + costo de ventas\n· Planillas, gastos, depreciaciones\n· Balance final CUADRADO\n\n¿Continuar?')) return;
+    if (!confirm('🛒 CARGA PLAZA VEA v2.0 (CONTABILIDAD CORRECTA)\n\n· Aporte de capital S/ 30M\n· Compras + entradas Kardex\n· Ventas + costo de ventas\n· Planillas, gastos, depreciaciones\n· Balance final CUADRADO\n\n¿Continuar?')) return;
 
     const status = document.getElementById('seedStatus');
     const setStatus = (msg, color = '#1765bc') => {
@@ -136,7 +136,7 @@ async function cargarDatosPlazaVea() {
     };
 
     try {
-        setStatus('🏭 Paso 1/7 · Insertando datos maestros...');
+        setStatus('🛒 Paso 1/7 · Insertando datos maestros...');
         await pvInsertarCentros();
         await pvInsertarProductos();
         await pvInsertarMercaderias();
@@ -145,31 +145,31 @@ async function cargarDatosPlazaVea() {
         await pvInsertarInductores();
         await pvInsertarRepuestos();
 
-        setStatus('🏭 Paso 2/7 · Aporte de capital inicial...');
+        setStatus('🛒 Paso 2/7 · Aporte de capital inicial...');
         await pvInsertarAporteCapital();
 
-        setStatus('🏭 Paso 3/7 · Compras + entradas al Kardex...');
+        setStatus('🛒 Paso 3/7 · Compras + entradas al Kardex...');
         await pvInsertarCompras();
 
-        setStatus('🏭 Paso 4/7 · Ventas (solo ingresos)...');
+        setStatus('🛒 Paso 4/7 · Ventas (solo ingresos)...');
         await pvInsertarVentas();
 
-        setStatus('🏭 Paso 5/7 · Costo de ventas (desde Kardex)...');
+        setStatus('🛒 Paso 5/7 · Costo de ventas (desde Kardex)...');
         await pvInsertarCostoVentas();
 
-        setStatus('🏭 Paso 6/7 · Planillas, gastos y depreciaciones...');
+        setStatus('🛒 Paso 6/7 · Planillas, gastos y depreciaciones...');
         await pvInsertarPlanillasContables();
         await pvInsertarGastosOperativos();
         await pvInsertarDepreciaciones();
 
-        setStatus('🏭 Paso 7/7 · Verificando cuadre del balance...');
+        setStatus('🛒 Paso 7/7 · Verificando cuadre del balance...');
         await pvVerificarCuadre();
 
-        setStatus('✅ ¡Datos VSS Fábrica v2.0 cargados! Balance cuadrado.', '#087565');
-        showAlert('✅ VSS Fábrica cargado. Recarga index.html.', 'success');
+        setStatus('✅ ¡Datos Plaza Vea v2.0 cargados! Balance cuadrado.', '#087565');
+        showAlert('✅ Plaza Vea cargado. Recarga index.html.', 'success');
 
     } catch (error) {
-        console.error('Error cargando VSS Fábrica:', error);
+        console.error('Error cargando Plaza Vea:', error);
         setStatus('❌ Error: ' + error.message, '#b42335');
         showAlert('Error: ' + error.message, 'error');
     }
@@ -237,7 +237,7 @@ async function pvInsertarAporteCapital() {
         numero: `AS-${String(contador++).padStart(3, '0')}`,
         fecha: '2026-01-02',
         tipo: 'apertura',
-        glosa: PV_MARKER + 'Aporte de capital social inicial - VSS S.A.C.',
+        glosa: PV_MARKER + 'Aporte de capital social inicial - Supermercados Peruanos S.A.',
         lineas: [
             { cuenta: '104', nombre: 'Cuentas Corrientes', debe: 25000000, haber: 0 },
             { cuenta: '501', nombre: 'Capital Social',     debe: 0,        haber: 25000000 }
