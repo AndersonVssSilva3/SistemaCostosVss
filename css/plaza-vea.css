@@ -1,5 +1,5 @@
-/* ==================== TEMA PLAZA VEA - OVERRIDES ==================== */
-/* Colores corporativos de Plaza Vea (Supermercados Peruanos S.A.) */
+/* ==================== TEMA VSS FÁBRICA - OVERRIDES ==================== */
+/* Colores corporativos de VSS Fábrica (VSS S.A.C.) */
 
 :root {
     --pv-rojo:        #E30613;
@@ -115,7 +115,7 @@
 }
 
 .header .company-name::before {
-    content: '🛒 ';
+    content: '🏭 ';
 }
 
 .header .datetime {

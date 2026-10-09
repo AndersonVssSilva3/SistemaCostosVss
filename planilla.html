@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planilla - Plaza Vea</title>
+    <title>Planilla - VSS Fábrica</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧾</text></svg>">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/professional.css">
@@ -13,7 +13,7 @@
 <body>
     <div class="header">
         <div>
-            <div class="company-name">Supermercados Peruanos S.A.</div>
+            <div class="company-name">VSS S.A.C.</div>
             <h1>🧾 Planilla</h1>
         </div>
         <div style="display:flex; align-items:center; gap:15px;">
@@ -56,6 +56,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-config.js"></script>
+    <script src="js/db.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/professional.js"></script>
 
@@ -79,14 +80,7 @@
 
             const { data, error } = await supabaseClient
                 .from('planillas')
-                .select(`
-                    empleado_id,
-                    total_bruto,
-                    descuento_pension,
-                    descuento_ir,
-                    total_neto,
-                    empleados_planilla (nombre)
-                `)
+                .select('codigo, nombre, sueldo')
                 .order('id', { ascending: true });
 
             if (error) {
@@ -101,14 +95,18 @@
             }
 
             tbody.innerHTML = data.map((fila) => {
-                const empleado = fila.empleados_planilla?.nombre || fila.empleado_id || 'Sin empleado';
+                const empleado = fila.nombre || fila.codigo || 'Sin empleado';
+                const sueldo = Number(fila.sueldo) || 0;
+                const pension = sueldo * 0.13;
+                const impuesto = sueldo > 3500 ? (sueldo - 3500) * 0.08 : 0;
+                const neto = sueldo - pension - impuesto;
                 return `
                     <tr>
                         <td>${empleado}</td>
-                        <td style="text-align:right;">${formatearMoneda(fila.total_bruto)}</td>
-                        <td style="text-align:right;">${formatearMoneda(fila.descuento_pension)}</td>
-                        <td style="text-align:right;">${formatearMoneda(fila.descuento_ir)}</td>
-                        <td style="text-align:right; font-weight:700; color:#2e7d32;">${formatearMoneda(fila.total_neto)}</td>
+                        <td style="text-align:right;">${formatearMoneda(sueldo)}</td>
+                        <td style="text-align:right;">${formatearMoneda(pension)}</td>
+                        <td style="text-align:right;">${formatearMoneda(impuesto)}</td>
+                        <td style="text-align:right; font-weight:700; color:#2e7d32;">${formatearMoneda(neto)}</td>
                     </tr>
                 `;
             }).join('');

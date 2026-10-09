@@ -47,8 +47,8 @@ function construirSidebar() {
         <a class="skip-link" href="#workspace">Ir al contenido</a>
         <aside class="app-sidebar">
             <a class="app-brand" href="index.html">
-                🛒 Plaza Vea
-                <small>SUPERMERCADOS PERUANOS</small>
+                🏭 VSS Fábrica
+                <small>SISTEMA CONTABLE</small>
             </a>
             <div class="nav-caption">Espacio de trabajo</div>
             <nav aria-label="Navegación principal">
@@ -59,9 +59,9 @@ function construirSidebar() {
                 ).join('')}
             </nav>
             <div class="sidebar-bottom">
-                <strong>PLAZA VEA</strong>
-                Supermercados Peruanos S.A.<br>
-                RUC 20492068702<br>
+                <strong>VSS FÁBRICA</strong>
+                VSS S.A.C.<br>
+                RUC 20601234567<br>
                 Soles peruanos · PEN
             </div>
         </aside>
