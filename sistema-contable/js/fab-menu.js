@@ -6,28 +6,28 @@ const SISTEMAS = [
         nombre: 'Sistema Contable',
         icono: '📊',
         color: 'blue',
-        url: '/sistema-contable/index.html'
+        url: '../sistema-contable/index.html'
     },
     {
         id: 'ordenes',
         nombre: 'Órdenes de Trabajo',
         icono: '🏭',
         color: 'red',
-        url: '/sistema-ordenes/index.html'
+        url: '../sistema-ordenes/index.html'
     },
     {
         id: 'conjuntos',
         nombre: 'Costos Conjuntos',
         icono: '🧬',
         color: 'green',
-        url: '/sistema-costos-conjuntos/index.html'
+        url: '../sistema-costos-conjuntos/index.html'
     },
     {
         id: 'abc',
         nombre: 'Costeo ABC',
         icono: '🎯',
         color: 'orange',
-        url: '/sistema-costeo-abc/index.html'
+        url: '../sistema-costeo-abc/index.html'
     }
 ];
 
