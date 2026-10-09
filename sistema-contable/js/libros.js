@@ -17,35 +17,64 @@ async function initLibros() {
 }
 
 // ==================== LIBRO DIARIO ====================
+// Formato clásico: fecha combinada por asiento, Nº de cuenta, descripción y montos con "S/"
 async function generarLibroDiario() {
+    const tbody = document.getElementById('libroDiarioTable');
+    const tfoot = document.getElementById('libroDiarioTotales');
     try {
-        const asientos = await DB.getAll('asientos');
+        const [asientos, cuentas] = await Promise.all([DB.getAll('asientos'), DB.getAll('cuentas')]);
         const desde = document.getElementById('libroDiarioDesde')?.value || '2026-01-01';
         const hasta = document.getElementById('libroDiarioHasta')?.value || '2026-12-31';
-        const filtered = asientos.filter(a => a.fecha >= desde && a.fecha <= hasta);
+        const filtered = asientos
+            .filter(a => a.fecha >= desde && a.fecha <= hasta)
+            .sort((a, b) => a.fecha.localeCompare(b.fecha) || String(a.numero).localeCompare(String(b.numero)));
 
-        let html = '';
+        const empresa = document.getElementById('libroDiarioEmpresa');
+        if (empresa) empresa.textContent = document.querySelector('.header .company-name')?.textContent.trim() || '';
+
+        const nombres = {};
+        cuentas.forEach(c => nombres[c.codigo] = c.nombre);
+
+        const monto = n => n > 0
+            ? `<div><span>S/</span><span>${fmtMayor(n)}</span></div>`
+            : '';
+
+        let html = '', totalDebe = 0, totalHaber = 0;
         filtered.forEach(a => {
-            const lineas = a.lineas || [];
+            const lineas = (a.lineas || []).filter(l => l.cuenta);
+            if (lineas.length === 0) return;
+            const [anio, mes, dia] = a.fecha.split('-');
+
             lineas.forEach((l, i) => {
-                html += `<tr>
-                    ${i === 0 ? `<td rowspan="${lineas.length}">${textCell(a.fecha)}</td>
-                    <td rowspan="${lineas.length}">${textCell(a.numero)}</td>` : ''}
-                    <td>${textCell(l.cuenta)}</td>
-                    <td>${textCell(l.nombre || '')}<br><small>${textCell(a.glosa || '')}</small></td>
-                    <td style="text-align:right;">${Number(l.debe) > 0 ? Number(l.debe).toFixed(2) : ''}</td>
-                    <td style="text-align:right;">${Number(l.haber) > 0 ? Number(l.haber).toFixed(2) : ''}</td>
+                const debe = Number(l.debe) || 0;
+                const haber = Number(l.haber) || 0;
+                totalDebe += debe;
+                totalHaber += haber;
+                html += `<tr class="${i === 0 ? 'ld-inicio' : ''}">
+                    ${i === 0 ? `<td class="ld-fecha" rowspan="${lineas.length}" title="${textCell(a.glosa || '')}">
+                        ${dia}/${mes}/${anio}<small>${textCell(a.numero)}</small>
+                    </td>` : ''}
+                    <td class="ld-cta">${textCell(l.cuenta)}</td>
+                    <td class="ld-desc">${textCell(nombres[l.cuenta] || l.nombre || '')}</td>
+                    <td class="ld-monto">${monto(debe)}</td>
+                    <td class="ld-monto">${monto(haber)}</td>
                 </tr>`;
             });
         });
 
-        document.getElementById('libroDiarioTable').innerHTML =
-            html || '<tr><td colspan="6" style="text-align:center; color:#999;">Sin registros para el rango seleccionado</td></tr>';
+        tbody.innerHTML = html || '<tr><td colspan="5" class="ld-vacio">Sin registros para el rango seleccionado</td></tr>';
+        if (tfoot) {
+            tfoot.innerHTML = html ? `<tr>
+                <td colspan="3" class="ld-total-label">TOTALES</td>
+                <td class="ld-monto">${monto(totalDebe)}</td>
+                <td class="ld-monto">${monto(totalHaber)}</td>
+            </tr>` : '';
+        }
         console.log(`✅ Libro Diario: ${filtered.length} asientos mostrados`);
     } catch (error) {
         console.error('Error generando Libro Diario:', error);
-        document.getElementById('libroDiarioTable').innerHTML =
-            `<tr><td colspan="6" style="text-align:center; color:#c00;">Error: ${textCell(error.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="ld-vacio" style="color:#c00;">Error: ${textCell(error.message)}</td></tr>`;
+        if (tfoot) tfoot.innerHTML = '';
     }
 }
 

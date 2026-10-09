@@ -1,0 +1,86 @@
+/* ==================== LIBRO DIARIO · FORMATO CLÁSICO ==================== */
+
+.libro-diario {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: white;
+}
+
+.libro-diario th,
+.libro-diario td {
+    border: 1px solid #555;
+    padding: 4px 8px;
+}
+
+.libro-diario thead th {
+    background: #bdd7ee;
+    color: #102b46;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.libro-diario thead .ld-titulo {
+    background: #9dc3e6;
+    font-size: 14px;
+    line-height: 1.8;
+    border-bottom: 2px solid #333;
+}
+
+.libro-diario .ld-fecha {
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+    width: 120px;
+}
+
+.libro-diario .ld-fecha small {
+    display: block;
+    color: #56677b;
+    font-size: 11px;
+}
+
+.libro-diario .ld-cta {
+    text-align: center;
+    width: 70px;
+    font-variant-numeric: tabular-nums;
+}
+
+.libro-diario .ld-desc {
+    min-width: 220px;
+}
+
+.libro-diario .ld-monto {
+    width: 150px;
+    white-space: nowrap;
+}
+
+.libro-diario .ld-monto div {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Línea gruesa entre asientos */
+.libro-diario tr.ld-inicio td {
+    border-top: 2px solid #222;
+}
+
+.libro-diario tfoot td {
+    border-top: 2px solid #222;
+    background: #ddebf7;
+    font-weight: 800;
+}
+
+.libro-diario tfoot .ld-total-label {
+    text-align: right;
+    letter-spacing: 1px;
+}
+
+.libro-diario .ld-vacio {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+}

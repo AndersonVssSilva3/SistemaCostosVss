@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="css/plaza-vea.css">
     <link rel="stylesheet" href="css/plaza-vea-3d.css">
     <link rel="stylesheet" href="css/libro-mayor.css">
+    <link rel="stylesheet" href="css/libro-diario.css">
 
 </head>
 <body>
@@ -55,11 +56,13 @@
                 </div>
             </div>
             <div class="table-container">
-                <table>
+                <table class="libro-diario">
                     <thead>
-                        <tr><th>Fecha</th><th>N° Asiento</th><th>Cuenta</th><th>Descripción</th><th>Debe</th><th>Haber</th></tr>
+                        <tr><th colspan="5" class="ld-titulo">LIBRO DIARIO<br><span id="libroDiarioEmpresa"></span></th></tr>
+                        <tr><th>Fecha</th><th>Nº Cta</th><th>Descripción</th><th>Debe</th><th>Haber</th></tr>
                     </thead>
                     <tbody id="libroDiarioTable"></tbody>
+                    <tfoot id="libroDiarioTotales"></tfoot>
                 </table>
             </div>
         </div>
@@ -336,7 +339,7 @@
 <!-- 4. Resto -->
 <script src="js/utils.js"></script>
 <script src="js/accounting.js"></script>
-<script src="js/libros.js?v=20261009"></script>
+<script src="js/libros.js?v=20261009b"></script>
 <script src="js/professional.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', async function() {
