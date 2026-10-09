@@ -1,0 +1,243 @@
+/* ==================== LIBRO MAYOR · CUENTAS T ==================== */
+/* Mismo diseño que el Mayor de Fábrica (sistema-ordenes/css/ordenes.css) */
+
+.mayor-filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: flex-end;
+}
+
+.mayor-filtros .form-group {
+    margin-bottom: 0;
+}
+
+.mayor-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #56677b;
+    cursor: pointer;
+    padding-bottom: 10px;
+}
+
+.mayor-resumen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-top: 15px;
+    font-size: 13px;
+    color: #56677b;
+}
+
+.mayor-resumen strong {
+    color: #102b46;
+    font-variant-numeric: tabular-nums;
+}
+
+.mayor-resumen .cuadra { color: #087565; }
+.mayor-resumen .no-cuadra { color: #c00; }
+
+.mayor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 24px;
+    align-items: start;
+    margin-top: 20px;
+}
+
+.mayor-vacio {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: #999;
+    padding: 30px;
+}
+
+.cuenta-t {
+    background: white;
+    border: 2px solid #102b46;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(16, 43, 70, .08);
+    transition: transform .3s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.cuenta-t:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(16, 43, 70, .12);
+}
+
+.cuenta-t-header {
+    background: #102b46;
+    color: white;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.cuenta-t-codigo {
+    font-size: 20px;
+    font-weight: 800;
+    background: #E30613;
+    padding: 4px 12px;
+    border-radius: 6px;
+    letter-spacing: .5px;
+}
+
+.cuenta-t-nombre {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: .3px;
+}
+
+.cuenta-t-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    flex: 1;
+}
+
+.cuenta-t-col {
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+}
+
+.cuenta-t-col:first-child {
+    border-right: 1px dashed #dbe3ed;
+}
+
+.cuenta-t-titulo {
+    font-size: 11px;
+    font-weight: 800;
+    color: #56677b;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #102b46;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+
+.cuenta-t-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    padding: 4px 0;
+    border-bottom: 1px dotted #e5ebf2;
+}
+
+.cuenta-t-row span:last-child {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: #162c44;
+    white-space: nowrap;
+}
+
+.cuenta-t-row-detalle {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Fila agrupada (por mes) que se despliega */
+.cuenta-t-row-agrupado {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.cuenta-t-row-agrupado:hover {
+    background: #f5f7fa;
+}
+
+.cuenta-t-row-arrow {
+    font-size: 10px;
+    color: #56677b;
+    width: 12px;
+    flex-shrink: 0;
+}
+
+.cuenta-t-row-hijo {
+    padding-left: 18px;
+    font-size: 12px;
+    color: #56677b;
+}
+
+.cuenta-t-row-hijo span:last-child {
+    font-weight: 500;
+    color: #56677b;
+}
+
+.cuenta-t-total {
+    border-top: 2px solid #102b46;
+    border-bottom: none;
+    margin-top: auto;
+    padding-top: 8px;
+    font-weight: 800;
+    font-size: 14px;
+}
+
+.cuenta-t-empty {
+    text-align: center;
+    color: #999;
+    font-style: italic;
+    padding: 8px;
+    font-size: 12px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cuenta-t-saldo {
+    padding: 14px 18px;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 2px solid #102b46;
+    background: #f5f7fa;
+    margin-top: auto;
+    flex-shrink: 0;
+}
+
+.cuenta-t-saldo.saldo-deudor {
+    background: #eaf3fc;
+    color: #12589b;
+}
+
+.cuenta-t-saldo.saldo-acreedor {
+    background: #fef6e8;
+    color: #8a5a00;
+}
+
+.cuenta-t-saldo.saldo-cero {
+    background: #f5f7fa;
+    color: #56677b;
+}
+
+.cuenta-t-saldo strong {
+    font-size: 16px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+    .mayor-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .cuenta-t-body {
+        grid-template-columns: 1fr;
+    }
+
+    .cuenta-t-col:first-child {
+        border-right: none;
+        border-bottom: 1px dashed #dbe3ed;
+    }
+}
