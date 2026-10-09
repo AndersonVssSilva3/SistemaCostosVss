@@ -1,0 +1,807 @@
+/* ==================== SISTEMA DE ÓRDENES · ESTILOS ==================== */
+
+/* Tarjetas de órdenes */
+.ot-lista {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    margin-top: 10px;
+}
+
+.ot-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #dbe3ed;
+    box-shadow: 0 2px 8px rgba(16,43,70,.05);
+    transition: all .3s cubic-bezier(.16, 1, .3, 1);
+}
+
+.ot-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(16,43,70,.10);
+    border-color: #E30613;
+}
+
+.ot-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.ot-card-numero {
+    font-size: 20px;
+    font-weight: 800;
+    color: #E30613;
+    letter-spacing: -.5px;
+}
+
+.ot-card-estado {
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    background: #f5f5f5;
+    padding: 4px 10px;
+    border-radius: 12px;
+}
+
+.ot-card-desc {
+    font-size: 13px;
+    color: #56677b;
+    margin-bottom: 16px;
+    min-height: 36px;
+    line-height: 1.4;
+}
+
+.ot-card-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 12px 0;
+    border-top: 1px dashed #dbe3ed;
+    border-bottom: 1px dashed #dbe3ed;
+}
+
+.ot-metric {
+    text-align: center;
+}
+
+.ot-metric-label {
+    font-size: 11px;
+    color: #56677b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.ot-metric-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #162c44;
+    font-variant-numeric: tabular-nums;
+}
+
+.ot-card-bar {
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+    background: #f0f4f8;
+}
+
+.ot-bar-mp {
+    background: #1765bc;
+    transition: width .5s ease;
+}
+
+.ot-bar-mod {
+    background: #F58220;
+    transition: width .5s ease;
+}
+
+.ot-bar-cif {
+    background: #087565;
+    transition: width .5s ease;
+}
+
+.ot-card-legend {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #56677b;
+}
+
+.ot-card-legend .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+.ot-card-legend .dot-mp { background: #1765bc; }
+.ot-card-legend .dot-mod { background: #F58220; }
+.ot-card-legend .dot-cif { background: #087565; }
+
+/* Métricas del dashboard (reutiliza los estilos base) */
+.metric-activo { border-top: 3px solid #E30613; }
+.metric-ventas { border-top: 3px solid #F58220; }
+.metric-compras { border-top: 3px solid #7c3aed; }
+.metric-inventario { border-top: 3px solid #087565; }
+/* ==================== CUENTAS T (MAYOR DE FÁBRICA) ==================== */
+
+.mayor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 24px;
+    align-items: start;      /* ⭐ Las cards se alinean arriba */
+}
+
+.cuenta-t {
+    background: white;
+    border: 2px solid #102b46;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(16, 43, 70, .08);
+    transition: transform .3s ease;
+    display: flex;           /* ⭐ CLAVE: Flexbox vertical */
+    flex-direction: column;
+    height: 100%;            /* ⭐ Toma toda la altura disponible */
+}
+
+.cuenta-t:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(16, 43, 70, .12);
+}
+
+.cuenta-t-header {
+    background: #102b46;
+    color: white;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;          /* ⭐ No se encoge */
+}
+
+.cuenta-t-codigo {
+    font-size: 20px;
+    font-weight: 800;
+    background: #E30613;
+    padding: 4px 12px;
+    border-radius: 6px;
+    letter-spacing: .5px;
+}
+
+.cuenta-t-nombre {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: .3px;
+}
+
+.cuenta-t-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    flex: 1;                 /* ⭐ CLAVE: Ocupa todo el espacio disponible */
+}
+
+.cuenta-t-col {
+    padding: 12px 16px;
+    display: flex;           /* ⭐ Columna interna flex */
+    flex-direction: column;
+}
+
+.cuenta-t-col:first-child {
+    border-right: 1px dashed #dbe3ed;
+}
+
+.cuenta-t-titulo {
+    font-size: 11px;
+    font-weight: 800;
+    color: #56677b;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #102b46;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+
+.cuenta-t-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    padding: 4px 0;
+    border-bottom: 1px dotted #e5ebf2;
+}
+
+.cuenta-t-row span:last-child {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: #162c44;
+}
+
+/* Total al final del contenido */
+.cuenta-t-total {
+    border-top: 2px solid #102b46;
+    border-bottom: none;
+    margin-top: auto;        /* ⭐ CLAVE: Empuja al fondo */
+    padding-top: 8px;
+    font-weight: 800;
+    font-size: 14px;
+}
+
+.cuenta-t-empty {
+    text-align: center;
+    color: #999;
+    font-style: italic;
+    padding: 8px;
+    font-size: 12px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ==================== SALDO AL FONDO ==================== */
+.cuenta-t-saldo {
+    padding: 14px 18px;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 2px solid #102b46;
+    background: #f5f7fa;
+    margin-top: auto;        /* ⭐ CLAVE: Empuja al fondo de la card */
+    flex-shrink: 0;
+}
+
+.cuenta-t-saldo.saldo-deudor {
+    background: #eaf3fc;
+    color: #12589b;
+}
+
+.cuenta-t-saldo.saldo-acreedor {
+    background: #fef6e8;
+    color: #8a5a00;
+}
+
+.cuenta-t-saldo strong {
+    font-size: 16px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .mayor-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .cuenta-t-body {
+        grid-template-columns: 1fr;
+    }
+    
+    .cuenta-t-col:first-child {
+        border-right: none;
+        border-bottom: 1px dashed #dbe3ed;
+    }
+}
+/* ==================== EEFF OT - TABLA CON SCROLL Y STICKY ==================== */
+
+.eeff-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.eeff-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.eeff-table-container {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 600px;
+    border-radius: 10px;
+    border: 1px solid #dbe3ed;
+    background: white;
+    position: relative;
+}
+
+.eeff-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 0;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+/* Header sticky */
+.eeff-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.eeff-table thead th {
+    background: #102b46;
+    color: white;
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border-bottom: 2px solid #E30613;
+    white-space: nowrap;
+}
+
+/* Header del TOTAL con color rojo */
+.eeff-table thead th.eeff-col-total {
+    background: #E30613;
+    color: white;
+}
+
+/* Anchos fijos */
+.eeff-table th.eeff-col-concepto,
+.eeff-table td.eeff-col-concepto {
+    min-width: 220px;
+}
+
+.eeff-table th.eeff-col-ot,
+.eeff-table td.eeff-col-ot {
+    min-width: 110px;
+    text-align: right;
+}
+
+.eeff-table th.eeff-col-total,
+.eeff-table td.eeff-col-total {
+    min-width: 130px;
+    text-align: right;
+    font-weight: 700;
+}
+
+/* Columnas sticky */
+.eeff-sticky-left {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background: white;
+    box-shadow: 2px 0 4px rgba(16, 43, 70, 0.06);
+}
+
+.eeff-table thead .eeff-sticky-left {
+    z-index: 15;
+    background: #102b46;
+}
+
+.eeff-sticky-right {
+    position: sticky;
+    right: 0;
+    z-index: 5;
+    background: #eaf1f8;
+    box-shadow: -2px 0 4px rgba(16, 43, 70, 0.06);
+}
+
+.eeff-table thead .eeff-sticky-right {
+    z-index: 15;
+    background: #E30613;
+    color: white;
+}
+
+/* Filas */
+.eeff-table tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #eef2f7;
+    color: #162c44;
+}
+
+.eeff-table tbody tr:hover td {
+    background: #f0f7ff !important;
+}
+
+.eeff-table tbody tr:hover .eeff-sticky-left {
+    background: #f0f7ff !important;
+}
+
+.eeff-table tbody tr:hover .eeff-sticky-right {
+    background: #dbeafe !important;
+}
+
+/* Filas especiales */
+.eeff-row-subtotal td {
+    background: #eaf1f8 !important;
+    font-weight: 700;
+}
+
+.eeff-row-total td {
+    background: #102b46 !important;
+    color: white !important;
+    font-weight: 800;
+    border-bottom: none;
+    border-top: 3px solid #E30613;
+}
+
+.eeff-row-total .eeff-sticky-left,
+.eeff-row-total .eeff-sticky-right {
+    background: #102b46 !important;
+    color: white !important;
+}
+
+.eeff-row-gasto td:not(.eeff-col-concepto) {
+    color: #b42335;
+}
+
+/* Zebra striping */
+.eeff-table tbody tr:not(.eeff-row-subtotal):not(.eeff-row-total):nth-child(even) td {
+    background: #fafbfc;
+}
+
+.eeff-table tbody tr:not(.eeff-row-subtotal):not(.eeff-row-total):nth-child(even) .eeff-sticky-left {
+    background: #fafbfc;
+}
+
+.eeff-table tbody tr:not(.eeff-row-subtotal):not(.eeff-row-total):nth-child(even) .eeff-sticky-right {
+    background: #f0f5fa;
+}
+
+/* Scrollbar */
+.eeff-table-container::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.eeff-table-container::-webkit-scrollbar-track {
+    background: #f0f4f8;
+    border-radius: 5px;
+}
+
+.eeff-table-container::-webkit-scrollbar-thumb {
+    background: #c5d3e0;
+    border-radius: 5px;
+    border: 2px solid #f0f4f8;
+}
+
+.eeff-table-container::-webkit-scrollbar-thumb:hover {
+    background: #a8b8c8;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .eeff-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .eeff-table th.eeff-col-concepto,
+    .eeff-table td.eeff-col-concepto {
+        min-width: 150px;
+    }
+}
+
+/* Impresión */
+@media print {
+    .eeff-controls {
+        display: none !important;
+    }
+    
+    .eeff-table-container {
+        max-height: none;
+        overflow: visible;
+        border: 0;
+    }
+    
+    .eeff-sticky-left,
+    .eeff-sticky-right {
+        position: static;
+        box-shadow: none;
+    }
+}
+/* ==================== CIF - TABLA MEJORADA ==================== */
+
+/* Header con controles */
+.cif-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.cif-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.cif-label {
+    font-size: 13px;
+    color: #56677b;
+    font-weight: 600;
+}
+
+.cif-select,
+.cif-search {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #dbe3ed;
+    background: white;
+    font-size: 13px;
+    color: #162c44;
+    transition: all .2s ease;
+}
+
+.cif-select:focus,
+.cif-search:focus {
+    outline: none;
+    border-color: #E30613;
+    box-shadow: 0 0 0 3px rgba(227, 6, 19, 0.08);
+}
+
+.cif-search {
+    min-width: 180px;
+}
+
+/* Contenedor de tabla con scroll */
+.cif-table-container {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 600px;
+    border-radius: 10px;
+    border: 1px solid #dbe3ed;
+    background: white;
+    position: relative;
+}
+
+/* Tabla CIF */
+.cif-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 0;
+    font-size: 13px;
+    white-space: nowrap;
+    table-layout: fixed;    /* ⭐ Anchos uniformes */
+    width: 100%;
+}
+
+/* ==================== HEADER STICKY ==================== */
+.cif-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.cif-table thead th {
+    background: #102b46;
+    color: white;
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border-bottom: 2px solid #E30613;
+    white-space: nowrap;
+}
+
+/* Header del TOTAL con color rojo */
+.cif-table thead th.cif-col-total {
+    background: #E30613;
+    color: white;
+}
+
+/* ==================== ANCHOS FIJOS ==================== */
+.cif-table th.cif-col-concepto,
+.cif-table td.cif-col-concepto {
+    width: 200px;
+}
+
+.cif-table th.cif-col-inductor,
+.cif-table td.cif-col-inductor {
+    width: 100px;
+}
+
+.cif-table th.cif-col-ot,
+.cif-table td.cif-col-ot {
+    width: 120px;
+    text-align: right;
+}
+
+.cif-table th.cif-col-total,
+.cif-table td.cif-col-total {
+    width: 140px;
+    text-align: right;
+    font-weight: 700;
+}
+
+/* ==================== COLUMNAS STICKY ==================== */
+.cif-sticky-left {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background: white;
+    box-shadow: 2px 0 4px rgba(16, 43, 70, 0.06);
+}
+
+.cif-table thead .cif-sticky-left {
+    z-index: 15;
+    background: #102b46;
+}
+
+.cif-sticky-left-2 {
+    position: sticky;
+    left: 200px;    /* ⭐ Coincide con ancho de Concepto */
+    z-index: 5;
+    background: white;
+    box-shadow: 2px 0 4px rgba(16, 43, 70, 0.06);
+}
+
+.cif-table thead .cif-sticky-left-2 {
+    z-index: 15;
+    background: #102b46;
+}
+
+.cif-sticky-right {
+    position: sticky;
+    right: 0;
+    z-index: 5;
+    background: #eaf1f8;
+    box-shadow: -2px 0 4px rgba(16, 43, 70, 0.06);
+}
+
+.cif-table thead .cif-sticky-right {
+    z-index: 15;
+    background: #E30613;
+    color: white;
+}
+
+/* ==================== FILAS ==================== */
+.cif-table tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #eef2f7;
+    color: #162c44;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Zebra striping */
+.cif-row-even td {
+    background: #fafbfc;
+}
+
+.cif-row-odd td {
+    background: white;
+}
+
+/* Fila al hover */
+.cif-table tbody tr:hover td {
+    background: #f0f7ff !important;
+}
+
+.cif-table tbody tr:hover .cif-sticky-left,
+.cif-table tbody tr:hover .cif-sticky-left-2 {
+    background: #f0f7ff !important;
+}
+
+.cif-table tbody tr:hover .cif-sticky-right {
+    background: #dbeafe !important;
+}
+
+/* ==================== FILA TOTAL ==================== */
+.cif-row-total td {
+    background: #102b46 !important;
+    color: white !important;
+    font-weight: 800;
+    font-size: 13px;
+    padding: 16px;
+    border-bottom: none;
+    border-top: 3px solid #E30613;
+}
+
+.cif-row-total .cif-sticky-left,
+.cif-row-total .cif-sticky-left-2,
+.cif-row-total .cif-sticky-right {
+    background: #102b46 !important;
+    color: white !important;
+}
+
+/* ==================== FOOTER ==================== */
+.cif-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    background: #f6f9fc;
+    border-top: 1px solid #dbe3ed;
+    font-size: 13px;
+    color: #56677b;
+    border-radius: 0 0 10px 10px;
+}
+
+.cif-footer strong {
+    color: #162c44;
+    font-weight: 700;
+}
+
+/* ==================== SCROLLBAR ==================== */
+.cif-table-container::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.cif-table-container::-webkit-scrollbar-track {
+    background: #f0f4f8;
+    border-radius: 5px;
+}
+
+.cif-table-container::-webkit-scrollbar-thumb {
+    background: #c5d3e0;
+    border-radius: 5px;
+    border: 2px solid #f0f4f8;
+}
+
+.cif-table-container::-webkit-scrollbar-thumb:hover {
+    background: #a8b8c8;
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 900px) {
+    .cif-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .cif-controls {
+        justify-content: space-between;
+    }
+    
+    .cif-search {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .cif-table th.cif-col-concepto,
+    .cif-table td.cif-col-concepto {
+        width: 150px;
+    }
+    
+    .cif-sticky-left-2 {
+        left: 150px;
+    }
+}
+
+/* ==================== IMPRESIÓN ==================== */
+@media print {
+    .cif-controls,
+    .cif-footer {
+        display: none !important;
+    }
+    
+    .cif-table-container {
+        max-height: none;
+        overflow: visible;
+        border: 0;
+    }
+    
+    .cif-sticky-left,
+    .cif-sticky-left-2,
+    .cif-sticky-right {
+        position: static;
+        box-shadow: none;
+    }
+}

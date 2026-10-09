@@ -1,0 +1,240 @@
+/* ==================== FAB MENU RADIAL 3D ==================== */
+
+.fab-container {
+    position: fixed;
+    bottom: 55px;
+    right: 30px;
+    z-index: 9999;
+    pointer-events: none;
+}
+
+.fab-container * {
+    pointer-events: auto;
+}
+
+/* Botón principal */
+.fab-main {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, #E30613 0%, #B00510 100%);
+    color: white;
+    font-size: 28px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 
+        0 8px 20px rgba(227, 6, 19, 0.4),
+        0 4px 8px rgba(227, 6, 19, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+    z-index: 10;
+}
+
+.fab-main:hover {
+    transform: scale(1.08);
+    box-shadow: 
+        0 12px 28px rgba(227, 6, 19, 0.5),
+        0 6px 12px rgba(227, 6, 19, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.fab-main .fab-icon {
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fab-container.open .fab-main .fab-icon {
+    transform: rotate(135deg);
+}
+
+/* Contenedor de las bolitas */
+.fab-items {
+    position: absolute;
+    bottom: 57px;
+    right: 32px;
+    width: 0;
+    height: 0;
+}
+
+/* Cada bolita */
+.fab-item {
+    position: absolute;      /* ✅ ÚNICA declaración de position */
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: white;
+    text-decoration: none;
+    transform: translate(-50%, 50%) scale(0);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition-delay: calc(var(--i) * 0.05s);
+    box-shadow: 
+        0 6px 16px rgba(0, 0, 0, 0.25),
+        0 2px 6px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.15);
+    z-index: 20;/* ❌ position: relative; — ELIMINADA */
+}
+
+.fab-item:hover {
+    transform: translate(calc(-50% + var(--x)), calc(50% - var(--y))) scale(1.15);
+    z-index: 100;
+}
+
+.fab-container.open .fab-item {
+    transform: translate(calc(-50% + var(--x)), calc(50% - var(--y))) scale(1);
+    opacity: 1;
+}
+
+/* Colores por sistema */
+.fab-item[data-color="blue"] {
+    background: linear-gradient(135deg, #1765bc, #0e4280);
+}
+.fab-item[data-color="red"] {
+    background: linear-gradient(135deg, #E30613, #B00510);
+}
+.fab-item[data-color="green"] {
+    background: linear-gradient(135deg, #087565, #054a3f);
+}
+.fab-item[data-color="orange"] {
+    background: linear-gradient(135deg, #F58220, #d96d10);
+}
+.fab-item[data-color="purple"] {
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+}
+.fab-item[data-color="teal"] {
+    background: linear-gradient(135deg, #0891b2, #0e7490);
+}
+
+/* Etiqueta (tooltip) */
+.fab-item .fab-label {
+    position: absolute;
+    right: 72px;
+    top: 50%;
+    transform: translateY(-50%) translateX(10px);
+    background: rgba(16, 43, 70, 0.95);
+    color: white;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.fab-item .fab-label::after {
+    content: '';
+    position: absolute;
+    right: -5px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 5px solid transparent;
+    border-left-color: rgba(16, 43, 70, 0.95);
+}
+
+.fab-item:hover .fab-label {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}
+
+/* Efecto de "onda" al abrir */
+.fab-container.open::before {
+    content: '';
+    position: absolute;
+    bottom: 32px;
+    right: 32px;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(227, 6, 19, 0.1);
+    animation: fabPulse 0.6s ease-out;
+    pointer-events: none;
+}
+
+@keyframes fabPulse {
+    0% {
+        width: 0;
+        height: 0;
+        transform: translate(50%, 50%);
+        opacity: 0.6;
+    }
+    100% {
+        width: 400px;
+        height: 400px;
+        transform: translate(calc(50% - 200px), calc(50% + 200px));
+        opacity: 0;
+    }
+}
+
+/* Overlay semitransparente al abrir */
+.fab-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(16, 43, 70, 0.15);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 9998;
+}
+
+.fab-container.open ~ .fab-overlay {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Responsive */
+@media (max-width: 800px) {
+    .fab-container {
+        bottom: 20px;
+        right: 20px;
+    }
+    .fab-main {
+        width: 56px;
+        height: 56px;
+        font-size: 24px;
+    }
+    .fab-item {
+        width: 48px;
+        height: 48px;
+        font-size: 18px;
+    }
+}
+/* Sistema actual */
+.fab-item.fab-item-actual {
+    /* Mantener mismo tamaño y posición */
+    opacity: 1;
+    pointer-events: auto;   /* SÍ se puede clickear */
+}
+
+
+.fab-item.fab-item-actual::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #087565;
+    border: 2px solid white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    z-index: 1;
+}

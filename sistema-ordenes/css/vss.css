@@ -1,0 +1,402 @@
+/* ==================== TEMA VSS FÁBRICA - OVERRIDES ==================== */
+/* Colores corporativos de VSS Fábrica (VSS S.A.C.) */
+
+:root {
+    --pv-rojo:        #E30613;
+    --pv-rojo-oscuro: #B00510;
+    --pv-naranja:     #F58220;
+    --pv-naranja-claro: #FFA04D;
+    --pv-amarillo:    #FFD100;
+    --pv-gris-oscuro: #2B2B2B;
+    --pv-gris-medio:  #666666;
+    --pv-gris-claro:  #F5F5F5;
+    --pv-blanco:      #FFFFFF;
+}
+
+/* ==================== SIDEBAR ==================== */
+.app-sidebar {
+    background: linear-gradient(180deg, var(--pv-rojo) 0%, var(--pv-rojo-oscuro) 100%) !important;
+    border-right: none;
+    box-shadow: 4px 0 20px rgba(227,6,19,.15);
+}
+
+.app-brand {
+    color: var(--pv-blanco) !important;
+    font-size: 26px !important;
+    font-weight: 900 !important;
+    letter-spacing: 2px !important;
+    text-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+
+.app-brand small {
+    color: rgba(255,255,255,.85) !important;
+    font-weight: 600;
+    letter-spacing: 3px !important;
+    font-size: 11px !important;
+}
+
+.nav-caption {
+    color: rgba(255,255,255,.7) !important;
+    border-bottom: 1px solid rgba(255,255,255,.15);
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+}
+
+.app-sidebar nav a {
+    color: rgba(255,255,255,.92) !important;
+    border-radius: 8px;
+    transition: all .25s ease;
+    font-weight: 500;
+}
+
+.app-sidebar nav a:hover {
+    background: rgba(255,255,255,.15) !important;
+    transform: translateX(4px);
+}
+
+.app-sidebar nav a[aria-current] {
+    background: var(--pv-blanco) !important;
+    color: var(--pv-rojo) !important;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(0,0,0,.2);
+}
+
+.app-sidebar nav a[aria-current] .nav-symbol {
+    color: var(--pv-rojo);
+}
+
+.nav-symbol {
+    color: var(--pv-amarillo);
+    font-weight: 800;
+}
+
+.sidebar-bottom {
+    border-top: 1px solid rgba(255,255,255,.2) !important;
+    color: rgba(255,255,255,.85) !important;
+    font-weight: 500;
+}
+
+.sidebar-bottom strong {
+    color: var(--pv-amarillo) !important;
+    font-weight: 800;
+    letter-spacing: .5px;
+}
+
+/* ==================== HEADER ==================== */
+.header {
+    background: var(--pv-blanco) !important;
+    border-bottom: 3px solid var(--pv-rojo) !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,.05) !important;
+    position: relative;
+}
+
+.header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 4px;
+    background: linear-gradient(90deg,
+        var(--pv-rojo) 0%,
+        var(--pv-naranja) 50%,
+        var(--pv-amarillo) 100%);
+}
+
+.header h1 {
+    color: var(--pv-gris-oscuro) !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.5px;
+}
+
+.header .company-name {
+    color: var(--pv-rojo) !important;
+    font-weight: 800 !important;
+    letter-spacing: 1.5px !important;
+    font-size: 13px !important;
+}
+
+.header .company-name::before {
+    content: '🏭 ';
+}
+
+.header .datetime {
+    color: var(--pv-gris-medio) !important;
+    font-weight: 500;
+}
+
+/* ==================== SUB-NAV ==================== */
+.sub-nav {
+    background: var(--pv-gris-claro) !important;
+    border-bottom: 1px solid #e0e0e0 !important;
+    padding: 12px 36px !important;
+}
+
+.sub-nav button {
+    background: var(--pv-blanco) !important;
+    border: 2px solid transparent !important;
+    color: var(--pv-gris-oscuro) !important;
+    font-weight: 600 !important;
+    padding: 10px 18px !important;
+    border-radius: 24px !important;
+    transition: all .2s ease;
+    font-size: 13px !important;
+}
+
+.sub-nav button:hover {
+    background: rgba(227,6,19,.08) !important;
+    color: var(--pv-rojo) !important;
+    border-color: var(--pv-rojo) !important;
+}
+
+.sub-nav button.active {
+    background: var(--pv-rojo) !important;
+    color: var(--pv-blanco) !important;
+    border-color: var(--pv-rojo) !important;
+    box-shadow: 0 4px 12px rgba(227,6,19,.3);
+}
+
+/* ==================== CARDS ==================== */
+.card {
+    border-radius: 12px !important;
+    border: 1px solid #ebebeb !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04) !important;
+    transition: box-shadow .2s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,.06) !important;
+}
+
+.card h2 {
+    color: var(--pv-gris-oscuro) !important;
+    font-weight: 700 !important;
+    border-bottom: 2px solid var(--pv-rojo) !important;
+    padding-bottom: 14px !important;
+    letter-spacing: -0.3px;
+}
+
+/* ==================== BOTONES ==================== */
+.btn {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    letter-spacing: .2px;
+    transition: all .2s ease !important;
+}
+
+.btn-primary {
+    background: var(--pv-rojo) !important;
+    border-color: var(--pv-rojo) !important;
+    color: var(--pv-blanco) !important;
+}
+
+.btn-primary:hover {
+    background: var(--pv-rojo-oscuro) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(227,6,19,.3);
+}
+
+.btn-success {
+    background: #087565 !important;
+    border-color: #087565 !important;
+}
+
+.btn-success:hover {
+    background: #065a4c !important;
+    transform: translateY(-1px);
+}
+
+.btn-warning {
+    background: var(--pv-naranja) !important;
+    border-color: var(--pv-naranja) !important;
+    color: var(--pv-blanco) !important;
+}
+
+.btn-warning:hover {
+    background: #d96d10 !important;
+}
+
+.btn-danger {
+    background: #B00510 !important;
+    border-color: #B00510 !important;
+}
+
+/* ==================== MÉTRICAS DEL DASHBOARD ==================== */
+.metric {
+    border-radius: 12px !important;
+    transition: all .3s ease !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.metric::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 80px; height: 80px;
+    background: radial-gradient(circle, rgba(227,6,19,.06), transparent);
+    border-radius: 50%;
+    transform: translate(20px, -20px);
+}
+
+.metric-activo {
+    border-top: 3px solid var(--pv-rojo) !important;
+}
+
+.metric-ventas {
+    border-top: 3px solid var(--pv-naranja) !important;
+}
+
+.metric-compras {
+    border-top: 3px solid var(--pv-amarillo) !important;
+}
+
+.metric-inventario {
+    border-top: 3px solid #7c3aed !important;
+}
+
+.metric:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 0 12px 24px rgba(0,0,0,.08) !important;
+}
+
+.metric strong {
+    color: var(--pv-gris-oscuro) !important;
+    font-weight: 800 !important;
+    letter-spacing: -1px;
+}
+
+.metric-label {
+    color: var(--pv-gris-medio) !important;
+    font-weight: 600;
+    letter-spacing: .5px;
+}
+
+/* ==================== TABLAS ==================== */
+table th {
+    background: linear-gradient(180deg, #FAFAFA, #F0F0F0) !important;
+    color: var(--pv-gris-oscuro) !important;
+    font-weight: 700 !important;
+    border-bottom: 2px solid var(--pv-rojo) !important;
+}
+
+table tr:hover {
+    background: rgba(227,6,19,.03) !important;
+}
+
+/* ==================== ESTADO DE RESULTADOS ==================== */
+.eeff-total {
+    background: var(--pv-rojo) !important;
+    color: var(--pv-blanco) !important;
+    border-radius: 10px !important;
+}
+
+.eeff-total .eeff-label {
+    color: var(--pv-blanco) !important;
+    letter-spacing: .5px;
+}
+
+.eeff-subtotal {
+    background: rgba(245,130,32,.08) !important;
+    color: var(--pv-gris-oscuro) !important;
+}
+
+.indicator-value.positive {
+    color: #087565 !important;
+}
+
+/* ==================== GRÁFICO VENTAS VS COMPRAS ==================== */
+.dot-ventas {
+    background: var(--pv-rojo) !important;
+}
+
+.dot-compras {
+    background: var(--pv-naranja) !important;
+}
+
+.chart-bar-v {
+    background: linear-gradient(to top, var(--pv-rojo-oscuro), var(--pv-rojo)) !important;
+}
+
+.chart-bar-c {
+    background: linear-gradient(to top, #d96d10, var(--pv-naranja)) !important;
+}
+
+/* ==================== ALERTAS ==================== */
+.alert-success {
+    background: #E8F5E9 !important;
+    border-left: 4px solid #087565 !important;
+    color: #064e3b !important;
+    border-radius: 8px !important;
+}
+
+.alert-error {
+    background: #FFEBEE !important;
+    border-left: 4px solid var(--pv-rojo) !important;
+    color: #7f1d1d !important;
+    border-radius: 8px !important;
+}
+
+.alert-info {
+    background: #E3F2FD !important;
+    border-left: 4px solid #1765bc !important;
+    color: #0c2e4a !important;
+    border-radius: 8px !important;
+}
+
+/* ==================== MODALES ==================== */
+.modal {
+    border-radius: 16px !important;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25) !important;
+}
+
+.modal h2 {
+    color: var(--pv-rojo) !important;
+    border-bottom: 2px solid var(--pv-rojo) !important;
+    padding-bottom: 12px;
+}
+
+/* ==================== QUICK ACTIONS ==================== */
+.quick-action:hover {
+    background: rgba(227,6,19,.05) !important;
+    border-color: var(--pv-rojo) !important;
+    transform: translateY(-3px) !important;
+}
+
+.quick-action-icon {
+    filter: saturate(1.2);
+}
+
+/* ==================== BADGE / STATUS ==================== */
+.status-badge {
+    border-radius: 20px !important;
+    font-weight: 700 !important;
+    letter-spacing: .3px;
+}
+
+.status-valid {
+    background: #E8F5E9 !important;
+    color: #087565 !important;
+}
+
+.status-pending {
+    background: rgba(255,209,0,.2) !important;
+    color: #8a5a00 !important;
+}
+
+/* ==================== FONDOS ==================== */
+body {
+    background: #FAFAFA !important;
+}
+
+.main-content {
+    background: transparent;
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 800px) {
+    .app-sidebar {
+        background: var(--pv-rojo) !important;
+    }
+    .header::before {
+        height: 3px;
+    }
+}

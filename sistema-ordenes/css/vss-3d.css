@@ -1,0 +1,977 @@
+/* ==================== VSS FÁBRICA 3D · GLASSMORPHISM SUTIL ==================== */
+/* Estilo premium para el sistema contable de VSS Fábrica */
+/* Version: 1.0 · Septiembre 2026 */
+
+/* ==================== VARIABLES GLOBALES 3D ==================== */
+:root {
+    /* Colores VSS Fábrica */
+    --pv-rojo:          #E30613;
+    --pv-rojo-oscuro:   #B00510;
+    --pv-rojo-claro:    #FF1A2E;
+    --pv-naranja:       #F58220;
+    --pv-amarillo:      #FFD100;
+    --pv-gris-oscuro:   #2B2B2B;
+    --pv-gris-medio:    #666666;
+    --pv-gris-claro:    #F5F5F5;
+    --pv-blanco:        #FFFFFF;
+    
+    /* Sombras 3D */
+    --shadow-xs:  0 1px 2px rgba(16,43,70,.04);
+    --shadow-sm:  0 2px 4px rgba(16,43,70,.06), 0 1px 2px rgba(16,43,70,.04);
+    --shadow-md:  0 4px 12px rgba(16,43,70,.08), 0 2px 4px rgba(16,43,70,.04);
+    --shadow-lg:  0 12px 28px rgba(16,43,70,.10), 0 4px 8px rgba(16,43,70,.05);
+    --shadow-xl:  0 24px 48px rgba(16,43,70,.14), 0 8px 16px rgba(16,43,70,.08);
+    --shadow-rojo: 0 8px 24px rgba(227,6,19,.22), 0 4px 8px rgba(227,6,19,.14);
+    --shadow-glass: 0 8px 32px rgba(31,38,135,.10), inset 0 1px 0 rgba(255,255,255,.5);
+    
+    /* Bordes de vidrio */
+    --border-glass: 1px solid rgba(255,255,255,.6);
+    
+    /* Radios */
+    --radius-sm:  8px;
+    --radius-md:  12px;
+    --radius-lg:  16px;
+    --radius-xl:  24px;
+    
+    /* Transiciones */
+    --ease-out:  cubic-bezier(.16, 1, .3, 1);
+    --ease-soft: cubic-bezier(.4, 0, .2, 1);
+}
+
+/* ==================== FONDO GLOBAL CON PROFUNDIDAD ==================== */
+body {
+    background: 
+        radial-gradient(ellipse at 20% 0%, rgba(227,6,19,.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 100%, rgba(245,130,32,.05) 0%, transparent 50%),
+        linear-gradient(180deg, #FAFBFC 0%, #F0F3F7 100%) !important;
+    background-attachment: fixed !important;
+}
+
+/* ==================== SIDEBAR CON VIDRIO 3D ==================== */
+.app-sidebar {
+    background: 
+        linear-gradient(180deg, rgba(227,6,19,.98) 0%, rgba(176,5,16,.98) 100%) !important;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-right: 1px solid rgba(255,255,255,.12) !important;
+    box-shadow: 
+        4px 0 24px rgba(227,6,19,.15),
+        inset -1px 0 0 rgba(255,255,255,.08) !important;
+}
+
+/* Efecto de brillo superior del sidebar */
+.app-sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 120px;
+    background: linear-gradient(180deg, rgba(255,255,255,.08), transparent);
+    pointer-events: none;
+    border-radius: 0;
+}
+
+/* Marca con relieve */
+.app-brand {
+    color: #fff !important;
+    text-shadow: 
+        0 1px 0 rgba(0,0,0,.15),
+        0 2px 8px rgba(0,0,0,.2) !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* Links del nav con elevación al hover */
+.app-sidebar nav a {
+    position: relative;
+    transition: all .35s var(--ease-out) !important;
+}
+
+.app-sidebar nav a:hover {
+    background: rgba(255,255,255,.15) !important;
+    transform: translateX(6px) !important;
+    box-shadow: 
+        0 4px 12px rgba(0,0,0,.15),
+        inset 0 1px 0 rgba(255,255,255,.2) !important;
+}
+
+/* Link activo tipo "flotante" */
+.app-sidebar nav a[aria-current] {
+    background: #fff !important;
+    color: var(--pv-rojo) !important;
+    font-weight: 700 !important;
+    transform: translateX(4px) !important;
+    box-shadow: 
+        0 8px 20px rgba(0,0,0,.25),
+        0 2px 4px rgba(0,0,0,.15),
+        inset 0 1px 0 rgba(255,255,255,.9) !important;
+    position: relative;
+}
+
+.app-sidebar nav a[aria-current]::before {
+    content: '';
+    position: absolute;
+    left: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 60%;
+    background: var(--pv-amarillo);
+    border-radius: 2px;
+    box-shadow: 0 0 12px var(--pv-amarillo);
+}
+
+/* ==================== HEADER CON VIDRIO ==================== */
+.header {
+    background: rgba(255,255,255,.75) !important;
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border-bottom: 1px solid rgba(227,6,19,.15) !important;
+    box-shadow: 
+        0 4px 24px rgba(16,43,70,.06),
+        inset 0 1px 0 rgba(255,255,255,.8) !important;
+    position: relative;
+}
+
+/* Línea superior con degradado VSS Fábrica */
+.header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 3px;
+    background: linear-gradient(90deg,
+        var(--pv-rojo) 0%,
+        var(--pv-naranja) 50%,
+        var(--pv-amarillo) 100%);
+    box-shadow: 0 0 16px rgba(227,6,19,.4);
+}
+
+.header h1 {
+    color: var(--pv-gris-oscuro) !important;
+    font-weight: 800 !important;
+    text-shadow: 0 1px 0 rgba(255,255,255,.8);
+}
+
+/* ==================== SUB-NAV CON VIDRIO ==================== */
+.sub-nav {
+    background: rgba(255,255,255,.6) !important;
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border-bottom: 1px solid rgba(16,43,70,.06) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+}
+
+.sub-nav button {
+    position: relative;
+    transition: all .3s var(--ease-out) !important;
+    box-shadow: 
+        0 1px 2px rgba(16,43,70,.04),
+        inset 0 1px 0 rgba(255,255,255,.9) !important;
+}
+
+.sub-nav button:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        0 6px 16px rgba(16,43,70,.08),
+        inset 0 1px 0 rgba(255,255,255,.9) !important;
+}
+
+.sub-nav button.active {
+    box-shadow: 
+        0 8px 20px rgba(227,6,19,.28),
+        0 2px 4px rgba(227,6,19,.18),
+        inset 0 1px 0 rgba(255,255,255,.25) !important;
+    transform: translateY(-1px);
+}
+
+/* ==================== MAIN-CONTENT ==================== */
+.main-content {
+    perspective: 1500px;
+    perspective-origin: 50% 0%;
+}
+
+/* ==================== CARDS CON VIDRIO 3D ==================== */
+.card {
+    background: rgba(255,255,255,.85) !important;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255,255,255,.7) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: 
+        0 4px 16px rgba(16,43,70,.06),
+        0 1px 3px rgba(16,43,70,.04),
+        inset 0 1px 0 rgba(255,255,255,.9) !important;
+    transition: all .4s var(--ease-out) !important;
+    transform-style: preserve-3d;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Reflejo diagonal sutil */
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -50%;
+    width: 100%; height: 100%;
+    background: linear-gradient(
+        120deg,
+        transparent 0%,
+        rgba(255,255,255,.4) 40%,
+        transparent 60%
+    );
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .6s ease;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 
+        0 20px 40px rgba(16,43,70,.10),
+        0 8px 16px rgba(16,43,70,.06),
+        inset 0 1px 0 rgba(255,255,255,.9) !important;
+    border-color: rgba(227,6,19,.15) !important;
+}
+
+.card:hover::before {
+    opacity: 1;
+    left: 100%;
+    transition: opacity .3s ease, left 1.2s var(--ease-out);
+}
+
+.card h2 {
+    color: var(--pv-gris-oscuro) !important;
+    border-bottom: 1px solid rgba(227,6,19,.15) !important;
+    position: relative;
+    z-index: 1;
+    font-weight: 700 !important;
+}
+
+/* ==================== MÉTRICAS DEL DASHBOARD 3D ==================== */
+.metric {
+    background: rgba(255,255,255,.9) !important;
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255,255,255,.7) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: 
+        0 2px 8px rgba(16,43,70,.05),
+        0 1px 2px rgba(16,43,70,.03),
+        inset 0 1px 0 rgba(255,255,255,.9) !important;
+    transition: all .4s var(--ease-out);
+    position: relative;
+    overflow: hidden;
+    transform-style: preserve-3d;
+}
+
+/* Ícono con fondo degradado */
+.metric-icon {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    font-size: 22px;
+    margin-bottom: 10px;
+    box-shadow: 
+        0 4px 12px rgba(16,43,70,.08),
+        inset 0 1px 0 rgba(255,255,255,.9);
+    transition: all .4s var(--ease-out);
+}
+
+.metric-activo .metric-icon {
+    background: linear-gradient(135deg, rgba(227,6,19,.12), rgba(227,6,19,.05));
+    color: var(--pv-rojo);
+}
+
+.metric-ventas .metric-icon {
+    background: linear-gradient(135deg, rgba(8,117,101,.12), rgba(8,117,101,.05));
+    color: #087565;
+}
+
+.metric-compras .metric-icon {
+    background: linear-gradient(135deg, rgba(245,130,32,.14), rgba(245,130,32,.05));
+    color: var(--pv-naranja);
+}
+
+.metric-inventario .metric-icon {
+    background: linear-gradient(135deg, rgba(124,58,237,.12), rgba(124,58,237,.05));
+    color: #7c3aed;
+}
+
+.metric:hover {
+    transform: translateY(-6px) scale(1.01);
+    box-shadow: 
+        0 24px 48px rgba(16,43,70,.12),
+        0 8px 16px rgba(16,43,70,.08),
+        inset 0 1px 0 rgba(255,255,255,.9) !important;
+}
+
+.metric:hover .metric-icon {
+    transform: scale(1.1) rotate(-4deg);
+    box-shadow: 
+        0 8px 20px rgba(16,43,70,.15),
+        inset 0 1px 0 rgba(255,255,255,.9);
+}
+
+.metric strong {
+    font-weight: 800 !important;
+    letter-spacing: -1px;
+    text-shadow: 0 1px 0 rgba(255,255,255,.5);
+    position: relative;
+    z-index: 1;
+}
+
+/* ==================== BOTONES 3D ==================== */
+.btn {
+    border-radius: var(--radius-md) !important;
+    transition: all .25s var(--ease-out) !important;
+    font-weight: 600 !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.25), transparent);
+    transition: left .6s ease;
+}
+
+.btn:hover::before {
+    left: 100%;
+}
+
+.btn-primary {
+    background: linear-gradient(180deg, var(--pv-rojo-claro), var(--pv-rojo)) !important;
+    border: 1px solid var(--pv-rojo-oscuro) !important;
+    color: #fff !important;
+    box-shadow: 
+        0 2px 4px rgba(227,6,19,.2),
+        0 4px 12px rgba(227,6,19,.15),
+        inset 0 1px 0 rgba(255,255,255,.25) !important;
+    text-shadow: 0 1px 1px rgba(0,0,0,.15);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(180deg, var(--pv-rojo), var(--pv-rojo-oscuro)) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 
+        0 6px 16px rgba(227,6,19,.3),
+        0 2px 4px rgba(227,6,19,.2),
+        inset 0 1px 0 rgba(255,255,255,.25) !important;
+}
+
+.btn-primary:active {
+    transform: translateY(0) !important;
+    box-shadow: 
+        0 1px 2px rgba(227,6,19,.25),
+        inset 0 2px 4px rgba(0,0,0,.15) !important;
+}
+
+.btn-success {
+    background: linear-gradient(180deg, #0a9a80, #087565) !important;
+    box-shadow: 
+        0 2px 4px rgba(8,117,101,.2),
+        0 4px 12px rgba(8,117,101,.15),
+        inset 0 1px 0 rgba(255,255,255,.25) !important;
+}
+
+.btn-success:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 
+        0 6px 16px rgba(8,117,101,.3),
+        inset 0 1px 0 rgba(255,255,255,.25) !important;
+}
+
+.btn-warning {
+    background: linear-gradient(180deg, var(--pv-naranja), #d96d10) !important;
+    color: #fff !important;
+    box-shadow: 
+        0 2px 4px rgba(245,130,32,.2),
+        0 4px 12px rgba(245,130,32,.15),
+        inset 0 1px 0 rgba(255,255,255,.25) !important;
+}
+
+.btn-warning:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 
+        0 6px 16px rgba(245,130,32,.3),
+        inset 0 1px 0 rgba(255,255,255,.25) !important;
+}
+
+/* ==================== TABLAS CON VIDRIO ==================== */
+.table-container {
+    background: rgba(255,255,255,.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+table th {
+    background: linear-gradient(180deg, rgba(250,250,250,.9), rgba(240,240,240,.9)) !important;
+    backdrop-filter: blur(8px);
+    color: var(--pv-gris-oscuro) !important;
+    font-weight: 700 !important;
+    box-shadow: 
+        inset 0 1px 0 rgba(255,255,255,.9),
+        inset 0 -1px 0 rgba(227,6,19,.15);
+    border-bottom: 2px solid rgba(227,6,19,.2) !important;
+}
+
+table tr {
+    transition: all .2s ease;
+}
+
+table tbody tr:hover {
+    background: rgba(227,6,19,.04) !important;
+    box-shadow: 
+        inset 3px 0 0 var(--pv-rojo),
+        inset 0 1px 0 rgba(227,6,19,.05),
+        inset 0 -1px 0 rgba(227,6,19,.05);
+    transform: translateX(2px);
+}
+
+/* ==================== ESTADO DE RESULTADOS 3D ==================== */
+.eeff-total {
+    background: linear-gradient(135deg, var(--pv-rojo), var(--pv-rojo-oscuro)) !important;
+    color: #fff !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: 
+        0 8px 20px rgba(227,6,19,.25),
+        0 2px 4px rgba(227,6,19,.15),
+        inset 0 1px 0 rgba(255,255,255,.2) !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,.15);
+    position: relative;
+    overflow: hidden;
+}
+
+.eeff-total::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,.15), transparent);
+    pointer-events: none;
+}
+
+.eeff-subtotal {
+    background: linear-gradient(135deg, rgba(245,130,32,.1), rgba(245,130,32,.05)) !important;
+    border-radius: var(--radius-sm) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.9);
+}
+
+.indicator {
+    background: rgba(255,255,255,.7) !important;
+    backdrop-filter: blur(8px);
+    border-radius: var(--radius-md) !important;
+    box-shadow: 
+        0 2px 8px rgba(16,43,70,.05),
+        inset 0 1px 0 rgba(255,255,255,.9) !important;
+    transition: all .3s var(--ease-out);
+}
+
+.indicator:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        0 8px 20px rgba(16,43,70,.08),
+        inset 0 1px 0 rgba(255,255,255,.9) !important;
+}
+
+/* ==================== GRÁFICO VENTAS VS COMPRAS 3D ==================== */
+.chart-container-horizontal {
+    background: 
+        linear-gradient(180deg, rgba(255,255,255,.4), rgba(245,245,245,.6)) !important;
+    backdrop-filter: blur(8px);
+    border-radius: var(--radius-md) !important;
+    box-shadow: 
+        inset 0 2px 8px rgba(16,43,70,.04),
+        inset 0 -1px 0 rgba(255,255,255,.6) !important;
+    position: relative;
+}
+
+.chart-bar-v, .chart-bar-c {
+    border-radius: 6px 6px 0 0 !important;
+    transition: all .4s var(--ease-out) !important;
+    position: relative;
+    box-shadow: 
+        0 4px 8px rgba(0,0,0,.1),
+        inset 0 1px 0 rgba(255,255,255,.25);
+}
+
+.chart-bar-v {
+    background: linear-gradient(180deg, var(--pv-rojo-claro) 0%, var(--pv-rojo) 50%, var(--pv-rojo-oscuro) 100%) !important;
+}
+
+.chart-bar-c {
+    background: linear-gradient(180deg, #ffa04d 0%, var(--pv-naranja) 50%, #d96d10 100%) !important;
+}
+
+.chart-bar-v:hover, .chart-bar-c:hover {
+    transform: translateY(-3px) scaleX(1.05);
+    box-shadow: 
+        0 8px 16px rgba(0,0,0,.2),
+        inset 0 1px 0 rgba(255,255,255,.3) !important;
+    filter: brightness(1.08);
+}
+
+/* ==================== QUICK ACTIONS 3D ==================== */
+.quick-action {
+    background: rgba(255,255,255,.75) !important;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.6) !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: 
+        0 2px 6px rgba(16,43,70,.05),
+        inset 0 1px 0 rgba(255,255,255,.9) !important;
+    transition: all .3s var(--ease-out) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.quick-action:hover {
+    transform: translateY(-4px) scale(1.02) !important;
+    background: rgba(255,255,255,.95) !important;
+    border-color: rgba(227,6,19,.2) !important;
+    box-shadow: 
+        0 12px 28px rgba(227,6,19,.15),
+        0 4px 8px rgba(227,6,19,.08),
+        inset 0 1px 0 rgba(255,255,255,.9) !important;
+}
+
+.quick-action-icon {
+    font-size: 28px !important;
+    transition: all .3s var(--ease-out);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.08));
+}
+
+.quick-action:hover .quick-action-icon {
+    transform: scale(1.15) rotate(-6deg);
+}
+
+/* ==================== ALERTAS CON VIDRIO ==================== */
+.alert {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: var(--radius-md) !important;
+    box-shadow: 
+        0 4px 12px rgba(16,43,70,.06),
+        inset 0 1px 0 rgba(255,255,255,.5) !important;
+    animation: slideDown .4s var(--ease-out);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==================== MODALES 3D ==================== */
+.modal-overlay {
+    background: rgba(16,43,70,.4) !important;
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    animation: fadeIn .3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal {
+    background: rgba(255,255,255,.95) !important;
+    backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255,255,255,.8) !important;
+    border-radius: var(--radius-xl) !important;
+    box-shadow: 
+        0 32px 64px rgba(16,43,70,.24),
+        0 16px 32px rgba(16,43,70,.14),
+        inset 0 1px 0 rgba(255,255,255,.9) !important;
+    animation: modalPop .35s var(--ease-out);
+}
+
+@keyframes modalPop {
+    from {
+        opacity: 0;
+        transform: scale(.94) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.modal h2 {
+    color: var(--pv-rojo) !important;
+    border-bottom: 2px solid rgba(227,6,19,.2) !important;
+    padding-bottom: 12px;
+    text-shadow: 0 1px 0 rgba(255,255,255,.8);
+}
+
+/* ==================== LOGO VSS FÁBRICA CON 3D ==================== */
+.app-brand {
+    position: relative;
+    padding: 0 16px 24px !important;
+}
+
+.app-brand::after {
+    content: '';
+    position: absolute;
+    bottom: 12px;
+    left: 16px;
+    right: 16px;
+    height: 2px;
+    background: linear-gradient(90deg, 
+        transparent, 
+        var(--pv-amarillo), 
+        transparent);
+    box-shadow: 0 0 12px var(--pv-amarillo);
+    border-radius: 2px;
+}
+
+/* ==================== DASH WELCOME 3D ==================== */
+.dash-welcome {
+    background: rgba(255,255,255,.7);
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255,255,255,.6);
+    border-radius: var(--radius-lg);
+    padding: 24px 28px;
+    box-shadow: 
+        0 4px 16px rgba(16,43,70,.05),
+        inset 0 1px 0 rgba(255,255,255,.9);
+    transition: all .4s var(--ease-out);
+    position: relative;
+    overflow: hidden;
+}
+
+.dash-welcome::before {
+    content: '';
+    position: absolute;
+    top: -50%; right: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle, rgba(227,6,19,.04) 0%, transparent 40%);
+    pointer-events: none;
+    animation: rotateSlow 30s linear infinite;
+}
+
+@keyframes rotateSlow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.dash-welcome:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        0 12px 32px rgba(16,43,70,.08),
+        inset 0 1px 0 rgba(255,255,255,.9);
+}
+
+/* ==================== ANIMACIÓN DE ENTRADA DE CARDS ==================== */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card, .metric, .dash-welcome {
+    animation: fadeInUp .6s var(--ease-out) backwards;
+}
+
+.card:nth-child(1) { animation-delay: .05s; }
+.card:nth-child(2) { animation-delay: .10s; }
+.card:nth-child(3) { animation-delay: .15s; }
+.card:nth-child(4) { animation-delay: .20s; }
+.card:nth-child(5) { animation-delay: .25s; }
+
+.metric:nth-child(1) { animation-delay: .10s; }
+.metric:nth-child(2) { animation-delay: .15s; }
+.metric:nth-child(3) { animation-delay: .20s; }
+.metric:nth-child(4) { animation-delay: .25s; }
+
+/* ==================== SCROLLBAR PERSONALIZADO ==================== */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(16,43,70,.03);
+    border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(227,6,19,.5), rgba(176,5,16,.6));
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+    transition: background .3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--pv-rojo), var(--pv-rojo-oscuro));
+    background-clip: content-box;
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 1150px) {
+    .card {
+        backdrop-filter: blur(16px) saturate(160%);
+    }
+}
+
+@media (max-width: 800px) {
+    .app-sidebar::before {
+        height: 60px;
+    }
+    
+    .card {
+        backdrop-filter: blur(12px);
+        transform: none !important;
+    }
+    
+    .card:hover {
+        transform: none !important;
+    }
+    
+    .metric:hover {
+        transform: translateY(-3px) !important;
+    }
+    
+    .dash-welcome::before {
+        animation: none;
+    }
+}
+
+/* ==================== ACCESIBILIDAD ==================== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
+    
+    .card:hover,
+    .metric:hover,
+    .quick-action:hover {
+        transform: none !important;
+    }
+}
+/* ==================== FIX: SIDEBAR CON SCROLL INTERNO ==================== */
+/* Evita que el menú se corte en pantallas con poca altura */
+
+.app-sidebar {
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 24px 14px 16px !important;
+    overflow: hidden !important;   /* el scroll va en el nav, no en el aside */
+}
+
+/* Marca "VSS Fábrica" siempre visible arriba */
+.app-brand {
+    flex-shrink: 0 !important;
+    padding: 0 16px 16px !important;
+    margin-bottom: 8px !important;
+}
+
+.app-brand::after {
+    bottom: 6px !important;
+}
+
+/* Caption "Espacio de trabajo" */
+.nav-caption {
+    flex-shrink: 0 !important;
+    padding: 10px 16px 12px !important;
+    margin-bottom: 0 !important;
+}
+
+/* El nav tiene scroll propio */
+.app-sidebar nav {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-right: 6px !important;
+    margin-right: -6px !important;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,.4) transparent;
+    min-height: 0 !important;
+}
+
+/* Scrollbar del sidebar (Webkit) */
+.app-sidebar nav::-webkit-scrollbar {
+    width: 6px;
+}
+
+.app-sidebar nav::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 4px 0;
+}
+
+.app-sidebar nav::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,.35);
+    border-radius: 3px;
+    transition: background .25s ease;
+}
+
+.app-sidebar nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,.65);
+}
+
+/* Footer "VSS S.A.C." siempre visible abajo */
+.sidebar-bottom {
+    flex-shrink: 0 !important;
+    margin-top: 12px !important;
+    padding: 14px 14px 0 !important;
+    background: linear-gradient(180deg, transparent, rgba(0,0,0,.06));
+    border-top: 1px solid rgba(255,255,255,.15) !important;
+}
+
+/* ==================== AJUSTE EN PANTALLAS BAJAS ==================== */
+@media (max-height: 720px) {
+    .app-sidebar {
+        padding: 18px 14px 12px !important;
+    }
+    .app-brand {
+        font-size: 22px !important;
+        padding: 0 14px 12px !important;
+    }
+    .app-brand small {
+        font-size: 10px !important;
+    }
+    .nav-caption {
+        padding: 8px 14px 8px !important;
+        font-size: 11px !important;
+    }
+    .app-sidebar nav a {
+        padding: 9px 12px !important;
+        font-size: 13px !important;
+    }
+    .sidebar-bottom {
+        font-size: 11px !important;
+        padding-top: 10px !important;
+    }
+}
+
+@media (max-height: 620px) {
+    .app-brand {
+        font-size: 20px !important;
+        padding: 0 12px 8px !important;
+    }
+    .app-brand small {
+        display: none !important;   /* oculta subtítulo en pantallas muy bajas */
+    }
+    .app-sidebar nav a {
+        padding: 8px 10px !important;
+    }
+}
+
+/* ==================== SCROLL SUAVE EN MÓVIL ==================== */
+@media (max-width: 800px) {
+    .app-sidebar nav {
+        -webkit-overflow-scrolling: touch;
+    }
+}
+/* ==================== KPIs DE RATIOS EN DASHBOARD ==================== */
+.kpi-ratios-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.kpi-ratio {
+    background: rgba(255,255,255,.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.7);
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 2px 8px rgba(16,43,70,.05), inset 0 1px 0 rgba(255,255,255,.9);
+    transition: all .35s cubic-bezier(.16, 1, .3, 1);
+    border-left: 4px solid #999;
+    position: relative;
+    overflow: hidden;
+}
+
+.kpi-ratio:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(16,43,70,.10), inset 0 1px 0 rgba(255,255,255,.9);
+}
+
+.kpi-ratio.kpi-ok { border-left-color: #087565; }
+.kpi-ratio.kpi-warn { border-left-color: #F58220; }
+.kpi-ratio.kpi-bad { border-left-color: #E30613; }
+
+.kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.kpi-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    background: rgba(0,0,0,.04);
+}
+
+.kpi-semaforo {
+    font-size: 18px;
+}
+
+.kpi-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.kpi-value {
+    font-size: 26px;
+    font-weight: 800;
+    color: #2B2B2B;
+    letter-spacing: -1px;
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 6px;
+    line-height: 1;
+}
+
+.kpi-ok .kpi-value { color: #087565; }
+.kpi-warn .kpi-value { color: #d96d10; }
+.kpi-bad .kpi-value { color: #E30613; }
+
+.kpi-benchmark {
+    font-size: 11px;
+    color: #999;
+    font-weight: 500;
+}
+
+@media (max-width: 800px) {
+    .kpi-ratios-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .kpi-value {
+        font-size: 22px;
+    }
+}

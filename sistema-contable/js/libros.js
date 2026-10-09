@@ -387,26 +387,28 @@ async function renderPlanillas() {
         if (!tbody) return;
 
         if (planillas.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="14" style="text-align:center; color:#999;">Sin planillas registradas</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="16" style="text-align:center; color:#999;">Sin planillas registradas</td></tr>';
             return;
         }
 
-        // Ordenar por período descendente
+        const HORAS_MES = 240;
         const ordenadas = planillas.sort((a, b) => (b.periodo || '').localeCompare(a.periodo || ''));
 
         tbody.innerHTML = ordenadas.map(p => {
-            const sueldo = Number(p.sueldo_basico) || 0;
-            const asigFam = Number(p.asignacion_familiar) || 0;
-            const bonif = Number(p.bonificacion) || 0;
-            const gratif = (Number(p.gratificacion_julio) || 0) + (Number(p.gratificacion_diciembre) || 0);
-            const bruto = Number(p.total_bruto) || 0;
-            const onp = Number(p.descuento_onp) || 0;
-            const afp = Number(p.descuento_afp) || 0;
-            const ir = Number(p.descuento_ir) || 0;
-            const neto = Number(p.total_neto) || 0;
-            const essalud = Number(p.essalud) || 0;
-            const cts = Number(p.cts) || 0;
-            
+            const sueldo    = Number(p.sueldo_basico) || 0;
+            const asigFam   = Number(p.asignacion_familiar) || 0;
+            const bonif     = Number(p.bonificacion) || 0;
+            const gratif    = (Number(p.gratificacion_julio) || 0) + (Number(p.gratificacion_diciembre) || 0);
+            const bruto     = Number(p.total_bruto) || 0;
+            const onp       = Number(p.descuento_onp) || 0;
+            const afp       = Number(p.descuento_afp) || 0;
+            const ir        = Number(p.descuento_ir) || 0;
+            const neto      = Number(p.total_neto) || 0;
+            const essalud   = Number(p.essalud) || 0;
+            const cts       = Number(p.cts) || 0;
+            const costo     = Number(p.costo_total_empleador) || 0;
+            const costoHora = costo / HORAS_MES;
+
             return `
             <tr>
                 <td>${textCell(p.periodo)}</td>
@@ -423,6 +425,8 @@ async function renderPlanillas() {
                 <td style="text-align:right; color:#087565; font-weight:700;">${neto.toFixed(2)}</td>
                 <td style="text-align:right;">${essalud.toFixed(2)}</td>
                 <td style="text-align:right;">${cts.toFixed(2)}</td>
+                <td style="text-align:right; color:#12589b; font-weight:700;">${costo.toFixed(2)}</td>
+                <td style="text-align:right; color:#7c3aed; font-weight:600;">${costoHora.toFixed(2)}</td>
             </tr>`;
         }).join('');
 
@@ -431,7 +435,6 @@ async function renderPlanillas() {
         console.error('Error renderizando planillas:', error);
     }
 }
-
 async function eliminarPlanilla(id) {
     if (!confirm('¿Eliminar?')) return;
     try {

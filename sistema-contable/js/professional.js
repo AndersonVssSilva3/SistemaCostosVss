@@ -36,9 +36,16 @@ const modules = [
     ['utilitarios.html', '⚙', 'Herramientas']
 ];
 
+// ==================== NAVEGACIÓN ====================
+// Fallback por si irAModulo() no existe en otro archivo
+if (typeof window.irAModulo !== 'function') {
+    window.irAModulo = function(href, label) {
+        window.location.href = href;
+    };
+}
+
 // ==================== CONSTRUCCIÓN DEL SIDEBAR ====================
 function construirSidebar() {
-    // Evitar duplicados si ya existe
     if (document.querySelector('.app-sidebar')) return;
 
     const current = location.pathname.split('/').pop() || 'index.html';
@@ -53,7 +60,7 @@ function construirSidebar() {
             <div class="nav-caption">Espacio de trabajo</div>
             <nav aria-label="Navegación principal">
                 ${modules.map(([href, icon, label]) =>
-                    `<a href="javascript:void(0)" onclick="irAModulo('${href}','${label}')" ${current === href ? 'aria-current="page"' : ''}>
+                    `<a href="${href}" ${current === href ? 'aria-current="page"' : ''}>
                         <span class="nav-symbol" aria-hidden="true">${icon}</span>${label}
                     </a>`
                 ).join('')}
@@ -63,21 +70,29 @@ function construirSidebar() {
                 VSS S.A.C.<br>
                 RUC 20601234567<br>
                 Soles peruanos · PEN
+                <button onclick="cerrarSesion()" style="margin-top:10px; width:100%; padding:8px; background:rgba(255,255,255,0.1); color:white; border:1px solid rgba(255,255,255,0.2); border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; transition:all .2s;">
+                    🚪 Cerrar Sesión
+                </button>
             </div>
         </aside>
     `;
 
     document.body.insertAdjacentHTML('afterbegin', sidebarHTML);
-    console.log('✅ Sidebar construido');
+    console.log('✅ Sidebar construido (VSS Fábrica)');
 }
 
+
 // ==================== INICIALIZACIÓN UI ====================
-document.addEventListener('DOMContentLoaded', async () => {
+// ==================== INICIALIZACIÓN UI ====================
+function initProfessionalUI() {
     const current = location.pathname.split('/').pop() || 'index.html';
 
     // -------- Barra lateral (PRIMERO, siempre) --------
     construirSidebar();
 
+    if (typeof initFabMenu === 'function') {
+        initFabMenu();
+    }
     const main = document.querySelector('.main-content');
     if (main) main.id = 'workspace';
 
@@ -85,10 +100,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const title = document.querySelector('.header h1');
     if (title) {
         const found = modules.find(m => m[0] === current);
-        if (found) title.textContent = found[2];
+        if (found) title.textContent = `${found[1]} ${found[2]}`;
     }
 
-    // -------- Contenedor de alertas (usando getElementById directo) --------
+    // -------- Contenedor de alertas --------
     let alerts = document.getElementById('alertContainer');
     if (!alerts && main) {
         alerts = document.createElement('div');
@@ -128,10 +143,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const cardTitle = c.closest('.card')?.querySelector('h2')?.textContent || 'Tabla de datos';
         c.setAttribute('aria-label', cardTitle);
     });
-    document.querySelectorAll('.delete-btn').forEach(b => {
-        b.title = 'Eliminar registro';
-        b.setAttribute('aria-label', 'Eliminar registro');
-    });
 
     // -------- Botones de exportar CSV / imprimir --------
     document.querySelectorAll('.tab-content .card').forEach(card => {
@@ -154,8 +165,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
         }
     });
-});
 
+    console.log('✅ professional.js: UI lista');
+}
+
+// Ejecuta cuando el DOM esté listo (o inmediatamente si ya lo está)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initProfessionalUI);
+} else {
+    initProfessionalUI();
+}
 // ==================== EXPORTAR CSV ====================
 function downloadFile(name, text, type = 'application/json') {
     const url = URL.createObjectURL(new Blob([text], { type }));
@@ -178,4 +197,22 @@ function exportTable(card) {
 // ==================== DEMO SEED ====================
 async function cargarDatosDemo() {
     if (typeof window.cargarDatosDemo === 'function') return;  // ya definida
+}
+async function cerrarSesion() {
+    if (!confirm('¿Cerrar sesión?')) return;
+    
+    try {
+        // Cerrar sesión en Supabase
+        if (typeof supabaseClient !== 'undefined') {
+            await supabaseClient.auth.signOut();
+        }
+    } catch (e) {
+        console.warn('Error cerrando sesión en Supabase:', e);
+    }
+    
+    // Limpiar localStorage
+    localStorage.removeItem('vss_session');
+    
+    // Redirigir al login
+    window.location.href = '../index.html';
 }
