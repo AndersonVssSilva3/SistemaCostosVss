@@ -253,7 +253,11 @@ tr.total td {
     border: 1px solid var(--line);
     border-radius: 7px;
     max-height: 600px;
+    overflow-y: auto;      /* ⬅️ scroll vertical */
+    overflow-x: hidden;    /* ⬅️ sin scroll horizontal */
+    position: relative;
 }
+.table-container table { margin: 0; }
 .table-container table { margin: 0; }
 .empty-state { padding: 32px !important; text-align: center; color: var(--muted); }
 .status-badge { font-size: 12px; white-space: nowrap; padding: 4px 9px; }

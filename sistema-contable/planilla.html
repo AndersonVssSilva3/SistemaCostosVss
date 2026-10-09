@@ -3,47 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planilla - Plaza Vea</title>
+    <title>Planilla - VSS Fábrica</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧾</text></svg>">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/professional.css">
-    <link rel="stylesheet" href="css/plaza-vea.css">
-    <link rel="stylesheet" href="css/plaza-vea-3d.css">
-
 </head>
 <body>
+
+    <!-- ==================== SIDEBAR ==================== -->
+    <aside class="app-sidebar">
+        <a href="index.html" class="app-brand">
+            VSS
+            <small>FÁBRICA S.A.C.</small>
+        </a>
+
+        <div class="nav-caption">Espacio de trabajo</div>
+        <nav>
+            <a href="index.html"><span class="nav-symbol">🏠</span> Resumen</a>
+            <a href="operaciones.html"><span class="nav-symbol">📒</span> Operaciones</a>
+            <a href="kardex.html"><span class="nav-symbol">📦</span> Kardex</a>
+            <a href="libros.html"><span class="nav-symbol">📚</span> Libros contables</a>
+            <a href="eeff.html"><span class="nav-symbol">📊</span> Estados financieros</a>
+            <a href="ratios.html"><span class="nav-symbol">📈</span> Ratios financieros</a>
+            <a href="costos.html"><span class="nav-symbol">💰</span> Costos</a>
+            <a href="planilla.html" aria-current="page"><span class="nav-symbol">🧾</span> Planilla</a>
+            <a href="cierre.html"><span class="nav-symbol">🔒</span> Ajustes y cierre</a>
+            <a href="tablas.html"><span class="nav-symbol">🗂️</span> Datos maestros</a>
+            <a href="utilitarios.html"><span class="nav-symbol">🛠️</span> Herramientas</a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <strong>VSS S.A.C.</strong>
+            RUC 20601234567<br>
+            Soles peruanos · PEN
+        </div>
+    </aside>
+
+    <!-- ==================== HEADER ==================== -->
     <div class="header">
         <div>
-            <div class="company-name">Supermercados Peruanos S.A.</div>
+            <div class="company-name">VSS Fábrica S.A.C.</div>
             <h1>🧾 Planilla</h1>
         </div>
         <div style="display:flex; align-items:center; gap:15px;">
-            <a href="index.html" class="home-btn">🏠 Inicio</a>
             <div class="datetime" id="currentDateTime"></div>
         </div>
     </div>
 
+    <!-- ==================== SUB-NAV ==================== -->
     <div class="sub-nav">
-        <button class="active" type="button">📋 Planilla</button>
+        <button class="active" type="button">📋 Planilla mensual</button>
+        <button type="button" onclick="window.location.href='mano-obra.html'">👷 Mano de obra</button>
     </div>
 
+    <!-- ==================== MAIN ==================== -->
     <div class="main-content">
+
+        <!-- Métricas -->
+        <div class="metrics" id="planillaMetricas">
+            <div class="metric metric-activo">
+                <div class="metric-icon">👥</div>
+                <div class="metric-label">Empleados activos</div>
+                <strong id="plEmpCount">0</strong>
+                <small>Distintos en el periodo</small>
+            </div>
+            <div class="metric metric-ventas">
+                <div class="metric-icon">💵</div>
+                <div class="metric-label">Total bruto</div>
+                <strong id="plTotalBruto">S/ 0.00</strong>
+                <small>Suma de remuneraciones</small>
+            </div>
+            <div class="metric metric-compras">
+                <div class="metric-icon">💸</div>
+                <div class="metric-label">Total neto</div>
+                <strong id="plTotalNeto">S/ 0.00</strong>
+                <small>A pagar a empleados</small>
+            </div>
+            <div class="metric metric-inventario">
+                <div class="metric-icon">🏭</div>
+                <div class="metric-label">Costo Total Empleador</div>
+                <strong id="plCostoTotal">S/ 0.00</strong>
+                <small>Incluye EsSalud, CTS y SCTR</small>
+            </div>
+        </div>
+
+        <!-- Tabla -->
         <div class="card">
-            <h2>📋 Resumen de Planilla</h2>
+            <h2 id="plCardTitle">📋 Resumen de Planilla</h2>
+
+            <div class="btn-group" style="margin-bottom:15px;">
+                <button class="btn btn-primary" onclick="exportarPlanillaCSV()">📥 Exportar CSV</button>
+                <button class="btn btn-warning" onclick="window.print()">🖨️ Imprimir / PDF</button>
+            </div>
+
             <div class="table-container">
                 <table>
                     <thead>
                         <tr>
+                            <th>Periodo</th>
                             <th>Empleado</th>
-                            <th style="text-align:right;">Sueldo Bruto</th>
-                            <th style="text-align:right;">Desc. AFP/ONP</th>
-                            <th style="text-align:right;">Desc. Imp. Renta</th>
-                            <th style="text-align:right;">Sueldo Neto</th>
+                            <th>DNI</th>
+                            <th>Cargo</th>
+                            <th style="text-align:right;">Sueldo Base</th>
+                            <th style="text-align:right;">Asig. Fam.</th>
+                            <th style="text-align:right;">Bonif.</th>
+                            <th style="text-align:right;">Gratif.</th>
+                            <th style="text-align:right;">Total Bruto</th>
+                            <th style="text-align:right;">ONP/AFP</th>
+                            <th style="text-align:right;">IR 5ta</th>
+                            <th style="text-align:right;">Neto a Pagar</th>
+                            <th style="text-align:right;">EsSalud</th>
+                            <th style="text-align:right;">CTS</th>
+                            <th style="text-align:right;" title="Costo total para el empleador (bruto + EsSalud + CTS + SCTR)">Costo Total</th>
+                            <th style="text-align:right;" title="Costo Total / 240 horas">Costo/Hora</th>
                         </tr>
                     </thead>
                     <tbody id="planillaTableBody">
                         <tr>
-                            <td colspan="5" class="empty-state">Cargando datos de planilla...</td>
+                            <td colspan="16" class="empty-state">Cargando datos de planilla...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -51,73 +128,168 @@
         </div>
 
         <div class="footer-info">
-            <p>Sistema de Contabilidad OMEGA SAC © 2026 · Planilla de empleados</p>
+            <p>VSS Fábrica S.A.C. © 2026 · RUC 20601234567 · Planilla de producción</p>
         </div>
     </div>
 
+    <!-- ==================== SCRIPTS ==================== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-config.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/professional.js"></script>
 
     <script>
-        function formatearMoneda(valor) {
-            const numero = Number(valor || 0);
-            return `S/ ${numero.toLocaleString('es-PE', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            })}`;
+        // ---------- Utilidades ----------
+        const HORAS_MES = 240;
+
+        function fmt(n) {
+            return 'S/ ' + Number(n || 0).toLocaleString('es-PE', {
+                minimumFractionDigits: 2, maximumFractionDigits: 2
+            });
         }
+
+        function txt(v) {
+            if (v === null || v === undefined) return '';
+            return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
+
+        function fmt0(v) {
+            if (v === null || v === undefined || Number(v) === 0) return '—';
+            return fmt(v);
+        }
+
+        // ---------- Carga ----------
+        let _planillaData = [];
 
         async function cargarPlanilla() {
             const tbody = document.getElementById('planillaTableBody');
             if (!tbody) return;
 
             if (!initSupabase()) {
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No se pudo conectar con Supabase.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="16" class="empty-state">No se pudo conectar con Supabase.</td></tr>';
                 return;
             }
 
             const { data, error } = await supabaseClient
                 .from('planillas')
                 .select(`
-                    empleado_id,
-                    total_bruto,
-                    descuento_pension,
-                    descuento_ir,
-                    total_neto,
-                    empleados_planilla (nombre)
+                    id, empleado_nombre, empleado_dni, empleado_cargo, periodo,
+                    sistema_pension, sueldo_basico, asignacion_familiar, bonificacion,
+                    gratificacion_julio, gratificacion_diciembre,
+                    total_bruto, descuento_afp, descuento_onp, descuento_ir,
+                    total_neto, essalud, cts, sctr, costo_total_empleador
                 `)
-                .order('id', { ascending: true });
+                .order('periodo', { ascending: false })
+                .order('empleado_nombre', { ascending: true });
 
             if (error) {
-                console.error('Error al cargar planilla:', error);
-                tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Error al cargar datos: ${error.message}</td></tr>`;
+                console.error(error);
+                tbody.innerHTML = `<tr><td colspan="16" class="empty-state">Error: ${txt(error.message)}</td></tr>`;
                 return;
             }
 
-            if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No hay registros de planilla para mostrar.</td></tr>';
+            if (!data?.length) {
+                tbody.innerHTML = '<tr><td colspan="16" class="empty-state">Sin registros de planilla.</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = data.map((fila) => {
-                const empleado = fila.empleados_planilla?.nombre || fila.empleado_id || 'Sin empleado';
+            _planillaData = data;
+
+            tbody.innerHTML = data.map(f => {
+                const pension = Number(f.descuento_afp || 0) + Number(f.descuento_onp || 0);
+                const gratif  = Number(f.gratificacion_julio || 0) + Number(f.gratificacion_diciembre || 0);
+                const costo   = Number(f.costo_total_empleador || 0);
+                const costoH  = costo / HORAS_MES;
+
+                // Clase del periodo: resalta el mes más reciente
                 return `
                     <tr>
-                        <td>${empleado}</td>
-                        <td style="text-align:right;">${formatearMoneda(fila.total_bruto)}</td>
-                        <td style="text-align:right;">${formatearMoneda(fila.descuento_pension)}</td>
-                        <td style="text-align:right;">${formatearMoneda(fila.descuento_ir)}</td>
-                        <td style="text-align:right; font-weight:700; color:#2e7d32;">${formatearMoneda(fila.total_neto)}</td>
+                        <td><strong>${txt(f.periodo)}</strong></td>
+                        <td>${txt(f.empleado_nombre)}</td>
+                        <td><small style="color:#777;">${txt(f.empleado_dni)}</small></td>
+                        <td>${txt(f.empleado_cargo || '')}</td>
+                        <td class="num">${fmt(f.sueldo_basico)}</td>
+                        <td class="num">${fmt0(f.asignacion_familiar)}</td>
+                        <td class="num">${fmt0(f.bonificacion)}</td>
+                        <td class="num">${fmt0(gratif)}</td>
+                        <td class="num"><strong>${fmt(f.total_bruto)}</strong></td>
+                        <td class="num">${fmt(pension)}</td>
+                        <td class="num">${fmt0(f.descuento_ir)}</td>
+                        <td class="num" style="color:#2e7d32; font-weight:700;">${fmt(f.total_neto)}</td>
+                        <td class="num">${fmt0(f.essalud)}</td>
+                        <td class="num">${fmt0(f.cts)}</td>
+                        <td class="num" style="color:#12589b; font-weight:700;">${fmt(costo)}</td>
+                        <td class="num" style="color:#7c3aed; font-weight:600;">${fmt(costoH)}</td>
                     </tr>
                 `;
             }).join('');
+
+            // Métricas
+            actualizarMetricasPlanilla(data);
+
+            // Título
+            document.getElementById('plCardTitle').textContent =
+                `📋 Resumen de Planilla — ${data.length} registros`;
         }
 
+        function actualizarMetricasPlanilla(data) {
+            const empleados = new Set(data.map(d => d.empleado_dni)).size;
+            const bruto     = data.reduce((s, d) => s + Number(d.total_bruto || 0), 0);
+            const neto      = data.reduce((s, d) => s + Number(d.total_neto || 0), 0);
+            const costo     = data.reduce((s, d) => s + Number(d.costo_total_empleador || 0), 0);
+
+            document.getElementById('plEmpCount').textContent   = empleados;
+            document.getElementById('plTotalBruto').textContent = fmt(bruto);
+            document.getElementById('plTotalNeto').textContent  = fmt(neto);
+            document.getElementById('plCostoTotal').textContent = fmt(costo);
+        }
+
+        // ---------- Exportar CSV ----------
+        function exportarPlanillaCSV() {
+            if (!_planillaData.length) {
+                if (typeof showAlert === 'function') showAlert('No hay datos para exportar', 'error');
+                return;
+            }
+
+            const headers = [
+                'Periodo','Empleado','DNI','Cargo','Sueldo Base','Asig. Fam.','Bonif.',
+                'Gratif.','Total Bruto','ONP/AFP','IR 5ta','Neto a Pagar',
+                'EsSalud','CTS','Costo Total','Costo/Hora'
+            ];
+
+            let csv = '\uFEFF' + headers.join(';') + '\n';
+            _planillaData.forEach(f => {
+                const pension = Number(f.descuento_afp || 0) + Number(f.descuento_onp || 0);
+                const gratif  = Number(f.gratificacion_julio || 0) + Number(f.gratificacion_diciembre || 0);
+                const costo   = Number(f.costo_total_empleador || 0);
+                const costoH  = (costo / HORAS_MES).toFixed(2);
+
+                csv += [
+                    f.periodo, f.empleado_nombre, f.empleado_dni, f.empleado_cargo || '',
+                    f.sueldo_basico, f.asignacion_familiar || 0, f.bonificacion || 0,
+                    gratif.toFixed(2), f.total_bruto, pension.toFixed(2),
+                    f.descuento_ir || 0, f.total_neto,
+                    f.essalud || 0, f.cts || 0,
+                    costo.toFixed(2), costoH
+                ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(';') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href = url;
+            a.download = `planilla-vss-${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ---------- Init ----------
         document.addEventListener('DOMContentLoaded', async function() {
-            updateDateTime();
-            setInterval(updateDateTime, 60000);
+            if (typeof updateDateTime === 'function') {
+                updateDateTime();
+                setInterval(updateDateTime, 60000);
+            }
             await cargarPlanilla();
         });
     </script>

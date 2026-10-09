@@ -11,7 +11,6 @@
     <link rel="stylesheet" href="css/vss-3d.css">
     <link rel="stylesheet" href="css/fab-menu.css">
     <link rel="stylesheet" href="css/ordenes.css">
-
 </head>
 <body>
 
@@ -36,19 +35,24 @@
 
     <!-- ESTADO DE GANANCIAS Y PÉRDIDAS POR OT -->
     <div class="card">
-        <h2>📊 Estado de Ganancias y Pérdidas · Por OT</h2>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Concepto</th>
-                        <th style="text-align:right;">OT-101</th>
-                        <th style="text-align:right;">OT-102</th>
-                        <th style="text-align:right;">OT-103</th>
-                        <th style="text-align:right;">TOTAL</th>
-                    </tr>
-                </thead>
-                <tbody id="eeffTable"></tbody>
+        <div class="eeff-header">
+            <h2 style="margin:0; border:0; padding:0;">📊 Estado de Ganancias y Pérdidas · Por OT</h2>
+            
+            <div class="eeff-controls">
+                <label class="cif-label">Mostrar:</label>
+                <select id="eeffRango" class="cif-select" onchange="renderEEFFOT()">
+                    <option value="5">Últimas 5 OT</option>
+                    <option value="10">Últimas 10 OT</option>
+                    <option value="20">Últimas 20 OT</option>
+                    <option value="todas" selected>Todas las OT</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="table-container eeff-table-container">
+            <table id="eeffTable" class="eeff-table">
+                <thead id="eeffTableHead"></thead>
+                <tbody id="eeffTableBody"></tbody>
             </table>
         </div>
     </div>

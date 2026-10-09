@@ -11,7 +11,6 @@
     <link rel="stylesheet" href="css/vss-3d.css">
     <link rel="stylesheet" href="css/fab-menu.css">
     <link rel="stylesheet" href="css/ordenes.css">
-
 </head>
 <body>
 
@@ -28,11 +27,14 @@
 
     <!-- LISTA DE OT -->
     <div class="card">
-        <h2>📋 Órdenes de Trabajo Registradas</h2>
-        <div class="btn-group" style="margin-bottom:15px;">
-            <button class="btn btn-primary" onclick="exportarOTCSV()">📥 Exportar CSV</button>
-            <button class="btn btn-warning" onclick="window.print()">🖨️ Imprimir</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
+            <h2 style="margin:0; border:0; padding:0;">📋 Órdenes de Trabajo Registradas</h2>
+            <div class="btn-group" style="margin:0;">
+                <button class="btn btn-success" onclick="abrirModalNuevaOT()">➕ Nueva Orden de Trabajo</button>
+                <button class="btn btn-primary" onclick="exportarOTCSV()">📥 Exportar CSV</button>
+            </div>
         </div>
+
         <div class="search-box">
             <input type="text" id="searchOT" placeholder="Buscar OT..." onkeyup="filterOrdenes()">
             <select id="filterEstadoOT" onchange="filterOrdenes()">
@@ -41,6 +43,7 @@
                 <option value="terminada">Terminadas</option>
             </select>
         </div>
+
         <div class="table-container">
             <table>
                 <thead>
@@ -49,9 +52,6 @@
                         <th>Descripción</th>
                         <th>Período</th>
                         <th style="text-align:right;">Unidades</th>
-                        <th style="text-align:right;">Costo MP</th>
-                        <th style="text-align:right;">Costo MOD</th>
-                        <th style="text-align:right;">Costo CIF</th>
                         <th style="text-align:right;">Costo Total</th>
                         <th style="text-align:right;">Costo Unit.</th>
                         <th style="text-align:center;">Estado</th>
@@ -65,10 +65,12 @@
 
     <!-- DETALLE DE OT SELECCIONADA -->
     <div class="card" id="otDetalle" style="display:none;">
-        <h2 id="otDetalleTitulo">📊 Detalle de la OT</h2>
-        
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
+            <h2 id="otDetalleTitulo" style="margin:0; border:0; padding:0;">📊 Detalle de la OT</h2>
+            <div class="btn-group" style="margin:0;" id="otAccionesDetalle"></div>
+        </div>
+
         <div class="ot-detalle-grid">
-            <!-- Columna 1: Info -->
             <div class="ot-detalle-info">
                 <h3>Información General</h3>
                 <div class="info-row"><strong>N° OT:</strong> <span id="detOTNumero">—</span></div>
@@ -79,8 +81,7 @@
                 <div class="info-row"><strong>Unidades:</strong> <span id="detOTUnidades">—</span></div>
                 <div class="info-row"><strong>Costo Unitario:</strong> <span id="detOTCostoUnit">—</span></div>
             </div>
-            
-            <!-- Columna 2: Costos -->
+
             <div class="ot-detalle-costos">
                 <h3>Composición del Costo</h3>
                 <div id="detOTCostosResumen"></div>
@@ -96,6 +97,7 @@
                         <th style="text-align:right;">Cantidad</th>
                         <th style="text-align:right;">Costo Unit.</th>
                         <th style="text-align:right;">Costo Total</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="detOTMateriaPrima"></tbody>
@@ -110,6 +112,7 @@
                         <th>Tipo</th>
                         <th>Concepto</th>
                         <th style="text-align:right;">Monto</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="detOTManoObra"></tbody>
@@ -125,6 +128,7 @@
                         <th>Inductor</th>
                         <th style="text-align:right;">%</th>
                         <th style="text-align:right;">Monto</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="detOTCif"></tbody>
@@ -146,7 +150,7 @@
                 <tbody id="detOTVenta"></tbody>
             </table>
         </div>
-        
+
         <div class="btn-group" style="margin-top:20px;">
             <button class="btn btn-danger" onclick="cerrarDetalleOT()">✕ Cerrar Detalle</button>
         </div>
@@ -157,6 +161,222 @@
     </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MODAL: NUEVA ORDEN DE TRABAJO -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalNuevaOT">
+    <div class="modal">
+        <button class="close-btn" onclick="closeModal('modalNuevaOT')">&times;</button>
+        <h2>➕ Nueva Orden de Trabajo</h2>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>N° OT</label>
+                <input type="text" id="otNumero" readonly style="background:#f0f4f8;">
+            </div>
+            <div class="form-group">
+                <label>Estado inicial</label>
+                <input type="text" id="otEstado" value="en_proceso" readonly style="background:#f0f4f8;">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Descripción</label>
+            <input type="text" id="otDescripcion" placeholder="Ej: Producción de lote A para cliente X">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Fecha de Inicio</label>
+                <input type="date" id="otFechaInicio">
+            </div>
+            <div class="form-group">
+                <label>Fecha Estimada de Fin</label>
+                <input type="date" id="otFechaFin">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Unidades a Producir</label>
+                <input type="number" id="otUnidades" step="1" placeholder="Ej: 5000">
+            </div>
+            <div class="form-group">
+                <label>Cliente (opcional)</label>
+                <input type="text" id="otCliente" placeholder="Ej: Constructora Los Andes">
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="guardarNuevaOT()">💾 Crear Orden</button>
+            <button class="btn btn-danger" onclick="closeModal('modalNuevaOT')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MODAL: ASIGNAR MATERIA PRIMA -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalAsignarMP">
+    <div class="modal">
+        <button class="close-btn" onclick="closeModal('modalAsignarMP')">&times;</button>
+        <h2>📦 Asignar Materia Prima</h2>
+        <p style="color:#56677b; margin-bottom:20px;">OT: <strong id="mpOTNumero">—</strong></p>
+
+        <div class="form-group">
+            <label>Materia Prima</label>
+            <select id="mpSeleccion" onchange="calcMPTotal()"></select>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Cantidad</label>
+                <input type="number" id="mpCantidad" step="0.001" oninput="calcMPTotal()">
+            </div>
+            <div class="form-group">
+                <label>Costo Unitario</label>
+                <input type="number" id="mpCostoUnit" step="0.01" readonly style="background:#f0f4f8;">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Costo Total</label>
+            <input type="number" id="mpCostoTotal" readonly style="background:#f0f4f8; font-weight:700; color:#E30613;">
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="guardarMP()">💾 Asignar</button>
+            <button class="btn btn-danger" onclick="closeModal('modalAsignarMP')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MODAL: ASIGNAR MANO DE OBRA -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalAsignarMO">
+    <div class="modal">
+        <button class="close-btn" onclick="closeModal('modalAsignarMO')">&times;</button>
+        <h2>👷 Asignar Mano de Obra</h2>
+        <p style="color:#56677b; margin-bottom:20px;">OT: <strong id="moOTNumero">—</strong></p>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Tipo</label>
+                <select id="moTipo">
+                    <option value="MOD">MOD - Mano de Obra Directa</option>
+                    <option value="MOI">MOI - Mano de Obra Indirecta</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Concepto</label>
+                <input type="text" id="moConcepto" placeholder="Ej: Semana 1 de producción">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Monto</label>
+            <input type="number" id="moMonto" step="0.01" placeholder="Ej: 5000">
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="guardarMO()">💾 Asignar</button>
+            <button class="btn btn-danger" onclick="closeModal('modalAsignarMO')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MODAL: ASIGNAR CIF -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalAsignarCIF">
+    <div class="modal">
+        <button class="close-btn" onclick="closeModal('modalAsignarCIF')">&times;</button>
+        <h2>⚙️ Asignar Costo Indirecto (CIF)</h2>
+        <p style="color:#56677b; margin-bottom:20px;">OT: <strong id="cifOTNumero">—</strong></p>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Concepto</label>
+                <select id="cifConcepto">
+                    <option value="Energía eléctrica">Energía eléctrica</option>
+                    <option value="Agua">Agua</option>
+                    <option value="Seguros de fábrica">Seguros de fábrica</option>
+                    <option value="Alquiler de fábrica">Alquiler de fábrica</option>
+                    <option value="Transporte de personal">Transporte de personal</option>
+                    <option value="Mantenimiento">Mantenimiento</option>
+                    <option value="Control de calidad">Control de calidad</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Inductor</label>
+                <select id="cifInductor">
+                    <option value="kWh">kWh - Kilovatios hora</option>
+                    <option value="m³">m³ - Metros cúbicos</option>
+                    <option value="Área">Área</option>
+                    <option value="Personal">Personal</option>
+                    <option value="HM">HM - Horas máquina</option>
+                    <option value="Producción">Producción</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Porcentaje (%)</label>
+                <input type="number" id="cifPorcentaje" step="0.01" placeholder="Ej: 25" oninput="calcCIFMonto()">
+            </div>
+            <div class="form-group">
+                <label>Monto (S/)</label>
+                <input type="number" id="cifMonto" step="0.01" placeholder="Ej: 5000">
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="guardarCIF()">💾 Asignar</button>
+            <button class="btn btn-danger" onclick="closeModal('modalAsignarCIF')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MODAL: REGISTRAR VENTA -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalRegistrarVenta">
+    <div class="modal">
+        <button class="close-btn" onclick="closeModal('modalRegistrarVenta')">&times;</button>
+        <h2>💰 Registrar Venta</h2>
+        <p style="color:#56677b; margin-bottom:20px;">OT: <strong id="ventaOTNumero">—</strong></p>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Fecha de Venta</label>
+                <input type="date" id="ventaFecha">
+            </div>
+            <div class="form-group">
+                <label>Tipo de Pago</label>
+                <select id="ventaTipoPago">
+                    <option value="contado">Contado</option>
+                    <option value="credito">Crédito</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Monto de Venta (S/)</label>
+            <input type="number" id="ventaMonto" step="0.01" placeholder="Ej: 150000">
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="guardarVenta()">💾 Registrar</button>
+            <button class="btn btn-danger" onclick="closeModal('modalRegistrarVenta')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Fallback textCell -->
 <script>
     window.textCell = window.textCell || function(value) {
         if (value === null || value === undefined) return '';
@@ -173,12 +393,26 @@
 <script src="js/fab-menu.js"></script>
 <script src="js/ordenes-page.js"></script>
 <script src="js/professional-ot.js"></script>
+
+<!-- Guard de autenticación -->
 <script>
-    document.addEventListener('DOMContentLoaded', async function() {
-        if (!initSupabase()) {
-            alert('❌ Error: No se pudo conectar con Supabase');
+    (async function() {
+        if (typeof supabaseClient === 'undefined') {
+            window.location.replace('../index.html');
             return;
         }
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) {
+            window.location.replace('../index.html');
+            return;
+        }
+        console.log('✅ Sesión válida:', session.user.email);
+    })();
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) { alert('❌ Error'); return; }
         updateDateTime();
         setInterval(updateDateTime, 60000);
         await initOrdenesPage();

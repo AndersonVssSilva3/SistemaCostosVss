@@ -1,4 +1,4 @@
-// ==================== MAYOR DE FÁBRICA ====================
+// ==================== MAYOR DE FÁBRICA (v2 - con agrupación) ====================
 
 function fmt(n) {
     return 'S/ ' + Number(n || 0).toLocaleString('es-PE', {
@@ -24,142 +24,269 @@ async function initMayorFabrica() {
 }
 
 async function renderMayorFabrica() {
-    const [ordenes, mp, mo, cif, gastos, ventas] = await Promise.all([
+    const [ordenes, mp, mo, cif, ventas] = await Promise.all([
         DB.getAll('ordenesTrabajo'),
         DB.getAll('otMateriaPrima'),
         DB.getAll('otManoObra'),
         DB.getAll('otCif'),
-        DB.getAll('otGastos'),
         DB.getAll('otVentas')
     ]);
 
     const container = document.getElementById('mayorGrid');
     if (!container) return;
 
-    // Totales
-    const totalMP = mp.reduce((s, m) => s + Number(m.costo_total || 0), 0);
-    const totalMOD = mo.filter(m => m.tipo === 'MOD').reduce((s, m) => s + Number(m.monto || 0), 0);
-    const totalMOI = mo.filter(m => m.tipo === 'MOI').reduce((s, m) => s + Number(m.monto || 0), 0);
-    const totalCIF = cif.reduce((s, c) => s + Number(c.monto || 0), 0);
-    const totalGastosAdmin = gastos.filter(g => g.tipo === 'ADMIN').reduce((s, g) => s + Number(g.monto || 0), 0);
-    const totalGastosVentas = gastos.filter(g => g.tipo === 'VENTAS').reduce((s, g) => s + Number(g.monto || 0), 0);
-    const totalGastosFinan = gastos.filter(g => g.tipo === 'FINANCIERO').reduce((s, g) => s + Number(g.monto || 0), 0);
-    const totalVentas = ventas.reduce((s, v) => s + Number(v.monto || 0), 0);
-    const totalCostoProduccion = totalMP + totalMOD + totalMOI + totalCIF;
+    const otMap = {};
+    ordenes.forEach(o => otMap[o.id] = o);
 
-    // Definir las cuentas T
-    const cuentasT = [
-        {
-            codigo: '60',
-            nombre: 'Compras MP',
-            debe: [
-                { detalle: 'Compra MP X', monto: 100000 },
-                { detalle: 'Compra MP Y', monto: 120000 },
-                { detalle: 'Compra MP Z', monto: 100000 }
-            ],
-            haber: []
-        },
-        {
-            codigo: '24',
-            nombre: 'Materia Prima',
-            debe: [
-                { detalle: 'Compra MP X', monto: 100000 },
-                { detalle: 'Compra MP Y', monto: 120000 },
-                { detalle: 'Compra MP Z', monto: 100000 }
-            ],
-            haber: [
-                { detalle: 'Asignación a OT-101', monto: 50000 },
-                { detalle: 'Asignación a OT-102', monto: 15000 },
-                { detalle: 'Asignación a OT-103', monto: 20000 }
-            ]
-        },
-        {
-            codigo: '62',
-            nombre: 'Gastos de Personal',
-            debe: [
-                { detalle: 'MOD OT-101', monto: 20000 },
-                { detalle: 'MOD OT-102', monto: 15000 },
-                { detalle: 'MOD OT-103', monto: 30000 },
-                { detalle: 'MOI OT-103', monto: 20000 }
-            ],
-            haber: []
-        },
-        {
-            codigo: '63',
-            nombre: 'Servicios de Terceros',
-            debe: [
-                { detalle: 'Energía eléctrica', monto: 15000 },
-                { detalle: 'Agua', monto: 10000 },
-                { detalle: 'Seguros de fábrica', monto: 20000 },
-                { detalle: 'Alquiler de fábrica', monto: 10000 },
-                { detalle: 'Transporte personal', monto: 20000 },
-                { detalle: 'Mantenimiento', monto: 30000 },
-                { detalle: 'Calidad', monto: 20000 }
-            ],
-            haber: []
-        },
-        {
-            codigo: '23',
-            nombre: 'Productos en Proceso',
-            debe: [
-                { detalle: 'MP OT-101', monto: 50000 },
-                { detalle: 'MOD OT-101', monto: 20000 },
-                { detalle: 'CIF OT-101', monto: 47000 },
-                { detalle: 'MP OT-102', monto: 15000 },
-                { detalle: 'MOD OT-102', monto: 15000 },
-                { detalle: 'CIF OT-102', monto: 42000 },
-                { detalle: 'MP OT-103', monto: 20000 },
-                { detalle: 'MOD OT-103', monto: 30000 },
-                { detalle: 'MOI OT-103', monto: 20000 },
-                { detalle: 'CIF OT-103', monto: 51000 }
-            ],
-            haber: [
-                { detalle: 'PT OT-101', monto: 117000 },
-                { detalle: 'PT OT-102', monto: 72000 },
-                { detalle: 'PT OT-103', monto: 121000 }
-            ]
-        },
-        {
-            codigo: '21',
-            nombre: 'Productos Terminados',
-            debe: [
-                { detalle: 'PT OT-101', monto: 117000 },
-                { detalle: 'PT OT-102', monto: 72000 },
-                { detalle: 'PT OT-103', monto: 121000 }
-            ],
-            haber: [
-                { detalle: 'CV OT-101', monto: 117000 },
-                { detalle: 'CV OT-102', monto: 72000 },
-                { detalle: 'CV OT-103', monto: 121000 }
-            ]
-        },
-        {
-            codigo: '69',
-            nombre: 'Costo de Ventas',
-            debe: [
-                { detalle: 'CV OT-101', monto: 117000 },
-                { detalle: 'CV OT-102', monto: 72000 },
-                { detalle: 'CV OT-103', monto: 121000 }
-            ],
-            haber: []
-        },
-        {
-            codigo: '70',
-            nombre: 'Ventas',
-            debe: [],
-            haber: [
-                { detalle: 'Venta OT-101', monto: 150000 },
-                { detalle: 'Venta OT-102', monto: 200000 },
-                { detalle: 'Venta OT-103', monto: 180000 }
-            ]
+    // ==================== AGRUPAR CIF POR CONCEPTO ====================
+    const cifAgrupado = {};
+    cif.forEach(c => {
+        const key = c.concepto;
+        if (!cifAgrupado[key]) {
+            cifAgrupado[key] = {
+                concepto: c.concepto,
+                total: 0,
+                detalle: []  // { ot, monto }
+            };
         }
-    ];
+        const ot = otMap[c.ot_id];
+        cifAgrupado[key].total += Number(c.monto || 0);
+        cifAgrupado[key].detalle.push({
+            ot: ot ? ot.numero_ot : '—',
+            monto: Number(c.monto || 0)
+        });
+    });
 
-    container.innerHTML = cuentasT.map(cta => {
+    // ==================== AGRUPAR MOD POR OT ====================
+    const modAgrupado = {};
+    mo.forEach(m => {
+        const ot = otMap[m.ot_id];
+        const key = ot ? ot.numero_ot : '—';
+        if (!modAgrupado[key]) {
+            modAgrupado[key] = { ot: key, total: 0, detalle: [] };
+        }
+        modAgrupado[key].total += Number(m.monto || 0);
+        modAgrupado[key].detalle.push({
+            tipo: m.tipo,
+            monto: Number(m.monto || 0)
+        });
+    });
+
+    // ==================== AGRUPAR MP POR PRODUCTO ====================
+    const mpAgrupado = {};
+    mp.forEach(m => {
+        const key = m.materia_prima_codigo;
+        if (!mpAgrupado[key]) {
+            mpAgrupado[key] = { codigo: key, total: 0, detalle: [] };
+        }
+        const ot = otMap[m.ot_id];
+        mpAgrupado[key].total += Number(m.costo_total || 0);
+        mpAgrupado[key].detalle.push({
+            ot: ot ? ot.numero_ot : '—',
+            cantidad: m.cantidad,
+            monto: Number(m.costo_total || 0)
+        });
+    });
+
+    // ==================== CONSTRUIR CUENTAS T ====================
+    const cuentasT = [];
+
+    // ───── CUENTA 24: MATERIA PRIMA ─────
+    const mpDebe = Object.values(mpAgrupado).map(g => ({
+        tipo: 'agrupado',
+        detalle: g.codigo,
+        monto: g.total,
+        hijos: g.detalle.map(d => ({
+            detalle: `${d.ot} · ${d.cantidad} und`,
+            monto: d.monto
+        }))
+    }));
+
+    cuentasT.push({
+        codigo: '24',
+        nombre: 'Materia Prima',
+        debe: mpDebe,
+        haber: []
+    });
+
+    // ───── CUENTA 62: GASTOS DE PERSONAL ─────
+    const moDebe = Object.values(modAgrupado).map(g => ({
+        tipo: 'agrupado',
+        detalle: g.ot,
+        monto: g.total,
+        hijos: g.detalle.map(d => ({
+            detalle: d.tipo,
+            monto: d.monto
+        }))
+    }));
+
+    cuentasT.push({
+        codigo: '62',
+        nombre: 'Gastos de Personal',
+        debe: moDebe,
+        haber: []
+    });
+
+    // ───── CUENTA 63: SERVICIOS DE TERCEROS ─────
+    const cifDebe = Object.values(cifAgrupado)
+        .sort((a, b) => b.total - a.total)
+        .map(g => ({
+            tipo: 'agrupado',
+            detalle: g.concepto,
+            monto: g.total,
+            hijos: g.detalle.map(d => ({
+                detalle: d.ot,
+                monto: d.monto
+            }))
+        }));
+
+    cuentasT.push({
+        codigo: '63',
+        nombre: 'Servicios de Terceros',
+        debe: cifDebe,
+        haber: []
+    });
+
+    // ───── CUENTA 23: PRODUCTOS EN PROCESO ─────
+    const ppDebe = [];
+    ordenes.forEach(ot => {
+        const totalOT = Number(ot.costo_total) || 0;
+        if (totalOT === 0) return;
+
+        const hijos = [];
+        mp.filter(m => m.ot_id === ot.id).forEach(m => {
+            hijos.push({ detalle: `MP ${m.materia_prima_codigo}`, monto: Number(m.costo_total) });
+        });
+        mo.filter(m => m.ot_id === ot.id).forEach(m => {
+            hijos.push({ detalle: m.tipo, monto: Number(m.monto) });
+        });
+        cif.filter(c => c.ot_id === ot.id).forEach(c => {
+            hijos.push({ detalle: c.concepto, monto: Number(c.monto) });
+        });
+
+        ppDebe.push({
+            tipo: 'agrupado',
+            detalle: ot.numero_ot,
+            monto: totalOT,
+            hijos: hijos
+        });
+    });
+
+    const ppHaber = ordenes
+        .filter(o => o.estado === 'terminada' && Number(o.costo_total) > 0)
+        .map(o => ({
+            tipo: 'simple',
+            detalle: `PT ${o.numero_ot}`,
+            monto: Number(o.costo_total)
+        }));
+
+    cuentasT.push({
+        codigo: '23',
+        nombre: 'Productos en Proceso',
+        debe: ppDebe,
+        haber: ppHaber
+    });
+
+    // ───── CUENTA 21: PRODUCTOS TERMINADOS ─────
+    const ptDebe = ordenes
+        .filter(o => o.estado === 'terminada' && Number(o.costo_total) > 0)
+        .map(o => ({
+            tipo: 'simple',
+            detalle: `PT ${o.numero_ot}`,
+            monto: Number(o.costo_total)
+        }));
+
+    const ptHaber = ventas
+        .map(v => {
+            const ot = otMap[v.ot_id];
+            return {
+                tipo: 'simple',
+                detalle: `CV ${ot ? ot.numero_ot : '—'}`,
+                monto: ot ? Number(ot.costo_total) : 0
+            };
+        })
+        .filter(h => h.monto > 0);
+
+    cuentasT.push({
+        codigo: '21',
+        nombre: 'Productos Terminados',
+        debe: ptDebe,
+        haber: ptHaber
+    });
+
+    // ───── CUENTA 69: COSTO DE VENTAS ─────
+    const cvDebe = ventas
+        .map(v => {
+            const ot = otMap[v.ot_id];
+            return {
+                tipo: 'simple',
+                detalle: `CV ${ot ? ot.numero_ot : '—'}`,
+                monto: ot ? Number(ot.costo_total) : 0
+            };
+        })
+        .filter(d => d.monto > 0);
+
+    cuentasT.push({
+        codigo: '69',
+        nombre: 'Costo de Ventas',
+        debe: cvDebe,
+        haber: []
+    });
+
+    // ───── CUENTA 70: VENTAS ─────
+    const ventasHaber = ventas.map(v => {
+        const ot = otMap[v.ot_id];
+        return {
+            tipo: 'simple',
+            detalle: `Venta ${ot ? ot.numero_ot : '—'}`,
+            monto: Number(v.monto || 0)
+        };
+    });
+
+    cuentasT.push({
+        codigo: '70',
+        nombre: 'Ventas',
+        debe: [],
+        haber: ventasHaber
+    });
+
+    // ==================== RENDERIZAR ====================
+    let rowIdCounter = 0;
+
+    container.innerHTML = cuentasT.map((cta, ctaIndex) => {
         const totalDebe = cta.debe.reduce((s, d) => s + d.monto, 0);
         const totalHaber = cta.haber.reduce((s, h) => s + h.monto, 0);
         const saldo = totalDebe - totalHaber;
         const esDeudor = saldo >= 0;
+
+        const renderFila = (fila, lado) => {
+            const id = `fila-${ctaIndex}-${lado}-${rowIdCounter++}`;
+
+            if (fila.tipo === 'agrupado') {
+                return `
+                    <div class="cuenta-t-row cuenta-t-row-agrupado" onclick="toggleFila('${id}')">
+                        <span class="cuenta-t-row-arrow" id="${id}-arrow">▶</span>
+                        <span class="cuenta-t-row-detalle">${textCell(fila.detalle)}</span>
+                        <span class="cuenta-t-row-monto">${fmtNum(fila.monto)}</span>
+                    </div>
+                    <div class="cuenta-t-hijos" id="${id}-hijos" style="display:none;">
+                        ${fila.hijos.map(h => `
+                            <div class="cuenta-t-row cuenta-t-row-hijo">
+                                <span class="cuenta-t-row-detalle">${textCell(h.detalle)}</span>
+                                <span class="cuenta-t-row-monto">${fmtNum(h.monto)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="cuenta-t-row">
+                        <span class="cuenta-t-row-detalle">${textCell(fila.detalle)}</span>
+                        <span class="cuenta-t-row-monto">${fmtNum(fila.monto)}</span>
+                    </div>
+                `;
+            }
+        };
 
         return `
             <div class="cuenta-t">
@@ -171,12 +298,7 @@ async function renderMayorFabrica() {
                     <div class="cuenta-t-col">
                         <div class="cuenta-t-titulo">DEBE</div>
                         ${cta.debe.length > 0 
-                            ? cta.debe.map(d => `
-                                <div class="cuenta-t-row">
-                                    <span>${textCell(d.detalle)}</span>
-                                    <span>${fmtNum(d.monto)}</span>
-                                </div>
-                            `).join('')
+                            ? cta.debe.map(d => renderFila(d, 'debe')).join('')
                             : '<div class="cuenta-t-empty">—</div>'}
                         <div class="cuenta-t-row cuenta-t-total">
                             <span>TOTAL</span>
@@ -186,12 +308,7 @@ async function renderMayorFabrica() {
                     <div class="cuenta-t-col">
                         <div class="cuenta-t-titulo">HABER</div>
                         ${cta.haber.length > 0 
-                            ? cta.haber.map(h => `
-                                <div class="cuenta-t-row">
-                                    <span>${textCell(h.detalle)}</span>
-                                    <span>${fmtNum(h.monto)}</span>
-                                </div>
-                            `).join('')
+                            ? cta.haber.map(h => renderFila(h, 'haber')).join('')
                             : '<div class="cuenta-t-empty">—</div>'}
                         <div class="cuenta-t-row cuenta-t-total">
                             <span>TOTAL</span>
@@ -208,24 +325,63 @@ async function renderMayorFabrica() {
     }).join('');
 }
 
+// ==================== TOGGLE DE FILAS COLAPSABLES ====================
+function toggleFila(id) {
+    const hijos = document.getElementById(id + '-hijos');
+    const arrow = document.getElementById(id + '-arrow');
+    
+    if (!hijos) return;
+    
+    const abierto = hijos.style.display !== 'none';
+    hijos.style.display = abierto ? 'none' : 'block';
+    
+    if (arrow) {
+        arrow.textContent = abierto ? '▶' : '▼';
+        arrow.classList.toggle('arrow-abierto', !abierto);
+    }
+}
+
+// ==================== EXPORTAR ====================
 async function exportarMayorCSV() {
-    const [mp, mo, cif, gastos, ventas] = await Promise.all([
+    const [mp, mo, cif, ventas] = await Promise.all([
         DB.getAll('otMateriaPrima'),
         DB.getAll('otManoObra'),
         DB.getAll('otCif'),
-        DB.getAll('otGastos'),
         DB.getAll('otVentas')
     ]);
 
-    let csv = '\uFEFFCONCEPTO;MONTO\n';
-    csv += 'MATERIA PRIMA;' + mp.reduce((s, m) => s + Number(m.costo_total || 0), 0) + '\n';
-    csv += 'MOD;' + mo.filter(m => m.tipo === 'MOD').reduce((s, m) => s + Number(m.monto || 0), 0) + '\n';
-    csv += 'MOI;' + mo.filter(m => m.tipo === 'MOI').reduce((s, m) => s + Number(m.monto || 0), 0) + '\n';
-    csv += 'CIF;' + cif.reduce((s, c) => s + Number(c.monto || 0), 0) + '\n';
-    csv += 'GASTOS ADMIN;' + gastos.filter(g => g.tipo === 'ADMIN').reduce((s, g) => s + Number(g.monto || 0), 0) + '\n';
-    csv += 'GASTOS VENTAS;' + gastos.filter(g => g.tipo === 'VENTAS').reduce((s, g) => s + Number(g.monto || 0), 0) + '\n';
-    csv += 'GASTOS FINANCIEROS;' + gastos.filter(g => g.tipo === 'FINANCIERO').reduce((s, g) => s + Number(g.monto || 0), 0) + '\n';
-    csv += 'VENTAS;' + ventas.reduce((s, v) => s + Number(v.monto || 0), 0) + '\n';
+    let csv = '\uFEFFCUENTA;CONCEPTO;MONTO\n';
+
+    // MP
+    const mpAgrup = {};
+    mp.forEach(m => {
+        mpAgrup[m.materia_prima_codigo] = (mpAgrup[m.materia_prima_codigo] || 0) + Number(m.costo_total || 0);
+    });
+    Object.entries(mpAgrup).forEach(([k, v]) => {
+        csv += `24 Materia Prima;"${k}";${v}\n`;
+    });
+
+    // MOD
+    const modAgrup = {};
+    mo.forEach(m => {
+        modAgrup[m.tipo] = (modAgrup[m.tipo] || 0) + Number(m.monto || 0);
+    });
+    Object.entries(modAgrup).forEach(([k, v]) => {
+        csv += `62 Gastos Personal;"${k}";${v}\n`;
+    });
+
+    // CIF
+    const cifAgrup = {};
+    cif.forEach(c => {
+        cifAgrup[c.concepto] = (cifAgrup[c.concepto] || 0) + Number(c.monto || 0);
+    });
+    Object.entries(cifAgrup).forEach(([k, v]) => {
+        csv += `63 Servicios;"${k}";${v}\n`;
+    });
+
+    // Ventas
+    const totalVentas = ventas.reduce((s, v) => s + Number(v.monto || 0), 0);
+    csv += `70 Ventas;Total;${totalVentas}\n`;
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);

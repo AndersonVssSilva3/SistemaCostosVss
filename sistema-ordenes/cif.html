@@ -11,7 +11,6 @@
     <link rel="stylesheet" href="css/vss-3d.css">
     <link rel="stylesheet" href="css/fab-menu.css">
     <link rel="stylesheet" href="css/ordenes.css">
-
 </head>
 <body>
 
@@ -26,6 +25,7 @@
 <div class="main-content">
     <div id="alertContainer"></div>
 
+    <!-- Métricas -->
     <div class="metrics">
         <div class="metric metric-activo">
             <div class="metric-icon">⚙️</div>
@@ -47,22 +47,43 @@
         </div>
     </div>
 
+    <!-- TABLA CON CONTROLES -->
     <div class="card">
-        <h2>📊 CIF por Concepto</h2>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Concepto</th>
-                        <th>Inductor</th>
-                        <th style="text-align:right;">OT-101</th>
-                        <th style="text-align:right;">OT-102</th>
-                        <th style="text-align:right;">OT-103</th>
-                        <th style="text-align:right;">Total</th>
-                    </tr>
-                </thead>
-                <tbody id="cifTable"></tbody>
+        <div class="cif-header">
+            <h2 style="margin:0; border:0; padding:0;">📊 CIF por Concepto</h2>
+            
+            <div class="cif-controls">
+                <label class="cif-label">Mostrar:</label>
+                <select id="cifRango" class="cif-select" onchange="renderCIF()">
+                    <option value="5">Últimas 5 OT</option>
+                    <option value="10">Últimas 10 OT</option>
+                    <option value="20">Últimas 20 OT</option>
+                    <option value="todas" selected>Todas las OT</option>
+                </select>
+                
+                <input type="text" id="cifBuscar" class="cif-search" 
+                       placeholder="Buscar OT o concepto..." onkeyup="filtrarCIF()">
+                
+                <button class="btn btn-primary" onclick="exportarCIFCSV()" title="Exportar a Excel">
+                    📥 Exportar
+                </button>
+                
+                <button class="btn btn-warning" onclick="window.print()" title="Imprimir / PDF">
+                    🖨️
+                </button>
+            </div>
+        </div>
+
+        <div class="table-container cif-table-container">
+            <table id="cifTable" class="cif-table">
+                <thead id="cifTableHead"></thead>
+                <tbody id="cifTableBody"></tbody>
             </table>
+        </div>
+        
+        <div class="cif-footer">
+            <span id="cifInfo">Mostrando <strong>0</strong> conceptos</span>
+            <span id="cifOTInfo">de <strong>0</strong> OT</span>
         </div>
     </div>
 

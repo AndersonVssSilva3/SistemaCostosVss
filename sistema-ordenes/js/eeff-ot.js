@@ -1,4 +1,4 @@
-// ==================== EEFF OT ====================
+// ==================== EEFF OT - DINÁMICO ====================
 
 function fmt(n) {
     return 'S/ ' + Number(n || 0).toLocaleString('es-PE', {
@@ -30,12 +30,36 @@ async function renderEEFFOT() {
         DB.getAll('otVentas')
     ]);
 
-    const tbody = document.getElementById('eeffTable');
+    const tbody = document.getElementById('eeffTableBody');
     if (!tbody) return;
+
+    // ⭐ FILTRO DE RANGO
+    const rango = document.getElementById('eeffRango')?.value || 'todas';
+    let ordenesOrdenadas = [...ordenes].sort((a, b) => 
+        (a.numero_ot || '').localeCompare(b.numero_ot || '')
+    );
+    
+    if (rango !== 'todas') {
+        ordenesOrdenadas = ordenesOrdenadas.slice(-parseInt(rango));
+    }
+
+    // ==================== HEADER DINÁMICO ====================
+    const thead = document.getElementById('eeffTableHead');
+    if (thead) {
+        thead.innerHTML = `
+            <tr>
+                <th class="eeff-sticky-left eeff-col-concepto">Concepto</th>
+                ${ordenesOrdenadas.map(o => 
+                    `<th class="eeff-col-ot" style="text-align:right;">${textCell(o.numero_ot)}</th>`
+                ).join('')}
+                <th class="eeff-sticky-right eeff-col-total" style="text-align:right;">TOTAL</th>
+            </tr>
+        `;
+    }
 
     // Mapeo de datos por OT
     const otMap = {};
-    ordenes.forEach(o => {
+    ordenesOrdenadas.forEach(o => {
         otMap[o.id] = {
             numero: o.numero_ot,
             costo: Number(o.costo_total || 0),
@@ -62,62 +86,57 @@ async function renderEEFFOT() {
         if (g.tipo === 'FINANCIERO') otMap[g.ot_id].gastosFinan += monto;
     });
 
-    // Filas
-    const rows = [
-        { label: 'Ventas', campo: 'venta', tipo: 'ingreso' },
-        { label: '(-) Costo de Ventas', campo: 'costo', tipo: 'gasto' },
-        { label: 'UTILIDAD BRUTA', campo: 'utilidadBruta', tipo: 'subtotal' },
-        { label: '(-) Gastos Administrativos', campo: 'gastosAdmin', tipo: 'gasto' },
-        { label: '(-) Gastos de Ventas', campo: 'gastosVentas', tipo: 'gasto' },
-        { label: '(-) Gastos Financieros', campo: 'gastosFinan', tipo: 'gasto' },
-        { label: 'UTILIDAD NETA', campo: 'utilidadNeta', tipo: 'total' }
+    // Filas del estado de resultados
+    const filas = [
+        { label: 'Ventas', tipo: 'ingreso', obtener: (d) => d.venta },
+        { label: '(-) Costo de Ventas', tipo: 'gasto', obtener: (d) => d.costo },
+        { label: 'UTILIDAD BRUTA', tipo: 'subtotal', obtener: (d) => d.venta - d.costo },
+        { label: '(-) Gastos Administrativos', tipo: 'gasto', obtener: (d) => d.gastosAdmin },
+        { label: '(-) Gastos de Ventas', tipo: 'gasto', obtener: (d) => d.gastosVentas },
+        { label: '(-) Gastos Financieros', tipo: 'gasto', obtener: (d) => d.gastosFinan },
+        { label: 'UTILIDAD NETA', tipo: 'total', obtener: (d) => d.venta - d.costo - d.gastosAdmin - d.gastosVentas - d.gastosFinan }
     ];
 
+    // Construir tabla
     let html = '';
-    let totales = { venta: 0, costo: 0, gastosAdmin: 0, gastosVentas: 0, gastosFinan: 0 };
+    const totales = { venta: 0, costo: 0, gastosAdmin: 0, gastosVentas: 0, gastosFinan: 0 };
 
-    rows.forEach(row => {
-        let valores = { ot101: 0, ot102: 0, ot103: 0, total: 0 };
-        
-        ordenes.forEach(o => {
-            const data = otMap[o.id];
-            const key = o.numero_ot === 'OT-101' ? 'ot101' : o.numero_ot === 'OT-102' ? 'ot102' : 'ot103';
-            
-            if (row.tipo === 'subtotal') {
-                valores[key] = data.venta - data.costo;
-            } else if (row.tipo === 'total') {
-                valores[key] = data.venta - data.costo - data.gastosAdmin - data.gastosVentas - data.gastosFinan;
-            } else {
-                valores[key] = data[row.campo];
-            }
-            valores.total += valores[key];
+    filas.forEach(fila => {
+        const valores = {};
+        let totalFila = 0;
+
+        ordenesOrdenadas.forEach(o => {
+            const valor = fila.obtener(otMap[o.id]) || 0;
+            valores[o.id] = valor;
+            totalFila += valor;
         });
 
-        if (row.tipo === 'ingreso' || row.tipo === 'gasto') {
-            totales.venta += row.campo === 'venta' ? valores.total : 0;
-            totales.costo += row.campo === 'costo' ? valores.total : 0;
-            totales.gastosAdmin += row.campo === 'gastosAdmin' ? valores.total : 0;
-            totales.gastosVentas += row.campo === 'gastosVentas' ? valores.total : 0;
-            totales.gastosFinan += row.campo === 'gastosFinan' ? valores.total : 0;
-        }
+        if (fila.label === 'Ventas') totales.venta = totalFila;
+        if (fila.label === '(-) Costo de Ventas') totales.costo = totalFila;
+        if (fila.label === '(-) Gastos Administrativos') totales.gastosAdmin = totalFila;
+        if (fila.label === '(-) Gastos de Ventas') totales.gastosVentas = totalFila;
+        if (fila.label === '(-) Gastos Financieros') totales.gastosFinan = totalFila;
 
-        const clase = row.tipo === 'subtotal' ? 'style="background:#eaf1f8; font-weight:700;"' 
-                    : row.tipo === 'total' ? 'style="background:#102b46; color:white; font-weight:700;"' 
-                    : '';
-        const color = row.tipo === 'gasto' ? 'color:#b42335;' : '';
+        let claseFila = '';
+        if (fila.tipo === 'subtotal') claseFila = 'eeff-row-subtotal';
+        else if (fila.tipo === 'total') claseFila = 'eeff-row-total';
+        else if (fila.tipo === 'gasto') claseFila = 'eeff-row-gasto';
 
-        html += `<tr ${clase}>
-            <td>${textCell(row.label)}</td>
-            <td style="text-align:right; ${color}">${fmtNum(valores.ot101)}</td>
-            <td style="text-align:right; ${color}">${fmtNum(valores.ot102)}</td>
-            <td style="text-align:right; ${color}">${fmtNum(valores.ot103)}</td>
-            <td style="text-align:right; ${color}"><strong>${fmtNum(valores.total)}</strong></td>
-        </tr>`;
+        html += `<tr class="${claseFila}">`;
+        html += `<td class="eeff-sticky-left eeff-col-concepto">${textCell(fila.label)}</td>`;
+        
+        ordenesOrdenadas.forEach(o => {
+            const valor = valores[o.id];
+            html += `<td class="eeff-col-ot" style="text-align:right;">${fmtNum(valor)}</td>`;
+        });
+
+        html += `<td class="eeff-sticky-right eeff-col-total" style="text-align:right;"><strong>${fmtNum(totalFila)}</strong></td>`;
+        html += `</tr>`;
     });
 
     tbody.innerHTML = html;
 
-    // Métricas
+    // Actualizar métricas
     const totalVentas = totales.venta;
     const totalCosto = totales.costo;
     const utilidadBruta = totalVentas - totalCosto;
@@ -128,31 +147,78 @@ async function renderEEFFOT() {
     document.getElementById('eeffCostoVentas').textContent = fmt(totalCosto);
     document.getElementById('eeffUtilidadBruta').textContent = fmt(utilidadBruta);
     document.getElementById('eeffUtilidadNeta').textContent = fmt(utilidadNeta);
+
+    console.log(`✅ EEFF renderizado: ${ordenesOrdenadas.length} OT`);
 }
-
 async function exportarEEFFCSV() {
-    const ordenes = await DB.getAll('ordenesTrabajo');
-    const gastos = await DB.getAll('otGastos');
-    const ventas = await DB.getAll('otVentas');
+    const [ordenes, gastos, ventas] = await Promise.all([
+        DB.getAll('ordenesTrabajo'),
+        DB.getAll('otGastos'),
+        DB.getAll('otVentas')
+    ]);
 
-    let csv = '\uFEFFOT;Venta;Costo;Gastos Admin;Gastos Ventas;Gastos Financieros;Utilidad Neta\n';
-    
-    ordenes.forEach(o => {
+    const ordenesOrdenadas = [...ordenes].sort((a, b) => 
+        (a.numero_ot || '').localeCompare(b.numero_ot || '')
+    );
+
+    // CSV con columnas dinámicas
+    let csv = '\uFEFFConcepto;';
+    csv += ordenesOrdenadas.map(o => o.numero_ot).join(';');
+    csv += ';TOTAL\n';
+
+    const datos = ordenesOrdenadas.map(o => {
         const venta = ventas.find(v => v.ot_id === o.id);
-        const gastosOT = gastos.filter(g => g.ot_id === o.id);
-        const gAdmin = gastosOT.filter(g => g.tipo === 'ADMIN').reduce((s, g) => s + Number(g.monto || 0), 0);
-        const gVentas = gastosOT.filter(g => g.tipo === 'VENTAS').reduce((s, g) => s + Number(g.monto || 0), 0);
-        const gFinan = gastosOT.filter(g => g.tipo === 'FINANCIERO').reduce((s, g) => s + Number(g.monto || 0), 0);
-        const utilidad = (venta?.monto || 0) - o.costo_total - gAdmin - gVentas - gFinan;
+        const gs = gastos.filter(g => g.ot_id === o.id);
+        const gAdmin = gs.filter(g => g.tipo === 'ADMIN').reduce((s, g) => s + Number(g.monto || 0), 0);
+        const gVentas = gs.filter(g => g.tipo === 'VENTAS').reduce((s, g) => s + Number(g.monto || 0), 0);
+        const gFinan = gs.filter(g => g.tipo === 'FINANCIERO').reduce((s, g) => s + Number(g.monto || 0), 0);
         
-        csv += `"${o.numero_ot}";${venta?.monto || 0};${o.costo_total};${gAdmin};${gVentas};${gFinan};${utilidad}\n`;
+        return {
+            numero: o.numero_ot,
+            venta: Number(venta?.monto || 0),
+            costo: Number(o.costo_total || 0),
+            gAdmin, gVentas, gFinan
+        };
     });
+
+    csv += 'Ventas;';
+    datos.forEach(d => csv += d.venta + ';');
+    csv += datos.reduce((s, d) => s + d.venta, 0) + '\n';
+
+    csv += '(-) Costo de Ventas;';
+    datos.forEach(d => csv += d.costo + ';');
+    csv += datos.reduce((s, d) => s + d.costo, 0) + '\n';
+
+    csv += 'UTILIDAD BRUTA;';
+    datos.forEach(d => csv += (d.venta - d.costo) + ';');
+    csv += datos.reduce((s, d) => s + (d.venta - d.costo), 0) + '\n';
+
+    csv += '(-) Gastos Administrativos;';
+    datos.forEach(d => csv += d.gAdmin + ';');
+    csv += datos.reduce((s, d) => s + d.gAdmin, 0) + '\n';
+
+    csv += '(-) Gastos de Ventas;';
+    datos.forEach(d => csv += d.gVentas + ';');
+    csv += datos.reduce((s, d) => s + d.gVentas, 0) + '\n';
+
+    csv += '(-) Gastos Financieros;';
+    datos.forEach(d => csv += d.gFinan + ';');
+    csv += datos.reduce((s, d) => s + d.gFinan, 0) + '\n';
+
+    csv += 'UTILIDAD NETA;';
+    datos.forEach(d => {
+        const utilidad = d.venta - d.costo - d.gAdmin - d.gVentas - d.gFinan;
+        csv += utilidad + ';';
+    });
+    csv += datos.reduce((s, d) => {
+        return s + (d.venta - d.costo - d.gAdmin - d.gVentas - d.gFinan);
+    }, 0) + '\n';
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'eeff-ot.csv';
+    a.download = `eeff-ot-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     showAlert('✅ Exportado', 'success');
