@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="css/plaza-vea-3d.css">
     <link rel="stylesheet" href="css/libro-mayor.css">
     <link rel="stylesheet" href="css/libro-diario.css">
+    <link rel="stylesheet" href="css/inventarios.css">
 
 </head>
 <body>
@@ -144,12 +145,20 @@
     <div class="tab-content" id="lib-inventarios">
         <div class="card">
             <h2>📦 Libro de Inventarios y Balances</h2>
+            <div class="inv-resumen" id="inventariosResumen"></div>
+            <div class="inv-tabs" id="inventariosTabs">
+                <button class="active" data-inv="materia_prima" onclick="cambiarSeccionInventario('materia_prima')">🧱 Materia Prima</button>
+                <button data-inv="mercaderias" onclick="cambiarSeccionInventario('mercaderias')">🏷️ Mercaderías</button>
+                <button data-inv="productos" onclick="cambiarSeccionInventario('productos')">📦 Productos Terminados</button>
+                <button data-inv="repuestos" onclick="cambiarSeccionInventario('repuestos')">🔧 Insumos</button>
+            </div>
             <div class="table-container">
                 <table>
                     <thead>
-                        <tr><th>Código</th><th>Descripción</th><th>Unidad</th><th>Stock</th><th>Costo Unit.</th><th>Valor Total</th></tr>
+                        <tr><th>Código</th><th>Descripción</th><th>Unidad</th><th style="text-align:right;">Stock</th><th style="text-align:right;" id="inventariosColCosto">Costo Unit.</th><th style="text-align:right;">Valor Total</th></tr>
                     </thead>
                     <tbody id="inventariosTable"></tbody>
+                    <tfoot id="inventariosTotal"></tfoot>
                 </table>
             </div>
         </div>
@@ -339,7 +348,7 @@
 <!-- 4. Resto -->
 <script src="js/utils.js"></script>
 <script src="js/accounting.js"></script>
-<script src="js/libros.js?v=20261009b"></script>
+<script src="js/libros.js?v=20261009c"></script>
 <script src="js/professional.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', async function() {

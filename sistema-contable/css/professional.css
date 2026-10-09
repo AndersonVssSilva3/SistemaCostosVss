@@ -945,18 +945,70 @@ tr.total td {
     }
 }
 /* ==================== ASIENTO CON CENTRO DE COSTO ==================== */
-.asiento-entry {
+/* Cada campo tiene su columna fija para que Debe y Haber siempre se vean */
+.asiento-entry,
+.asiento-cabecera {
+    display: grid;
     grid-template-columns:
-        minmax(140px, 1fr)   /* cuenta padre */
-        minmax(160px, 1.2fr) /* subcuenta */
-        minmax(140px, 1fr)   /* centro costo */
-        100px                /* debe */
-        100px                /* haber */
-        36px;                /* botón */
+        minmax(150px, 1.2fr) /* cuenta padre */
+        minmax(170px, 1.5fr) /* subcuenta */
+        minmax(150px, 1fr)   /* centro costo */
+        130px                /* debe */
+        130px                /* haber */
+        40px;                /* botón */
+    gap: 10px;
+    align-items: center;
 }
 
-.line-centro-costo {
-    font-size: 13px;
+.asiento-cabecera {
+    padding: 0 14px 6px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #56677b;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.asiento-cabecera span:nth-child(4),
+.asiento-cabecera span:nth-child(5) {
+    text-align: right;
+}
+
+.asiento-entry > * { min-width: 0; width: 100%; }
+.asiento-entry .line-cuenta-padre { grid-column: 1; grid-row: 1; }
+.asiento-entry .line-subcuenta    { grid-column: 2; grid-row: 1; }
+.asiento-entry .line-centro-costo { grid-column: 3; grid-row: 1; font-size: 13px; }
+.asiento-entry .line-debe         { grid-column: 4; grid-row: 1; }
+.asiento-entry .line-haber        { grid-column: 5; grid-row: 1; }
+.asiento-entry .remove-btn        { grid-column: 6; grid-row: 1; }
+.asiento-entry .line-name         { grid-column: 1 / -1; grid-row: 2; }
+
+/* Centro de costo puesto automáticamente según la cuenta */
+.line-centro-costo.centro-auto {
+    background: #eef6ff;
+    border-color: #9cc3ea;
+}
+
+/* Pantallas medianas: montos en una segunda fila */
+@media (max-width: 1200px) {
+    .asiento-cabecera { display: none; }
+    .asiento-entry { grid-template-columns: 1fr 1fr 1fr 40px; }
+    .asiento-entry .line-debe   { grid-column: 1; grid-row: 2; }
+    .asiento-entry .line-haber  { grid-column: 2; grid-row: 2; }
+    .asiento-entry .remove-btn  { grid-column: 4; grid-row: 1; }
+    .asiento-entry .line-name   { grid-row: 3; }
+}
+
+/* Celular: un campo debajo de otro */
+@media (max-width: 800px) {
+    .asiento-entry { grid-template-columns: 1fr 1fr 40px; }
+    .asiento-entry .line-cuenta-padre { grid-column: 1; grid-row: 1; }
+    .asiento-entry .line-subcuenta    { grid-column: 2; grid-row: 1; }
+    .asiento-entry .remove-btn        { grid-column: 3; grid-row: 1; }
+    .asiento-entry .line-centro-costo { grid-column: 1 / 3; grid-row: 2; }
+    .asiento-entry .line-debe         { grid-column: 1; grid-row: 3; }
+    .asiento-entry .line-haber        { grid-column: 2; grid-row: 3; }
+    .asiento-entry .line-name         { grid-row: 4; }
 }
 
 /* Badges de centro de costo */

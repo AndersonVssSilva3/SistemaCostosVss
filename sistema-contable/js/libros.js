@@ -517,24 +517,96 @@ async function eliminarVenta(id) {
 }
 
 // ==================== INVENTARIOS ====================
+// Subsecciones: tabla de Supabase → nombre que se muestra.
+// Cada tabla guarda la descripción y el costo en columnas distintas, por eso se normalizan.
+const SECCIONES_INVENTARIO = {
+    materia_prima: { titulo: 'Materia Prima', colCosto: 'Costo Unit.' },
+    mercaderias:   { titulo: 'Mercaderías', colCosto: 'Costo Unit.' },
+    productos:     { titulo: 'Productos Terminados', colCosto: 'Precio Unit.' },
+    repuestos:     { titulo: 'Insumos', colCosto: 'Costo Unit.' }
+};
+
+let seccionInventarioActual = 'materia_prima';
+let datosInventario = {};
+
+function normalizarItemInventario(item) {
+    const stock = Number(item.stock) || 0;
+    const costo = Number(item.costo_unitario ?? item.costo ?? item.precio) || 0;
+    return {
+        codigo: item.codigo || '',
+        descripcion: item.descripcion || item.nombre || '',
+        unidad: item.unidad || 'UND',
+        stock,
+        costo,
+        valor: stock * costo
+    };
+}
+
 async function renderInventarios() {
     try {
-        const mercs = await DB.getAll('mercaderias');
-        const tbody = document.getElementById('inventariosTable');
-        if (!tbody) return;
+        const tablas = Object.keys(SECCIONES_INVENTARIO);
+        const resultados = await Promise.all(tablas.map(t => DB.getAll(t)));
+        datosInventario = {};
+        tablas.forEach((t, i) => {
+            datosInventario[t] = resultados[i]
+                .map(normalizarItemInventario)
+                .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
+        });
 
-        tbody.innerHTML = mercs.map(m => `
-            <tr>
-                <td>${textCell(m.codigo)}</td>
-                <td>${textCell(m.descripcion)}</td>
-                <td>${textCell(m.unidad)}</td>
-                <td>${m.stock}</td>
-                <td style="text-align:right;">${Number(m.costo).toFixed(2)}</td>
-                <td style="text-align:right;"><strong>${(Number(m.stock) * Number(m.costo)).toFixed(2)}</strong></td>
-            </tr>
-        `).join('') || '<tr><td colspan="6" style="text-align:center; color:#999;">Sin mercaderías registradas</td></tr>';
+        // Resumen: valor total por subsección
+        const resumen = document.getElementById('inventariosResumen');
+        if (resumen) {
+            let totalGeneral = 0;
+            resumen.innerHTML = tablas.map(t => {
+                const total = datosInventario[t].reduce((s, x) => s + x.valor, 0);
+                totalGeneral += total;
+                return `<div class="inv-resumen-item">${SECCIONES_INVENTARIO[t].titulo} (${datosInventario[t].length})<strong>S/ ${fmtMayor(total)}</strong></div>`;
+            }).join('') + `<div class="inv-resumen-item inv-total">Total Inventarios<strong>S/ ${fmtMayor(totalGeneral)}</strong></div>`;
+        }
+
+        mostrarSeccionInventario();
     } catch (error) {
         console.error('Error renderizando inventarios:', error);
+        const tbody = document.getElementById('inventariosTable');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#c00;">Error: ${textCell(error.message)}</td></tr>`;
+    }
+}
+
+function cambiarSeccionInventario(tabla) {
+    seccionInventarioActual = tabla;
+    document.querySelectorAll('#inventariosTabs button').forEach(b =>
+        b.classList.toggle('active', b.dataset.inv === tabla)
+    );
+    mostrarSeccionInventario();
+}
+
+function mostrarSeccionInventario() {
+    const tbody = document.getElementById('inventariosTable');
+    if (!tbody) return;
+
+    const seccion = SECCIONES_INVENTARIO[seccionInventarioActual];
+    const items = datosInventario[seccionInventarioActual] || [];
+    const colCosto = document.getElementById('inventariosColCosto');
+    if (colCosto) colCosto.textContent = seccion.colCosto;
+
+    tbody.innerHTML = items.map(x => `
+        <tr>
+            <td>${textCell(x.codigo)}</td>
+            <td>${textCell(x.descripcion)}</td>
+            <td>${textCell(x.unidad)}</td>
+            <td style="text-align:right;">${x.stock.toLocaleString('es-PE')}</td>
+            <td style="text-align:right;">${fmtMayor(x.costo)}</td>
+            <td style="text-align:right;"><strong>${fmtMayor(x.valor)}</strong></td>
+        </tr>
+    `).join('') || `<tr><td colspan="6" style="text-align:center; color:#999;">Sin registros de ${textCell(seccion.titulo.toLowerCase())}</td></tr>`;
+
+    const tfoot = document.getElementById('inventariosTotal');
+    if (tfoot) {
+        const total = items.reduce((s, x) => s + x.valor, 0);
+        tfoot.innerHTML = items.length ? `<tr>
+            <td colspan="5" style="text-align:right;">TOTAL ${textCell(seccion.titulo.toUpperCase())}</td>
+            <td style="text-align:right;">S/ ${fmtMayor(total)}</td>
+        </tr>` : '';
     }
 }
 

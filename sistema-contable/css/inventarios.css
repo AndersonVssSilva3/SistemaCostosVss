@@ -1,0 +1,66 @@
+/* ==================== LIBRO DE INVENTARIOS · SUBSECCIONES ==================== */
+
+.inv-resumen {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.inv-resumen-item {
+    background: #f5f7fa;
+    border: 1px solid #dbe3ed;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #56677b;
+}
+
+.inv-resumen-item strong {
+    display: block;
+    font-size: 16px;
+    color: #102b46;
+    font-variant-numeric: tabular-nums;
+}
+
+.inv-resumen-item.inv-total {
+    background: #102b46;
+    border-color: #102b46;
+    color: #dbe3ed;
+}
+
+.inv-resumen-item.inv-total strong {
+    color: white;
+}
+
+.inv-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.inv-tabs button {
+    padding: 8px 16px;
+    border: 1px solid #dbe3ed;
+    border-radius: 6px;
+    background: white;
+    color: #102b46;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.inv-tabs button:hover {
+    background: #f5f7fa;
+}
+
+.inv-tabs button.active {
+    background: #102b46;
+    border-color: #102b46;
+    color: white;
+}
+
+#inventariosTotal td {
+    border-top: 2px solid #102b46;
+    font-weight: 800;
+}

@@ -20,6 +20,42 @@ function opcionesCentroCosto(selected = '') {
     ).join('');
 }
 
+// Centro de costo sugerido según la cuenta (2 primeros dígitos del PCGE).
+// Las cuentas de balance (10, 12, 20, 21, 33, 40, 41, 42, 50, 59…) quedan sin asignar.
+// 62, 63 y 65 pueden ser de planta, administración, ventas o logística: se sugiere PLANTA
+// y el usuario lo cambia a mano cuando corresponda.
+const CENTRO_POR_CUENTA = {
+    // Gasto de producción
+    '62': 'PLANTA', '63': 'PLANTA', '65': 'PLANTA', '68': 'PLANTA',
+    // Costos de producción internos
+    '23': 'PLANTA', '24': 'PLANTA', '90': 'PLANTA', '91': 'PLANTA', '92': 'PLANTA', '93': 'PLANTA',
+    // Gasto administrativo
+    '64': 'ADMIN', '67': 'ADMIN',
+    // Ventas
+    '69': 'VENTAS', '70': 'VENTAS',
+    // Cuentas no incluidas en la tabla de referencia
+    '60': 'PLANTA', '61': 'PLANTA', '66': 'ADMIN', '94': 'ADMIN', '95': 'VENTAS', '97': 'ADMIN'
+};
+
+function centroCostoSugerido(codigoCuenta) {
+    return CENTRO_POR_CUENTA[String(codigoCuenta || '').substring(0, 2)] || '';
+}
+
+// Pone el centro de costo según la cuenta, salvo que el usuario lo haya elegido a mano
+function autoseleccionarCentroCosto(line, codigoCuenta) {
+    const select = line?.querySelector('.line-centro-costo');
+    if (!select || select.dataset.manual === '1') return;
+    select.value = centroCostoSugerido(codigoCuenta);
+    select.classList.toggle('centro-auto', select.value !== '');
+    select.title = select.value ? 'Asignado automáticamente según la cuenta' : '';
+}
+
+function onCentroCostoChange(select) {
+    select.dataset.manual = '1';
+    select.classList.remove('centro-auto');
+    select.title = '';
+}
+
 // ==================== INICIALIZACIÓN ====================
 async function initOperaciones() {
     planCache = await DB.getAll('planJerarquico');
@@ -81,7 +117,7 @@ async function addAsientoLine(cuentaPadre = '', subcuenta = '', debe = '', haber
         <select class="line-subcuenta" onchange="updateLineName(this)">
             ${opcionesSub}
         </select>
-        <select class="line-centro-costo">
+        <select class="line-centro-costo" onchange="onCentroCostoChange(this)" ${centroCosto ? 'data-manual="1"' : ''}>
             ${opcionesCentroCosto(centroCosto)}
         </select>
         <input type="number" class="line-debe" placeholder="Debe" step="0.01" min="0"
@@ -112,6 +148,7 @@ async function onCuentaPadreChange(selectPadre) {
     const plan = planCache;
     const ctaPadre = plan.find(c => c.codigo === codigoPadre);
     const selectSub = selectPadre.parentElement.querySelector('.line-subcuenta');
+    autoseleccionarCentroCosto(selectPadre.parentElement, codigoPadre);
 
     if (!ctaPadre) {
         selectSub.innerHTML = '<option value="">-- Subcuenta --</option>';
@@ -135,6 +172,7 @@ async function updateLineName(selectSub) {
     if (!planCache) planCache = await DB.getAll('planJerarquico');
     const plan = planCache;
     const nameSpan = selectSub.parentElement.querySelector('.line-name');
+    if (codigoSub) autoseleccionarCentroCosto(selectSub.parentElement, codigoSub);
     let nombreCompleto = '';
 
     for (const cta of plan) {
