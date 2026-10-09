@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Plaza Vea - Sistema Contable</title>
+    <title>Vss Fabrica S.A</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛒</text></svg>">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/professional.css">
@@ -15,7 +15,7 @@
 
 <div class="header">
     <div>
-        <div class="company-name">Supermercados Peruanos S.A.</div>
+        <div class="company-name">Operaciones Fabrica S.A</div>
         <h1>🛒 Operaciones · Asientos</h1>
     </div>
     <div style="display:flex; align-items:center; gap:15px;">
@@ -29,6 +29,11 @@
 
     <div class="card">
         <h2>📋 Registro de Asientos Contables</h2>
+        <div class="btn-group" style="margin-bottom:15px;">
+            <button type="button" class="btn btn-warning" onclick="migrarAsientosACentroCosto()">
+                🔄 Clasificar asientos existentes por centro de costo
+            </button>
+        </div>
         <div class="form-row">
             <div class="form-group">
                 <label>Fecha del Asiento</label>
@@ -106,7 +111,10 @@
                 <thead>
                     <tr>
                         <th>N°</th><th>Fecha</th><th>Tipo</th><th>Cuenta</th>
-                        <th>Debe</th><th>Haber</th><th>Glosa</th><th>Estado</th><th>Acciones</th>
+                        <th>Centro</th>
+                        <th style="text-align:right;">Debe</th>
+                        <th style="text-align:right;">Haber</th>
+                        <th>Glosa</th><th>Estado</th><th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="asientosTable"></tbody>
