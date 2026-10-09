@@ -4,7 +4,6 @@
 async function initLibros() {
     console.log('📚 Iniciando módulo Libros...');
     try {
-        await updateCuentaSelects();
         await renderCompras();
         await renderVentas();
         await renderInventarios();
@@ -17,92 +16,300 @@ async function initLibros() {
     }
 }
 
-// ==================== SELECT DE CUENTAS ====================
-async function updateCuentaSelects() {
-    try {
-        const todas = await DB.getAll('cuentas');
-        const cuentas = todas.filter(c => !c.es_padre);  // Solo subcuentas
-        const options = cuentas.map(c =>
-            `<option value="${textCell(c.codigo)}">${textCell(c.codigo)} - ${textCell(c.nombre)}</option>`
-        ).join('');
-        const el = document.getElementById('mayorCuenta');
-        if (el) el.innerHTML = '<option value="">Seleccione...</option>' + options;
-        console.log(`✅ ${cuentas.length} subcuentas cargadas en el select del Mayor`);
-    } catch (error) {
-        console.error('Error cargando cuentas:', error);
-    }
-}
-
 // ==================== LIBRO DIARIO ====================
+// Formato clásico: fecha combinada por asiento, Nº de cuenta, descripción y montos con "S/"
 async function generarLibroDiario() {
+    const tbody = document.getElementById('libroDiarioTable');
+    const tfoot = document.getElementById('libroDiarioTotales');
     try {
-        const asientos = await DB.getAll('asientos');
+        const [asientos, cuentas] = await Promise.all([DB.getAll('asientos'), DB.getAll('cuentas')]);
         const desde = document.getElementById('libroDiarioDesde')?.value || '2026-01-01';
         const hasta = document.getElementById('libroDiarioHasta')?.value || '2026-12-31';
-        const filtered = asientos.filter(a => a.fecha >= desde && a.fecha <= hasta);
+        const filtered = asientos
+            .filter(a => a.fecha >= desde && a.fecha <= hasta)
+            .sort((a, b) => a.fecha.localeCompare(b.fecha) || String(a.numero).localeCompare(String(b.numero)));
 
-        let html = '';
+        const empresa = document.getElementById('libroDiarioEmpresa');
+        if (empresa) empresa.textContent = document.querySelector('.header .company-name')?.textContent.trim() || '';
+
+        const nombres = {};
+        cuentas.forEach(c => nombres[c.codigo] = c.nombre);
+
+        const monto = n => n > 0
+            ? `<div><span>S/</span><span>${fmtMayor(n)}</span></div>`
+            : '';
+
+        let html = '', totalDebe = 0, totalHaber = 0;
         filtered.forEach(a => {
-            const lineas = a.lineas || [];
+            const lineas = (a.lineas || []).filter(l => l.cuenta);
+            if (lineas.length === 0) return;
+            const [anio, mes, dia] = a.fecha.split('-');
+
             lineas.forEach((l, i) => {
-                html += `<tr>
-                    ${i === 0 ? `<td rowspan="${lineas.length}">${textCell(a.fecha)}</td>
-                    <td rowspan="${lineas.length}">${textCell(a.numero)}</td>` : ''}
-                    <td>${textCell(l.cuenta)}</td>
-                    <td>${textCell(l.nombre || '')}<br><small>${textCell(a.glosa || '')}</small></td>
-                    <td style="text-align:right;">${Number(l.debe) > 0 ? Number(l.debe).toFixed(2) : ''}</td>
-                    <td style="text-align:right;">${Number(l.haber) > 0 ? Number(l.haber).toFixed(2) : ''}</td>
+                const debe = Number(l.debe) || 0;
+                const haber = Number(l.haber) || 0;
+                totalDebe += debe;
+                totalHaber += haber;
+                html += `<tr class="${i === 0 ? 'ld-inicio' : ''}">
+                    ${i === 0 ? `<td class="ld-fecha" rowspan="${lineas.length}" title="${textCell(a.glosa || '')}">
+                        ${dia}/${mes}/${anio}<small>${textCell(a.numero)}</small>
+                    </td>` : ''}
+                    <td class="ld-cta">${textCell(l.cuenta)}</td>
+                    <td class="ld-desc">${textCell(nombres[l.cuenta] || l.nombre || '')}</td>
+                    <td class="ld-monto">${monto(debe)}</td>
+                    <td class="ld-monto">${monto(haber)}</td>
                 </tr>`;
             });
         });
 
-        document.getElementById('libroDiarioTable').innerHTML =
-            html || '<tr><td colspan="6" style="text-align:center; color:#999;">Sin registros para el rango seleccionado</td></tr>';
+        tbody.innerHTML = html || '<tr><td colspan="5" class="ld-vacio">Sin registros para el rango seleccionado</td></tr>';
+        if (tfoot) {
+            tfoot.innerHTML = html ? `<tr>
+                <td colspan="3" class="ld-total-label">TOTALES</td>
+                <td class="ld-monto">${monto(totalDebe)}</td>
+                <td class="ld-monto">${monto(totalHaber)}</td>
+            </tr>` : '';
+        }
         console.log(`✅ Libro Diario: ${filtered.length} asientos mostrados`);
     } catch (error) {
         console.error('Error generando Libro Diario:', error);
-        document.getElementById('libroDiarioTable').innerHTML =
-            `<tr><td colspan="6" style="text-align:center; color:#c00;">Error: ${textCell(error.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="ld-vacio" style="color:#c00;">Error: ${textCell(error.message)}</td></tr>`;
+        if (tfoot) tfoot.innerHTML = '';
     }
 }
 
-// ==================== LIBRO MAYOR ====================
+// ==================== LIBRO MAYOR · CUENTAS T ====================
+// Mismo formato que el Mayor de Fábrica del Sistema de Órdenes, con todas las cuentas
+
+const MESES_MAYOR = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Set', 'Oct', 'Nov', 'Dic'];
+
+function fmtMayor(n) {
+    return Number(n || 0).toLocaleString('es-PE', {
+        minimumFractionDigits: 2, maximumFractionDigits: 2
+    });
+}
+
+function nombreMesMayor(fecha) {
+    const [anio, mes] = fecha.split('-');
+    return `${MESES_MAYOR[Number(mes) - 1] || mes} ${anio}`;
+}
+
+// Arma las cuentas T (debe/haber de cada cuenta) a partir de los asientos del rango
+async function construirCuentasT() {
+    const [asientos, todas] = await Promise.all([DB.getAll('asientos'), DB.getAll('cuentas')]);
+    const desde = document.getElementById('mayorDesde')?.value || '2026-01-01';
+    const hasta = document.getElementById('mayorHasta')?.value || '2026-12-31';
+
+    const catalogo = {};
+    todas.forEach(c => catalogo[c.codigo] = c);
+
+    const cuentasT = {};
+    const obtenerCuenta = (codigo, nombre) => {
+        if (!cuentasT[codigo]) {
+            cuentasT[codigo] = {
+                codigo,
+                nombre: catalogo[codigo]?.nombre || nombre || '',
+                debe: [],
+                haber: []
+            };
+        }
+        return cuentasT[codigo];
+    };
+
+    asientos
+        .filter(a => a.fecha && a.fecha >= desde && a.fecha <= hasta)
+        .sort((a, b) => a.fecha.localeCompare(b.fecha) || String(a.numero).localeCompare(String(b.numero)))
+        .forEach(a => {
+            (a.lineas || []).forEach(l => {
+                if (!l.cuenta) return;
+                const cta = obtenerCuenta(l.cuenta, l.nombre);
+                const mov = { fecha: a.fecha, numero: a.numero, glosa: a.glosa || '' };
+                const debe = Number(l.debe) || 0;
+                const haber = Number(l.haber) || 0;
+                if (debe > 0) cta.debe.push({ ...mov, monto: debe });
+                if (haber > 0) cta.haber.push({ ...mov, monto: haber });
+            });
+        });
+
+    if (document.getElementById('mayorSinMovimiento')?.checked) {
+        todas.filter(c => !c.es_padre).forEach(c => obtenerCuenta(c.codigo, c.nombre));
+    }
+
+    return Object.values(cuentasT).sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
+}
+
+// Agrupa los movimientos de un lado (debe/haber) por mes; un mes con un solo movimiento va como fila simple
+function agruparPorMes(movimientos) {
+    const grupos = {};
+    movimientos.forEach(m => {
+        const key = m.fecha.substring(0, 7);
+        if (!grupos[key]) grupos[key] = [];
+        grupos[key].push(m);
+    });
+
+    return Object.keys(grupos).sort().map(key => {
+        const movs = grupos[key];
+        const total = movs.reduce((s, m) => s + m.monto, 0);
+        if (movs.length === 1) {
+            const m = movs[0];
+            return { tipo: 'simple', detalle: `${m.fecha.substring(8, 10)}/${m.fecha.substring(5, 7)} · ${m.numero}`, titulo: m.glosa, monto: total };
+        }
+        return {
+            tipo: 'agrupado',
+            detalle: `${nombreMesMayor(key)} (${movs.length})`,
+            monto: total,
+            hijos: movs.map(m => ({
+                detalle: `${m.fecha.substring(8, 10)}/${m.fecha.substring(5, 7)} · ${m.numero}`,
+                titulo: m.glosa,
+                monto: m.monto
+            }))
+        };
+    });
+}
+
 async function generarLibroMayor() {
+    const container = document.getElementById('mayorGrid');
+    if (!container) return;
+
     try {
-        const cuenta = document.getElementById('mayorCuenta')?.value;
-        if (!cuenta) {
-            document.getElementById('libroMayorTable').innerHTML =
-                '<tr><td colspan="5" style="text-align:center; color:#999;">Seleccione una cuenta</td></tr>';
+        const buscar = (document.getElementById('mayorBuscar')?.value || '').trim().toLowerCase();
+        const cuentasT = (await construirCuentasT()).filter(c =>
+            !buscar || String(c.codigo).toLowerCase().includes(buscar) || c.nombre.toLowerCase().includes(buscar)
+        );
+
+        // Resumen: total debe = total haber si los asientos cuadran
+        const sumaDebe = cuentasT.reduce((s, c) => s + c.debe.reduce((t, d) => t + d.monto, 0), 0);
+        const sumaHaber = cuentasT.reduce((s, c) => s + c.haber.reduce((t, h) => t + h.monto, 0), 0);
+        const cuadra = Math.abs(sumaDebe - sumaHaber) < 0.01;
+        const resumen = document.getElementById('mayorResumen');
+        if (resumen) {
+            resumen.innerHTML = `
+                <span>Cuentas: <strong>${cuentasT.length}</strong></span>
+                <span>Total Debe: <strong>S/ ${fmtMayor(sumaDebe)}</strong></span>
+                <span>Total Haber: <strong>S/ ${fmtMayor(sumaHaber)}</strong></span>
+                ${buscar ? '' : `<span class="${cuadra ? 'cuadra' : 'no-cuadra'}">${cuadra ? '✅ Debe y Haber cuadran' : '⚠️ Debe y Haber no cuadran'}</span>`}
+            `;
+        }
+
+        if (cuentasT.length === 0) {
+            container.innerHTML = '<div class="mayor-vacio">Sin movimientos para el rango o búsqueda seleccionados</div>';
             return;
         }
 
-        const asientos = await DB.getAll('asientos');
-        let saldo = 0, html = '';
+        let rowIdCounter = 0;
 
-        asientos
-            .filter(a => a.fecha)
-            .sort((a, b) => a.fecha.localeCompare(b.fecha))
-            .forEach(a => {
-                (a.lineas || []).forEach(l => {
-                    if (l.cuenta === cuenta) {
-                        saldo += (Number(l.debe) || 0) - (Number(l.haber) || 0);
-                        html += `<tr>
-                            <td>${textCell(a.fecha)}</td>
-                            <td>${textCell(a.numero)} - ${textCell((a.glosa || '').substring(0, 40))}</td>
-                            <td style="text-align:right;">${Number(l.debe) > 0 ? Number(l.debe).toFixed(2) : ''}</td>
-                            <td style="text-align:right;">${Number(l.haber) > 0 ? Number(l.haber).toFixed(2) : ''}</td>
-                            <td style="text-align:right;"><strong>${saldo.toFixed(2)}</strong></td>
-                        </tr>`;
-                    }
-                });
-            });
+        const renderFila = (fila, ctaIndex, lado) => {
+            const id = `mayor-${ctaIndex}-${lado}-${rowIdCounter++}`;
+            if (fila.tipo === 'agrupado') {
+                return `
+                    <div class="cuenta-t-row cuenta-t-row-agrupado" onclick="toggleFilaMayor('${id}')">
+                        <span class="cuenta-t-row-arrow" id="${id}-arrow">▶</span>
+                        <span class="cuenta-t-row-detalle">${textCell(fila.detalle)}</span>
+                        <span class="cuenta-t-row-monto">${fmtMayor(fila.monto)}</span>
+                    </div>
+                    <div class="cuenta-t-hijos" id="${id}-hijos" style="display:none;">
+                        ${fila.hijos.map(h => `
+                            <div class="cuenta-t-row cuenta-t-row-hijo" title="${textCell(h.titulo)}">
+                                <span class="cuenta-t-row-detalle">${textCell(h.detalle)}</span>
+                                <span class="cuenta-t-row-monto">${fmtMayor(h.monto)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            return `
+                <div class="cuenta-t-row" title="${textCell(fila.titulo)}">
+                    <span class="cuenta-t-row-detalle">${textCell(fila.detalle)}</span>
+                    <span class="cuenta-t-row-monto">${fmtMayor(fila.monto)}</span>
+                </div>
+            `;
+        };
 
-        document.getElementById('libroMayorTable').innerHTML =
-            html || '<tr><td colspan="5" style="text-align:center; color:#999;">Sin movimientos para esta cuenta</td></tr>';
-        console.log(`✅ Libro Mayor de cuenta ${cuenta}`);
+        container.innerHTML = cuentasT.map((cta, ctaIndex) => {
+            const debe = agruparPorMes(cta.debe);
+            const haber = agruparPorMes(cta.haber);
+            const totalDebe = cta.debe.reduce((s, d) => s + d.monto, 0);
+            const totalHaber = cta.haber.reduce((s, h) => s + h.monto, 0);
+            const saldo = totalDebe - totalHaber;
+            const claseSaldo = Math.abs(saldo) < 0.005 ? 'saldo-cero' : (saldo > 0 ? 'saldo-deudor' : 'saldo-acreedor');
+            const textoSaldo = claseSaldo === 'saldo-cero' ? 'Saldo' : (saldo > 0 ? 'Saldo Deudor' : 'Saldo Acreedor');
+
+            return `
+                <div class="cuenta-t">
+                    <div class="cuenta-t-header">
+                        <span class="cuenta-t-codigo">${textCell(cta.codigo)}</span>
+                        <span class="cuenta-t-nombre">${textCell(cta.nombre)}</span>
+                    </div>
+                    <div class="cuenta-t-body">
+                        <div class="cuenta-t-col">
+                            <div class="cuenta-t-titulo">DEBE</div>
+                            ${debe.length > 0
+                                ? debe.map(d => renderFila(d, ctaIndex, 'debe')).join('')
+                                : '<div class="cuenta-t-empty">—</div>'}
+                            <div class="cuenta-t-row cuenta-t-total">
+                                <span>TOTAL</span>
+                                <span>${fmtMayor(totalDebe)}</span>
+                            </div>
+                        </div>
+                        <div class="cuenta-t-col">
+                            <div class="cuenta-t-titulo">HABER</div>
+                            ${haber.length > 0
+                                ? haber.map(h => renderFila(h, ctaIndex, 'haber')).join('')
+                                : '<div class="cuenta-t-empty">—</div>'}
+                            <div class="cuenta-t-row cuenta-t-total">
+                                <span>TOTAL</span>
+                                <span>${fmtMayor(totalHaber)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="cuenta-t-saldo ${claseSaldo}">
+                        <span>${textoSaldo}:</span>
+                        <strong>${fmtMayor(Math.abs(saldo))}</strong>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        console.log(`✅ Libro Mayor: ${cuentasT.length} cuentas T`);
     } catch (error) {
         console.error('Error generando Libro Mayor:', error);
+        container.innerHTML = `<div class="mayor-vacio" style="color:#c00;">Error: ${textCell(error.message)}</div>`;
     }
+}
+
+function toggleFilaMayor(id) {
+    const hijos = document.getElementById(id + '-hijos');
+    const arrow = document.getElementById(id + '-arrow');
+    if (!hijos) return;
+
+    const abierto = hijos.style.display !== 'none';
+    hijos.style.display = abierto ? 'none' : 'block';
+    if (arrow) arrow.textContent = abierto ? '▶' : '▼';
+}
+
+async function exportarMayorCSV() {
+    const cuentasT = await construirCuentasT();
+    const limpiar = s => String(s ?? '').replace(/"/g, '""');
+    let csv = '﻿Cuenta;Nombre;Fecha;N° Asiento;Glosa;Debe;Haber\n';
+
+    cuentasT.forEach(c => {
+        const movs = [
+            ...c.debe.map(d => ({ ...d, debe: d.monto, haber: 0 })),
+            ...c.haber.map(h => ({ ...h, debe: 0, haber: h.monto }))
+        ].sort((a, b) => a.fecha.localeCompare(b.fecha));
+        movs.forEach(m => {
+            csv += `"${limpiar(c.codigo)}";"${limpiar(c.nombre)}";${m.fecha};"${limpiar(m.numero)}";"${limpiar(m.glosa)}";${m.debe.toFixed(2)};${m.haber.toFixed(2)}\n`;
+        });
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'libro-mayor.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    showAlert('✅ Libro Mayor exportado', 'success');
 }
 
 // ==================== COMPRAS ====================
@@ -472,7 +679,7 @@ function showTab(tabId, btn) {
     // Cargar datos específicos del tab activo
     console.log('📂 Cambiando a tab:', tabId);
     
-    if (tabId === 'lib-mayor') updateCuentaSelects().then(() => generarLibroMayor());
+    if (tabId === 'lib-mayor') generarLibroMayor();
     if (tabId === 'lib-diario') generarLibroDiario();
     if (tabId === 'lib-compras') renderCompras();
     if (tabId === 'lib-ventas') renderVentas();

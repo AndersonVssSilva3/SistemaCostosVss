@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="css/professional.css">
     <link rel="stylesheet" href="css/plaza-vea.css">
     <link rel="stylesheet" href="css/plaza-vea-3d.css">
+    <link rel="stylesheet" href="css/libro-mayor.css">
+    <link rel="stylesheet" href="css/libro-diario.css">
 
 </head>
 <body>
@@ -54,11 +56,13 @@
                 </div>
             </div>
             <div class="table-container">
-                <table>
+                <table class="libro-diario">
                     <thead>
-                        <tr><th>Fecha</th><th>N° Asiento</th><th>Cuenta</th><th>Descripción</th><th>Debe</th><th>Haber</th></tr>
+                        <tr><th colspan="5" class="ld-titulo">LIBRO DIARIO<br><span id="libroDiarioEmpresa"></span></th></tr>
+                        <tr><th>Fecha</th><th>Nº Cta</th><th>Descripción</th><th>Debe</th><th>Haber</th></tr>
                     </thead>
                     <tbody id="libroDiarioTable"></tbody>
+                    <tfoot id="libroDiarioTotales"></tfoot>
                 </table>
             </div>
         </div>
@@ -67,28 +71,37 @@
     <!-- LIBRO MAYOR -->
     <div class="tab-content" id="lib-mayor">
         <div class="card">
-            <h2>📚 Libro Mayor</h2>
-            <div class="form-row">
+            <h2>📚 Libro Mayor · Cuentas T</h2>
+            <p style="color:#56677b; margin-bottom:20px;">
+                Todas las cuentas con movimientos en el período. Haz clic en un mes para ver sus asientos.
+            </p>
+            <div class="mayor-filtros">
                 <div class="form-group">
-                    <label>Cuenta Contable</label>
-                    <select id="mayorCuenta" onchange="generarLibroMayor()">
-                        <option value="">Seleccione cuenta...</option>
-                    </select>
+                    <label>Desde</label>
+                    <input type="date" id="mayorDesde" value="2026-01-01" onchange="generarLibroMayor()">
                 </div>
                 <div class="form-group">
-                    <label>Período</label>
-                    <input type="month" id="mayorPeriodo" value="2026-09" onchange="generarLibroMayor()">
+                    <label>Hasta</label>
+                    <input type="date" id="mayorHasta" value="2026-12-31" onchange="generarLibroMayor()">
+                </div>
+                <div class="form-group">
+                    <label>Buscar cuenta</label>
+                    <input type="text" id="mayorBuscar" placeholder="Código o nombre..." oninput="generarLibroMayor()">
+                </div>
+                <label class="mayor-check">
+                    <input type="checkbox" id="mayorSinMovimiento" onchange="generarLibroMayor()">
+                    Mostrar cuentas sin movimiento
+                </label>
+                <div class="btn-group" style="margin-bottom:0;">
+                    <button class="btn btn-primary" onclick="exportarMayorCSV()">📥 Exportar CSV</button>
+                    <button class="btn btn-warning" onclick="window.print()">🖨️ Imprimir</button>
                 </div>
             </div>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr><th>Fecha</th><th>Detalle</th><th>Debe</th><th>Haber</th><th>Saldo</th></tr>
-                    </thead>
-                    <tbody id="libroMayorTable"></tbody>
-                </table>
-            </div>
+            <div class="mayor-resumen" id="mayorResumen"></div>
         </div>
+
+        <!-- Grilla de cuentas T -->
+        <div id="mayorGrid" class="mayor-grid"></div>
     </div>
 
     <!-- COMPRAS -->
@@ -326,7 +339,7 @@
 <!-- 4. Resto -->
 <script src="js/utils.js"></script>
 <script src="js/accounting.js"></script>
-<script src="js/libros.js?v=20261008"></script>
+<script src="js/libros.js?v=20261009b"></script>
 <script src="js/professional.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', async function() {
