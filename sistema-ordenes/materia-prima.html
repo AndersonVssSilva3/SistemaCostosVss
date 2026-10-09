@@ -11,7 +11,6 @@
     <link rel="stylesheet" href="css/vss-3d.css">
     <link rel="stylesheet" href="css/fab-menu.css">
     <link rel="stylesheet" href="css/ordenes.css">
-
 </head>
 <body>
 
@@ -30,6 +29,7 @@
     <div class="card">
         <h2>📦 Catálogo de Materia Prima</h2>
         <div class="btn-group" style="margin-bottom:15px;">
+            <button class="btn btn-success" onclick="openModalMP()">➕ Nueva Materia Prima</button>
             <button class="btn btn-primary" onclick="exportarMPCSV()">📥 Exportar CSV</button>
         </div>
         <div class="table-container">
@@ -42,6 +42,7 @@
                         <th style="text-align:right;">Stock</th>
                         <th style="text-align:right;">Costo Unit.</th>
                         <th style="text-align:right;">Valor Total</th>
+                        <th style="text-align:center;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="mpTable"></tbody>
@@ -52,15 +53,20 @@
     <!-- Asignaciones MP por OT -->
     <div class="card">
         <h2>📋 Asignaciones de MP a Órdenes</h2>
+        <div class="btn-group" style="margin-bottom:15px;">
+            <button class="btn btn-success" onclick="openModalAsignacion()">➕ Nueva Asignación</button>
+        </div>
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
                         <th>OT</th>
                         <th>Código MP</th>
+                        <th>Descripción MP</th>
                         <th style="text-align:right;">Cantidad</th>
                         <th style="text-align:right;">Costo Unit.</th>
                         <th style="text-align:right;">Costo Total</th>
+                        <th style="text-align:center;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="mpAsignacionesTable"></tbody>
@@ -73,6 +79,108 @@
     </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════ -->
+<!-- MODAL: NUEVA / EDITAR MATERIA PRIMA -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalMP">
+    <div class="modal">
+        <button class="close-btn" onclick="closeModal('modalMP')">×</button>
+        <h2 id="modalMPTitulo">Nueva Materia Prima</h2>
+        <input type="hidden" id="mpId">
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Código *</label>
+                <input type="text" id="mpCodigo" placeholder="Ej: MP-D" maxlength="20">
+                <small class="field-help">Único. Ej: MP-A, MP-B, MP-C</small>
+            </div>
+            <div class="form-group">
+                <label>Unidad *</label>
+                <select id="mpUnidad">
+                    <option value="UND">UND - Unidades</option>
+                    <option value="KG">KG - Kilogramos</option>
+                    <option value="LT">LT - Litros</option>
+                    <option value="MT">MT - Metros</option>
+                    <option value="CAJA">CAJA</option>
+                    <option value="SACO">SACO</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Descripción *</label>
+            <input type="text" id="mpDescripcion" placeholder="Ej: Materia Prima A - Acero galvanizado" maxlength="120">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Stock Actual *</label>
+                <input type="number" id="mpStock" placeholder="0" min="0" step="0.01" value="0">
+            </div>
+            <div class="form-group">
+                <label>Costo Unitario (S/) *</label>
+                <input type="number" id="mpCostoUnit" placeholder="0.00" min="0" step="0.0001" value="0">
+            </div>
+            <div class="form-group">
+                <label>Valor Total</label>
+                <input type="text" id="mpValorTotal" readonly value="S/ 0.00">
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="guardarMP()">💾 Guardar</button>
+            <button class="btn btn-danger" onclick="closeModal('modalMP')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- MODAL: NUEVA ASIGNACIÓN MP → OT -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalAsignacion">
+    <div class="modal">
+        <button class="close-btn" onclick="closeModal('modalAsignacion')">×</button>
+        <h2>Nueva Asignación MP → OT</h2>
+
+        <div class="form-group">
+            <label>Orden de Trabajo *</label>
+            <select id="asigOT">
+                <option value="">-- Seleccionar OT --</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Materia Prima *</label>
+            <select id="asigMP" onchange="onMPChange()">
+                <option value="">-- Seleccionar MP --</option>
+            </select>
+            <small class="field-help" id="asigInfoMP"></small>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Cantidad *</label>
+                <input type="number" id="asigCantidad" placeholder="0" min="0" step="0.01"
+                       oninput="calcCostoAsignacion()">
+            </div>
+            <div class="form-group">
+                <label>Costo Unitario (S/)</label>
+                <input type="number" id="asigCostoUnit" readonly>
+            </div>
+            <div class="form-group">
+                <label>Costo Total</label>
+                <input type="number" id="asigCostoTotal" readonly>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="guardarAsignacion()">💾 Guardar</button>
+            <button class="btn btn-danger" onclick="closeModal('modalAsignacion')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Fallback textCell -->
 <script>
     window.textCell = window.textCell || function(value) {
         if (value === null || value === undefined) return '';

@@ -1,15 +1,30 @@
 // ==================== OPERACIONES - ASIENTOS CONTABLES ====================
-// Incluye: cascada Cuenta → Subcuenta (PCGE Perú) + dictado por voz
+// Incluye: cascada Cuenta → Subcuenta + Centro de Costo + Dictado por voz
 
 let asientoLineCount = 0;
 let planCache = null;
+let centrosCache = null;
+
+// ==================== CENTROS DE COSTO ====================
+const CENTROS_COSTO = [
+    { codigo: '',          nombre: '-- Sin asignar --' },
+    { codigo: 'PLANTA',    nombre: '🏭 Planta / Producción' },
+    { codigo: 'ADMIN',     nombre: '🏢 Administración' },
+    { codigo: 'VENTAS',    nombre: '🛒 Ventas' },
+    { codigo: 'LOGISTICA', nombre: '📦 Logística / Almacén' }
+];
+
+function opcionesCentroCosto(selected = '') {
+    return CENTROS_COSTO.map(c =>
+        `<option value="${c.codigo}" ${c.codigo === selected ? 'selected' : ''}>${c.nombre}</option>`
+    ).join('');
+}
 
 // ==================== INICIALIZACIÓN ====================
 async function initOperaciones() {
-    // Validar que exista plan jerárquico
     planCache = await DB.getAll('planJerarquico');
     if (!planCache || planCache.length === 0) {
-        showAlert('⚠️ No hay plan de cuentas cargado. Vaya a Datos Maestros para cargarlo.', 'error');
+        showAlert('⚠️ No hay plan de cuentas cargado. Vaya a Datos Maestros.', 'error');
         return;
     }
 
@@ -25,7 +40,6 @@ async function initOperaciones() {
 
 async function actualizarNumeroAsiento() {
     const asientos = await DB.getAll('asientos');
-    // Usar el máximo número existente + 1 (no el length)
     let maxNum = 0;
     asientos.forEach(a => {
         const m = String(a.numero || '').match(/(\d+)$/);
@@ -35,7 +49,7 @@ async function actualizarNumeroAsiento() {
 }
 
 // ==================== LÍNEAS DE ASIENTO ====================
-async function addAsientoLine(cuentaPadre = '', subcuenta = '', debe = '', haber = '') {
+async function addAsientoLine(cuentaPadre = '', subcuenta = '', debe = '', haber = '', centroCosto = '') {
     asientoLineCount++;
     if (!planCache) planCache = await DB.getAll('planJerarquico');
     const plan = planCache;
@@ -67,6 +81,9 @@ async function addAsientoLine(cuentaPadre = '', subcuenta = '', debe = '', haber
         <select class="line-subcuenta" onchange="updateLineName(this)">
             ${opcionesSub}
         </select>
+        <select class="line-centro-costo">
+            ${opcionesCentroCosto(centroCosto)}
+        </select>
         <input type="number" class="line-debe" placeholder="Debe" step="0.01" min="0"
                value="${debe}" oninput="onImporteInput(this, 'debe')">
         <input type="number" class="line-haber" placeholder="Haber" step="0.01" min="0"
@@ -78,7 +95,6 @@ async function addAsientoLine(cuentaPadre = '', subcuenta = '', debe = '', haber
     calcTotals();
 }
 
-// Evita que se ponga importe en Debe y Haber a la vez
 function onImporteInput(input, tipo) {
     const line = input.parentElement;
     if (tipo === 'debe' && parseFloat(input.value) > 0) {
@@ -158,7 +174,7 @@ function calcTotals() {
     }
 }
 
-// ==================== GUARDAR / LIMPIAR ASIENTO ====================
+// ==================== GUARDAR / LIMPIAR ====================
 async function guardarAsiento() {
     if (typeof detenerDictado === 'function') detenerDictado();
 
@@ -176,6 +192,7 @@ async function guardarAsiento() {
     for (const line of lines) {
         const cuentaPadre = line.querySelector('.line-cuenta-padre').value;
         const subcuenta = line.querySelector('.line-subcuenta').value;
+        const centroCosto = line.querySelector('.line-centro-costo').value;
         const debe = parseFloat(line.querySelector('.line-debe').value) || 0;
         const haber = parseFloat(line.querySelector('.line-haber').value) || 0;
 
@@ -198,7 +215,13 @@ async function guardarAsiento() {
 
         totalDebe += debe;
         totalHaber += haber;
-        lineas.push({ cuenta: subcuenta, nombre: nombreSub, debe, haber });
+        lineas.push({
+            cuenta: subcuenta,
+            nombre: nombreSub,
+            centroCosto: centroCosto || '',   // ← NUEVO
+            debe,
+            haber
+        });
     }
 
     if (!valido) {
@@ -247,7 +270,6 @@ async function limpiarAsiento() {
 // ==================== RENDERIZAR TABLA ====================
 async function renderAsientos() {
     let asientos = await DB.getAll('asientos');
-    // Ordenar por número descendente
     asientos.sort((a, b) => {
         const na = parseInt(String(a.numero || '').replace(/\D/g, '')) || 0;
         const nb = parseInt(String(b.numero || '').replace(/\D/g, '')) || 0;
@@ -258,23 +280,29 @@ async function renderAsientos() {
     if (!tbody) return;
 
     if (asientos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="empty-state">Aún no hay asientos registrados.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" class="empty-state">Aún no hay asientos registrados.</td></tr>`;
         return;
     }
 
     tbody.innerHTML = asientos.map(a => {
-        const totalAsiento = a.lineas.reduce((s, l) => s + Number(l.debe || 0), 0);
-        const rows = a.lineas.map((l, i) => `
+        let lineas = a.lineas;
+        if (typeof lineas === 'string') {
+            try { lineas = JSON.parse(lineas); } catch { lineas = []; }
+        }
+        if (!Array.isArray(lineas)) lineas = [];
+
+        return lineas.map((l, i) => `
             <tr data-asiento="${textCell(a.numero)}">
-                ${i === 0 ? `<td rowspan="${a.lineas.length}">${textCell(a.numero)}</td>
-                <td rowspan="${a.lineas.length}">${textCell(a.fecha)}</td>
-                <td rowspan="${a.lineas.length}"><span class="status-badge status-valid">${textCell(a.tipo)}</span></td>` : ''}
+                ${i === 0 ? `<td rowspan="${lineas.length}">${textCell(a.numero)}</td>
+                <td rowspan="${lineas.length}">${textCell(a.fecha)}</td>
+                <td rowspan="${lineas.length}"><span class="status-badge status-valid">${textCell(a.tipo)}</span></td>` : ''}
                 <td>${textCell(l.cuenta)} - ${textCell(l.nombre || '')}</td>
-                <td style="text-align:right;">${l.debe > 0 ? l.debe.toFixed(2) : ''}</td>
-                <td style="text-align:right;">${l.haber > 0 ? l.haber.toFixed(2) : ''}</td>
-                ${i === 0 ? `<td rowspan="${a.lineas.length}">${textCell((a.glosa || '').substring(0, 60))}${(a.glosa || '').length > 60 ? '…' : ''}</td>
-                <td rowspan="${a.lineas.length}"><span class="status-badge status-valid">${textCell(a.estado)}</span></td>
-                <td rowspan="${a.lineas.length}">
+                <td>${badgeCentro(l.centroCosto)}</td>
+                <td style="text-align:right;">${l.debe > 0 ? Number(l.debe).toFixed(2) : ''}</td>
+                <td style="text-align:right;">${l.haber > 0 ? Number(l.haber).toFixed(2) : ''}</td>
+                ${i === 0 ? `<td rowspan="${lineas.length}">${textCell((a.glosa || '').substring(0, 50))}${(a.glosa || '').length > 50 ? '…' : ''}</td>
+                <td rowspan="${lineas.length}"><span class="status-badge status-valid">${textCell(a.estado || 'validado')}</span></td>
+                <td rowspan="${lineas.length}">
                     <div class="action-btns">
                         <button type="button" class="view-btn" onclick="verAsiento(${a.id})">👁️</button>
                         <button type="button" class="delete-btn" onclick="eliminarAsiento(${a.id})">🗑️</button>
@@ -282,13 +310,23 @@ async function renderAsientos() {
                 </td>` : ''}
             </tr>
         `).join('');
-        return rows;
     }).join('');
 
-    // Reaplicar filtros si están activos
     if (document.getElementById('searchAsiento').value || document.getElementById('filterTipo').value) {
         filterAsientos();
     }
+}
+
+function badgeCentro(centro) {
+    if (!centro) return '<span class="badge badge-sin">—</span>';
+    const map = {
+        'PLANTA': 'badge-planta',
+        'ADMIN': 'badge-admin',
+        'VENTAS': 'badge-ventas',
+        'LOGISTICA': 'badge-logistica'
+    };
+    const cls = map[centro] || 'badge-sin';
+    return `<span class="badge ${cls}">${centro}</span>`;
 }
 
 // ==================== VER / ELIMINAR ====================
@@ -296,18 +334,24 @@ async function verAsiento(id) {
     const a = await DB.get('asientos', id);
     if (!a) return;
 
+    let lineas = a.lineas;
+    if (typeof lineas === 'string') {
+        try { lineas = JSON.parse(lineas); } catch { lineas = []; }
+    }
+
     let html = `<h3>Asiento ${textCell(a.numero)}</h3>
         <p><strong>Fecha:</strong> ${textCell(a.fecha)}</p>
         <p><strong>Tipo:</strong> ${textCell(a.tipo)}</p>
         <p><strong>Glosa:</strong> ${a.glosa}</p>
         <table>
-            <tr><th>Cuenta</th><th>Descripción</th><th>Debe</th><th>Haber</th></tr>`;
-    a.lineas.forEach(l => {
+            <tr><th>Cuenta</th><th>Descripción</th><th>Centro Costo</th><th>Debe</th><th>Haber</th></tr>`;
+    (lineas || []).forEach(l => {
         html += `<tr>
             <td>${textCell(l.cuenta)}</td>
             <td>${textCell(l.nombre)}</td>
-            <td style="text-align:right;">${l.debe.toFixed(2)}</td>
-            <td style="text-align:right;">${l.haber.toFixed(2)}</td>
+            <td>${badgeCentro(l.centroCosto)}</td>
+            <td style="text-align:right;">${Number(l.debe).toFixed(2)}</td>
+            <td style="text-align:right;">${Number(l.haber).toFixed(2)}</td>
         </tr>`;
     });
     html += '</table>';
@@ -334,7 +378,6 @@ function filterAsientos() {
     const search = (document.getElementById('searchAsiento').value || '').toLowerCase().trim();
     const tipo = document.getElementById('filterTipo').value;
 
-    // Agrupar filas por asiento
     const rows = [...document.querySelectorAll('#asientosTable tr[data-asiento]')];
     const asientos = {};
     rows.forEach(r => {
@@ -381,7 +424,7 @@ function toggleDictado() {
         btn.classList.add('escuchando');
         btn.textContent = '⏹️';
         status.style.display = 'block';
-        status.textContent = '🎙️ Escuchando... habla ahora. Haz clic de nuevo para detener.';
+        status.textContent = '🎙️ Escuchando... habla ahora.';
     };
 
     recognition.onresult = function (event) {
@@ -400,16 +443,6 @@ function toggleDictado() {
 
     recognition.onerror = function (event) {
         console.error('Error de reconocimiento:', event.error);
-        let mensaje = 'Error al dictar: ';
-        switch (event.error) {
-            case 'not-allowed':
-            case 'service-not-allowed': mensaje += 'permiso de micrófono denegado.'; break;
-            case 'no-speech': mensaje += 'no se detectó voz.'; break;
-            case 'audio-capture': mensaje += 'no se encontró micrófono.'; break;
-            case 'network': mensaje += 'problema de red.'; break;
-            default: mensaje += event.error;
-        }
-        showAlert(mensaje, 'error');
         detenerDictado();
     };
 
@@ -424,7 +457,7 @@ function toggleDictado() {
     };
 
     try { recognition.start(); }
-    catch (e) { console.error(e); showAlert('No se pudo iniciar el dictado', 'error'); }
+    catch (e) { showAlert('No se pudo iniciar el dictado', 'error'); }
 }
 
 function detenerDictado() {
@@ -436,10 +469,73 @@ function detenerDictado() {
     if (status) status.style.display = 'none';
 }
 
-// Auto-init si se carga directamente (sin esperar al DOMContentLoaded del HTML)
-document.addEventListener('DOMContentLoaded', () => {
-    if (typeof initOperaciones === 'function' && document.getElementById('asientoLines')) {
-        // Si el HTML llama a initOperaciones explícitamente, no duplicar.
-        // Solo se ejecuta si NO hay otro listener ya cargado.
+// ==================== SCRIPT DE MIGRACIÓN ====================
+// Clasifica automáticamente los 205 asientos existentes por centro de costo
+async function migrarAsientosACentroCosto() {
+    if (!confirm('Esto clasificará automáticamente TODOS los asientos existentes según reglas predefinidas. ¿Continuar?')) return;
+
+    const asientos = await DB.getAll('asientos');
+    let actualizados = 0;
+
+    // Reglas de clasificación automática según glosa/cuenta
+    const reglas = [
+        { match: /planilla|sueldo|salario|remuneraci/i, cuenta: /^62/, centro: 'PLANTA' },
+        { match: /venta|cliente|factura.*venta/i,        cuenta: /^70/, centro: 'VENTAS' },
+        { match: /compra|materia|inventario/i,           cuenta: /^(60|61|24)/, centro: 'PLANTA' },
+        { match: /deprecia|alquiler|servicio/i,          cuenta: /^(63|65|68)/, centro: 'PLANTA' }
+    ];
+
+    for (const a of asientos) {
+        let lineas = a.lineas;
+        if (typeof lineas === 'string') {
+            try { lineas = JSON.parse(lineas); } catch { continue; }
+        }
+        if (!Array.isArray(lineas)) continue;
+
+        let modificado = false;
+        const glosa = (a.glosa || '').toLowerCase();
+
+        lineas.forEach(l => {
+            if (l.centroCosto) return; // ya tiene uno
+
+            // Buscar regla aplicable
+            for (const r of reglas) {
+                if (r.match.test(glosa) && r.cuenta.test(String(l.cuenta || ''))) {
+                    l.centroCosto = r.centro;
+                    modificado = true;
+                    break;
+                }
+            }
+
+            // Fallback: clasificar por cuenta
+            if (!l.centroCosto) {
+                const c = String(l.cuenta || '');
+                if (c.startsWith('62') || c.startsWith('24') || c.startsWith('60') || c.startsWith('61')) {
+                    l.centroCosto = 'PLANTA';
+                } else if (c.startsWith('63') || c.startsWith('65') || c.startsWith('68')) {
+                    l.centroCosto = 'PLANTA';
+                } else if (c.startsWith('70')) {
+                    l.centroCosto = 'VENTAS';
+                } else if (c.startsWith('94')) {
+                    l.centroCosto = 'ADMIN';
+                } else if (c.startsWith('95')) {
+                    l.centroCosto = 'VENTAS';
+                } else {
+                    l.centroCosto = 'ADMIN';
+                }
+                modificado = true;
+            }
+        });
+
+        if (modificado) {
+            await DB.update('asientos', a.id, { lineas });
+            actualizados++;
+        }
     }
-});
+
+    alert(`✅ Migración completa. Asientos actualizados: ${actualizados} de ${asientos.length}`);
+    await renderAsientos();
+}
+
+// Exponer en el objeto global
+window.migrarAsientosACentroCosto = migrarAsientosACentroCosto;
