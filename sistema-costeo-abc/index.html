@@ -3,48 +3,333 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VSS S.A.C. - Sistema en construcción</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
-    <link rel="stylesheet" href="../sistema-contable/css/styles.css">
-    <link rel="stylesheet" href="../sistema-contable/css/professional.css">
-    <link rel="stylesheet" href="../sistema-contable/css/plaza-vea.css">
-    <link rel="stylesheet" href="../sistema-contable/css/plaza-vea-3d.css">
-    <link rel="stylesheet" href="../sistema-contable/css/fab-menu.css">
+    <title>VSS · Costeo ABC</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+    <link rel="stylesheet" href="../sistema-ordenes/css/styles.css">
+    <link rel="stylesheet" href="../sistema-ordenes/css/professional.css">
+    <link rel="stylesheet" href="../sistema-ordenes/css/vss.css">
+    <link rel="stylesheet" href="../sistema-ordenes/css/vss-3d.css">
+    <link rel="stylesheet" href="../sistema-ordenes/css/fab-menu.css">
+    <link rel="stylesheet" href="../sistema-ordenes/css/ordenes.css">
+    <link rel="stylesheet" href="css/abc.css">
 </head>
 <body>
 
 <div class="header">
     <div>
-        <div class="company-name">VSS S.A.C.</div>
-        <h1>🚧 Sistema en construcción</h1>
+        <div class="company-name">VSS S.A.C. · Planta Embotelladora</div>
+        <h1 id="abcTitulo">🎯 Costeo ABC</h1>
     </div>
-    <div>
-        <a href="../sistema-contable/index.html" class="home-btn">🏠 Inicio</a>
-    </div>
-</div>
-
-<div class="main-content" style="text-align:center; padding-top:80px;">
-    <div class="card" style="max-width:600px; margin:0 auto;">
-        <h2>🚧 Este sistema estará disponible próximamente</h2>
-        <p style="color:#666; margin:20px 0;">
-            El módulo que intentas acceder está en desarrollo.
-        </p>
-        <a href="../sistema-contable/index.html" class="btn btn-primary" style="margin-top:20px;">
-            ← Volver al Sistema Contable
-        </a>
+    <div class="abc-header-right">
+        <label for="abcPeriodo">Período</label>
+        <select id="abcPeriodo" class="abc-periodo"></select>
+        <div class="datetime" id="currentDateTime"></div>
     </div>
 </div>
 
-<!-- Fallback textCell -->
+<div class="sub-nav">
+    <button data-tab="resumen">📊 Resumen</button>
+    <button data-tab="centros">🏢 Centros de Actividad</button>
+    <button data-tab="recursos">💰 Recursos</button>
+    <button data-tab="ind1">① Inductor tipo 1</button>
+    <button data-tab="ind2">② Inductor tipo 2</button>
+    <button data-tab="ind3">③ Inductor tipo 3</button>
+    <button data-tab="objetos">🎯 Objeto de Costos</button>
+</div>
+
+<div class="main-content">
+    <div id="alertContainer"></div>
+    <div id="abcModo"></div>
+    <div id="abcCargando" class="card abc-loading">⏳ Cargando planillas, productos y configuración ABC…</div>
+
+    <!-- ==================== RESUMEN ==================== -->
+    <div class="tab-content" id="tab-resumen">
+        <div class="dash-welcome">
+            <div>
+                <div class="eyebrow">SISTEMA DE COSTOS BASADO EN ACTIVIDADES</div>
+                <h2>🎯 Recursos → Centros de Actividad → Actividades → Objeto de Costos</h2>
+                <p>Los recursos se asignan a los centros con el <b>inductor tipo 1</b> (% = tasa), los centros a sus actividades con el
+                   <b>inductor tipo 2</b> y las actividades a cada producto con el <b>inductor tipo 3</b>. La materia prima es costo directo.</p>
+            </div>
+        </div>
+
+        <div class="metrics" id="abcMetricas"></div>
+        <div id="abcAvisos"></div>
+
+        <div class="card">
+            <h2>🔀 Flujo del costeo ABC</h2>
+            <div id="abcFlujo"></div>
+        </div>
+
+        <div class="card">
+            <h2>🎯 Costo por objeto de costo</h2>
+            <div class="abc-legend">
+                <span><i class="seg-mp"></i>Materia prima</span><span><i class="seg-op"></i>Act. operativas</span>
+                <span><i class="seg-ap"></i>Act. de apoyo</span><span><i class="seg-es"></i>Act. estratégicas</span>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr>
+                        <th>Producto</th><th class="num">Unidades</th><th class="num">MP directa</th><th class="num">Costo ABC</th>
+                        <th class="num">Costo total</th><th class="num">C. unitario</th><th class="num">Precio</th><th class="num">Margen</th><th>Composición</th>
+                    </tr></thead>
+                    <tbody id="abcResumenProductos"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== CENTROS DE ACTIVIDAD ==================== -->
+    <div class="tab-content" id="tab-centros">
+        <div class="card">
+            <h2>① Mapa de procesos</h2>
+            <p class="abc-muted">Identifica los centros de actividad estratégicos, operativos y de apoyo, con el costo asignado en el período.</p>
+            <div class="abc-actions abc-edit-bar" id="abcMapaTools"></div>
+            <div id="abcMapa"></div>
+        </div>
+        <div class="card">
+            <h2>② Organigrama</h2>
+            <div class="abc-actions abc-edit-bar" id="abcOrgTools"></div>
+            <div id="abcOrganigrama"></div>
+        </div>
+        <div class="card">
+            <h2>③ Manual de Organización y Funciones (MOF)</h2>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Código</th><th>Centro de actividad</th><th>Tipo</th><th>Responsable</th><th>Funciones</th><th>Actividades</th><th></th></tr></thead>
+                    <tbody id="abcMof"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== RECURSOS ==================== -->
+    <div class="tab-content" id="tab-recursos">
+        <div class="card">
+            <h2>💰 Recursos del período</h2>
+            <p class="abc-muted">MP: costo directo (ver Objeto de Costos). MOD y MOI provienen de la tabla <b>planillas</b>; CIF, gastos de administración y de ventas son montos mensuales editables.</p>
+            <div class="btn-group abc-actions">
+                <button class="btn btn-primary" onclick="abcAbrirRecurso()">+ Nuevo recurso</button>
+                <button class="btn" onclick="abcExportarCSV('abcRecursosTabla','recursos-abc')">📥 Exportar CSV</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Código</th><th>Recurso</th><th>Origen</th><th>Categoría</th><th class="num">Distribuido</th><th class="num">Monto S/</th><th></th></tr></thead>
+                    <tbody id="abcRecursosTabla"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card">
+            <h2>👷 Detalle de planilla del período</h2>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Trabajador</th><th>Cargo</th><th class="num">Total bruto</th><th class="num">EsSalud</th><th class="num">CTS</th><th class="num">Costo empleador</th></tr></thead>
+                    <tbody id="abcPlanillaTabla"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== INDUCTOR TIPO 1 ==================== -->
+    <div class="tab-content" id="tab-ind1">
+        <div class="card">
+            <h2>① Inductor tipo 1 · Recursos → Centros de actividad (% = tasa)</h2>
+            <p class="abc-muted">Indique qué % de cada recurso consume cada centro. Cada fila debe sumar 100%. Los cambios se guardan al salir de la celda.</p>
+            <div class="btn-group abc-actions">
+                <button class="btn" onclick="abcExportarCSV('abcInd1Tabla','inductor-tipo-1')">📥 Exportar CSV</button>
+            </div>
+            <div class="table-container abc-scroll">
+                <table id="abcInd1Tabla" class="abc-matrix"></table>
+            </div>
+        </div>
+        <div class="card">
+            <h2>🏢 Costo acumulado por centro de actividad</h2>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Código</th><th>Centro</th><th>Tipo</th><th class="num">MOD</th><th class="num">MOI</th><th class="num">CIF</th><th class="num">G. Adm.</th><th class="num">G. Ventas</th><th class="num">Total</th></tr></thead>
+                    <tbody id="abcInd1Centros"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== INDUCTOR TIPO 2 ==================== -->
+    <div class="tab-content" id="tab-ind2">
+        <div class="card">
+            <h2>② Inductor tipo 2 · Centros de actividad → Actividades</h2>
+            <p class="abc-muted">Distribuya el costo de cada centro entre sus actividades (cada centro debe sumar 100%) y elija el inductor tipo 3 de cada actividad.</p>
+            <div id="abcInd2"></div>
+        </div>
+    </div>
+
+    <!-- ==================== INDUCTOR TIPO 3 ==================== -->
+    <div class="tab-content" id="tab-ind3">
+        <div class="card">
+            <h2>③ Inductor tipo 3 · Tasa por actividad</h2>
+            <p class="abc-muted">Tasa = costo de la actividad ÷ total del inductor consumido por todos los productos.</p>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Código</th><th>Actividad</th><th>Centro</th><th class="num">Costo</th><th>Inductor</th><th class="num">Total inductor</th><th class="num">Tasa</th></tr></thead>
+                    <tbody id="abcTasas"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card">
+            <h2>📏 Consumo de inductores por producto (mensual)</h2>
+            <div class="btn-group abc-actions">
+                <button class="btn btn-primary" onclick="abcAbrirInductor()">+ Nuevo inductor</button>
+            </div>
+            <div class="table-container abc-scroll">
+                <table id="abcConsumo" class="abc-matrix"></table>
+            </div>
+        </div>
+        <div class="card">
+            <h2>🎯 Asignación de actividades a objetos de costo (S/)</h2>
+            <div class="btn-group abc-actions">
+                <button class="btn" onclick="abcExportarCSV('abcAsignacion','asignacion-abc')">📥 Exportar CSV</button>
+            </div>
+            <div class="table-container abc-scroll">
+                <table id="abcAsignacion" class="abc-matrix"></table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== OBJETO DE COSTOS ==================== -->
+    <div class="tab-content" id="tab-objetos">
+        <div class="card">
+            <h2>🎯 Objetos de costo</h2>
+            <p class="abc-muted">Productos registrados en la tabla <b>productos</b>. Edite unidades, precio y materia prima directa por unidad.</p>
+            <div class="btn-group abc-actions">
+                <button class="btn btn-primary" onclick="abcAbrirProducto()">+ Agregar producto</button>
+                <button class="btn btn-warning" onclick="abcRestablecer()">↺ Restablecer datos de ejemplo</button>
+            </div>
+        </div>
+        <div id="abcObjetos"></div>
+        <div class="card">
+            <h2>⚖️ ABC vs. costeo tradicional</h2>
+            <p class="abc-muted">El costeo tradicional reparte todos los costos indirectos con una sola base (horas de MOD).</p>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Producto</th><th class="num">C. unit. tradicional</th><th class="num">C. unit. ABC</th><th class="num">Diferencia</th><th>Interpretación</th></tr></thead>
+                    <tbody id="abcComparativo"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-info">
+        <p>VSS S.A.C. © 2026 | RUC 20601234567</p>
+        <p>Sistema de Costeo Basado en Actividades · Soles peruanos · Supabase</p>
+    </div>
+</div>
+
+<!-- ==================== MODALES ==================== -->
+<div class="modal-overlay" id="modalRecurso">
+    <div class="modal">
+        <h2>💰 Nuevo recurso</h2>
+        <div class="form-group"><label>Código</label><input id="recCodigo"></div>
+        <div class="form-group"><label>Nombre</label><input id="recNombre" placeholder="Ej. Gas natural para calderos"></div>
+        <div class="form-group"><label>Categoría</label>
+            <select id="recCategoria">
+                <option value="CIF">CIF · Costos indirectos de fabricación</option>
+                <option value="GADM">G. Adm. · Gastos de administración</option>
+                <option value="GVTA">G. Ventas · Gastos de ventas</option>
+                <option value="MOD">MOD · Mano de obra directa</option>
+                <option value="MOI">MOI · Mano de obra indirecta</option>
+            </select></div>
+        <div class="form-group"><label>Monto mensual (S/)</label><input id="recMonto" type="number" step="0.01" min="0"></div>
+        <div class="form-group"><label>Centro de actividad inicial (100%)</label><select id="recCentro"></select></div>
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="abcGuardarRecurso()">Guardar</button>
+            <button class="btn" onclick="closeModal('modalRecurso')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalCentro">
+    <div class="modal">
+        <h2 id="cenTituloModal">🏢 Centro de actividad</h2>
+        <div class="form-group"><label>Código</label><input id="cenCodigo"></div>
+        <div class="form-group"><label>Nombre</label><input id="cenNombre" placeholder="Ej. Control de Producción"></div>
+        <div class="form-group"><label>Tipo (banda del mapa de procesos)</label>
+            <select id="cenTipo">
+                <option value="estrategico">Estratégico</option>
+                <option value="operativo">Operativo</option>
+                <option value="apoyo">Apoyo</option>
+            </select></div>
+        <div class="form-group"><label>Depende de (organigrama)</label><select id="cenPadre"></select></div>
+        <div class="form-group"><label>Responsable</label><input id="cenResponsable" list="cenCargos"><datalist id="cenCargos"></datalist></div>
+        <div class="form-group"><label>Funciones (MOF)</label><textarea id="cenFunciones" rows="4"></textarea></div>
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="abcGuardarCentroModal()">Guardar</button>
+            <button class="btn btn-danger" id="cenEliminar" onclick="abcEliminarCentroModal()">Eliminar</button>
+            <button class="btn" onclick="closeModal('modalCentro')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalActividad">
+    <div class="modal">
+        <h2>⚙️ Nueva actividad</h2>
+        <div class="form-group"><label>Centro de actividad</label><select id="actCentro"></select></div>
+        <div class="form-group"><label>Nombre de la actividad</label><input id="actNombre"></div>
+        <div class="form-group"><label>% del centro (inductor tipo 2)</label><input id="actPct" type="number" step="0.1" min="0" max="100"></div>
+        <div class="form-group"><label>Inductor tipo 3</label><select id="actInductor"></select></div>
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="abcGuardarActividadNueva()">Guardar</button>
+            <button class="btn" onclick="closeModal('modalActividad')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalInductor">
+    <div class="modal">
+        <h2>📏 Nuevo inductor tipo 3</h2>
+        <div class="form-group"><label>Código</label><input id="indCodigo"></div>
+        <div class="form-group"><label>Nombre</label><input id="indNombre" placeholder="Ej. Nº de cambios de formato"></div>
+        <div class="form-group"><label>Unidad</label><input id="indUnidad" placeholder="Ej. cambios"></div>
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="abcGuardarInductor()">Guardar</button>
+            <button class="btn" onclick="closeModal('modalInductor')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalProducto">
+    <div class="modal">
+        <h2>🎯 Agregar objeto de costo</h2>
+        <div class="form-group"><label>Producto</label>
+            <select id="prodExistente" onchange="abcToggleProductoNuevo()"></select></div>
+        <div id="prodNuevoCampos">
+            <div class="form-group"><label>Código</label><input id="prodCodigo"></div>
+            <div class="form-group"><label>Nombre</label><input id="prodNombre" placeholder="Ej. Agua San Luis 2.5 L"></div>
+            <div class="form-group"><label>Precio de venta (S/)</label><input id="prodPrecio" type="number" step="0.01" min="0"></div>
+        </div>
+        <div class="form-group"><label>Presentación</label><input id="prodPresentacion" placeholder="Ej. Botella PET 2.5 L"></div>
+        <div class="form-group"><label>Unidades producidas al mes</label><input id="prodUnidades" type="number" step="1" min="0"></div>
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="abcGuardarProducto()">Guardar</button>
+            <button class="btn" onclick="closeModal('modalProducto')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../sistema-ordenes/js/supabase-config.js"></script>
+<script src="../sistema-ordenes/js/db.js"></script>
+<script src="../sistema-ordenes/js/utils.js"></script>
+<script src="../sistema-ordenes/js/fab-menu.js"></script>
+<script src="js/abc-seed.js"></script>
+<script src="js/abc.js"></script>
 <script>
-    window.textCell = window.textCell || function(value) {
-        if (value === null || value === undefined) return '';
-        return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-    };
+    document.addEventListener('DOMContentLoaded', async function() {
+        if (!initSupabase()) { alert('❌ Error: No se pudo conectar con Supabase'); return; }
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+        await initCosteoABC();
+    });
 </script>
 
-<script src="../sistema-contable/js/fab-menu.js"></script>
-
+<script src="../aurora/aurora.js" defer></script>
 </body>
 </html>

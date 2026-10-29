@@ -409,7 +409,9 @@ body {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-radius: var(--radius-md);
-    overflow: hidden;
+    /* Barras de desplazamiento: con "hidden" se cortaban las columnas de la derecha y las filas de abajo */
+    overflow-x: auto;
+    overflow-y: auto;
 }
 
 table th {
