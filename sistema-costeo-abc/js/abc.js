@@ -19,13 +19,30 @@ const ABC_CATEGORIAS = {
     GVTA: 'Gastos de ventas'
 };
 
+// Jerarquía de costos según el inductor tipo 3 de la actividad
+const ABC_NIVELES = {
+    unidad:      'Unidad',
+    lote:        'Lote',
+    producto:    'Producto',
+    instalacion: 'Sostenimiento'
+};
+const ABC_NIVEL_INDUCTOR = {
+    'IND-UND': 'unidad', 'IND-LIT': 'unidad', 'IND-JAR': 'unidad', 'IND-CO2': 'unidad',
+    'IND-HMQ': 'unidad', 'IND-PAQ': 'unidad', 'IND-HMOD': 'unidad',
+    'IND-LOT': 'lote', 'IND-MUE': 'lote', 'IND-PAL': 'lote', 'IND-DES': 'lote', 'IND-PED': 'lote', 'IND-PAR': 'lote',
+    'IND-TRX': 'producto',
+    'IND-VTA': 'instalacion'
+};
+
 const ABC_SECCIONES = [
-    ['resumen',  '◉', 'Resumen ABC'],
-    ['centros',  '◈', 'Centros de Actividad'],
-    ['recursos', '▦', 'Recursos'],
-    ['ind1',     '①', 'Inductor tipo 1'],
-    ['ind2',     '②', 'Inductor tipo 2'],
-    ['ind3',     '③', 'Inductor tipo 3'],
+    ['resumen',     '◉', 'Resumen ABC'],
+    ['analisis',    '◇', 'Análisis y Estructura'],
+    ['centros',     '◈', 'Centros de Actividad'],
+    ['recursos',    '▦', 'Recursos'],
+    ['actividades', '⚙', 'Actividades'],
+    ['ind1',     '①', 'Recursos → Centros'],
+    ['ind2',     '②', 'Centros → Actividades'],
+    ['ind3',     '③', 'Actividades → Productos'],
     ['objetos',  '◎', 'Objeto de Costos']
 ];
 
@@ -270,7 +287,12 @@ function abcCalcular() {
         if (costo > 0 && !(total > 0)) avisos.push(`Actividad "${a.nombre}": su inductor no tiene consumo; S/ ${abcFmt(costo)} quedan sin asignar.`);
         const asignado = {};
         prods.forEach(p => { asignado[p.codigo] = tasa * abcConsumoDe(a.inductor_codigo, p.codigo); });
-        return { ...a, costo, totalInductor: total, tasa, asignado };
+        // Costo de la actividad según la categoría del recurso que lo originó (MOD, MOI, CIF, GADM, GVTA)
+        const costoCategoria = {};
+        Object.entries(centroPorCategoria[a.centro_codigo] || {}).forEach(([k, v]) => {
+            costoCategoria[k] = v * (Number(a.porcentaje) || 0) / 100;
+        });
+        return { ...a, costo, totalInductor: total, tasa, asignado, costoCategoria };
     });
 
     const productos = prods.map(p => {
@@ -278,17 +300,20 @@ function abcCalcular() {
             .reduce((s, m) => s + (Number(m.cantidad) || 0) * (Number(m.costo_unitario) || 0), 0);
         const mp = mpUnit * p.unidades;
         const porCentroTipo = { estrategico: 0, operativo: 0, apoyo: 0 };
+        const rubros = { MOD: 0, MOI: 0, CIF: 0, GADM: 0, GVTA: 0 };
         let indirecto = 0;
         actividades.forEach(a => {
             const v = a.asignado[p.codigo] || 0;
             indirecto += v;
             const c = abc.centros.find(x => x.codigo === a.centro_codigo);
             if (c) porCentroTipo[c.tipo] += v;
+            if (a.costo > 0) Object.entries(a.costoCategoria).forEach(([k, m]) => { rubros[k] = (rubros[k] || 0) + v * m / a.costo; });
         });
         const total = mp + indirecto;
         const ventas = p.unidades * p.precio;
+        const costoProduccion = mp + rubros.MOD + rubros.MOI + rubros.CIF;
         return {
-            ...p, mpUnit, mp, indirecto, porCentroTipo, total,
+            ...p, mpUnit, mp, indirecto, porCentroTipo, rubros, costoProduccion, gastosOperacion: rubros.GADM + rubros.GVTA, total,
             unitario: p.unidades > 0 ? total / p.unidades : 0,
             ventas, utilidad: ventas - total,
             margen: ventas > 0 ? (ventas - total) / ventas * 100 : 0
@@ -393,8 +418,10 @@ function abcRenderTodo() {
     abcGuardarResumenAurora();
     abcRenderAvisos();
     abcRenderResumen();
+    abcRenderAnalisis();
     abcRenderCentros();
     abcRenderRecursos();
+    abcRenderActividades();
     abcRenderInd1();
     abcRenderInd2();
     abcRenderInd3();
@@ -502,6 +529,161 @@ function abcRenderResumen() {
     }).join('');
 }
 
+// ---------- ANÁLISIS · ESTRUCTURA · PRINCIPALES CÁLCULOS ----------
+function abcRenderAnalisis() {
+    abcRenderConclusiones();
+    abcRenderEstructura();
+    abcRenderCalculos();
+}
+
+function abcRenderConclusiones() {
+    const c = abc.calc;
+    const prods = c.productos.filter(p => p.unidades > 0);
+    const pctDe = (v, t) => t > 0 ? v / t * 100 : 0;
+    const totalCosto = c.productos.reduce((s, p) => s + p.total, 0);
+    const totalVentas = c.productos.reduce((s, p) => s + p.ventas, 0);
+    const items = [];
+
+    const porTipo = Object.entries(ABC_TIPOS).map(([t, v]) =>
+        [v.nombre, abc.centros.filter(x => x.tipo === t).reduce((s, x) => s + (c.centroCosto[x.codigo] || 0), 0)]);
+    items.push(`Los recursos indirectos del período suman <b>${abcSoles(c.totalRecursos)}</b>, consumidos por centros ` +
+        porTipo.map(([n, v]) => `${n.toLowerCase()} (<b>${abcPct(pctDe(v, c.totalRecursos))}</b>)`).join(', ') + '.');
+
+    const topAct = c.actividades.slice().sort((a, b) => b.costo - a.costo).slice(0, 3);
+    if (topAct.length) {
+        const sumaTop = topAct.reduce((s, a) => s + a.costo, 0);
+        items.push(`Las actividades más costosas son ${topAct.map(a => `<b>${esc(a.nombre)}</b> (${abcSoles(a.costo, 0)})`).join(', ')}; ` +
+            `juntas concentran el <b>${abcPct(pctDe(sumaTop, c.totalRecursos))}</b> de los recursos indirectos.`);
+    }
+
+    if (totalCosto > 0) {
+        items.push(`La materia prima directa representa el <b>${abcPct(pctDe(c.totalMP, totalCosto))}</b> del costo total de los productos ` +
+            `y los costos asignados por actividades el <b>${abcPct(pctDe(c.totalAsignado, totalCosto))}</b>.`);
+    }
+
+    if (prods.length) {
+        const porUnit = prods.slice().sort((a, b) => b.unitario - a.unitario);
+        const porMargen = prods.slice().sort((a, b) => b.margen - a.margen);
+        const ultimo = arr => arr[arr.length - 1];
+        items.push(`Mayor costo unitario: <b>${esc(porUnit[0].nombre)}</b> (${abcSoles(porUnit[0].unitario, 4)}); ` +
+            `menor: <b>${esc(ultimo(porUnit).nombre)}</b> (${abcSoles(ultimo(porUnit).unitario, 4)}).`);
+        items.push(`Producto más rentable: <b>${esc(porMargen[0].nombre)}</b> con margen de ${abcPct(porMargen[0].margen)}; ` +
+            `el menos rentable es <b>${esc(ultimo(porMargen).nombre)}</b> con ${abcPct(ultimo(porMargen).margen)}.`);
+
+        const perdida = prods.filter(p => p.margen < 0);
+        if (perdida.length) items.push(`<span class="abc-neg">Productos con pérdida:</span> ${perdida.map(p => esc(p.nombre)).join(', ')}. ` +
+            'Conviene revisar su precio o reducir las actividades que consumen.');
+
+        const dist = prods.filter(p => p.tradUnitario > 0)
+            .map(p => ({ p, dif: p.unitario - p.tradUnitario, rel: (p.unitario - p.tradUnitario) / p.tradUnitario * 100 }))
+            .sort((a, b) => Math.abs(b.rel) - Math.abs(a.rel))[0];
+        if (dist && Math.abs(dist.dif) > 0.0001) {
+            items.push(`Frente al costeo tradicional (una sola base: horas MOD), la mayor distorsión está en <b>${esc(dist.p.nombre)}</b>: ` +
+                `el método tradicional lo ${dist.dif > 0 ? '<b>subcosteaba</b>' : '<b>sobrecosteaba</b>'} en ${abcSoles(Math.abs(dist.dif), 4)} ` +
+                `por unidad (${abcPct(Math.abs(dist.rel))}).`);
+        }
+    }
+
+    const sinAsignar = c.totalRecursos - c.totalAsignado;
+    items.push(Math.abs(sinAsignar) > 0.5
+        ? `<span class="abc-neg">Quedan ${abcSoles(sinAsignar)} sin asignar</span> a los productos; revise los avisos de distribución del Resumen.`
+        : `El 100% de los recursos indirectos (${abcSoles(c.totalAsignado)}) quedó asignado a los objetos de costo.`);
+
+    if (totalVentas > 0) {
+        items.push(`Ventas del período: <b>${abcSoles(totalVentas)}</b> · utilidad: <b>${abcSoles(totalVentas - totalCosto)}</b> ` +
+            `(margen ${abcPct(pctDe(totalVentas - totalCosto, totalVentas))}).`);
+    }
+
+    document.getElementById('abcAnalisis').innerHTML = `<ol class="abc-analisis">${items.map(i => `<li>${i}</li>`).join('')}</ol>`;
+}
+
+function abcRenderEstructura() {
+    const n = t => abc.centros.filter(x => x.tipo === t).length;
+    const filas = [
+        ['0 · Datos base', 'Planilla del período', 'planillas', abc.planillas.filter(p => p.periodo === abc.periodo).length,
+            'Costo empleador de cada trabajador → recursos MOD, MOI y gastos', 'recursos'],
+        ['0 · Datos base', 'Productos', 'productos', abc.productos.length, 'Código, nombre y precio de venta', 'objetos'],
+        ['1 · Recursos', 'Recursos indirectos', 'abc_recursos', abc.recursos.length, 'Planilla + CIF, gastos de administración y de ventas', 'recursos'],
+        ['1 · Recursos', 'Materia prima directa', 'abc_materiales', abc.materiales.length, 'Lista de materiales por unidad (costo directo)', 'objetos'],
+        ['2 · Inductor tipo 1', 'Recurso → centro', 'abc_inductor1', abc.inductor1.length, '% de cada recurso que consume cada centro', 'ind1'],
+        ['3 · Centros de actividad', 'Centros de costo', 'abc_centros', abc.centros.length,
+            `${n('estrategico')} estratégicos, ${n('operativo')} operativos y ${n('apoyo')} de apoyo`, 'centros'],
+        ['3 · Centros de actividad', 'Puestos del organigrama', 'abc_organigrama', abc.organigrama.length, 'Cargos de la planilla ubicados en cada centro', 'centros'],
+        ['4 · Inductor tipo 2', 'Actividades', 'abc_actividades', abc.actividades.length, '% del costo del centro que consume cada actividad', 'actividades'],
+        ['5 · Inductor tipo 3', 'Inductores de actividad', 'abc_inductores', abc.inductores.length, 'Bases de asignación actividad → producto', 'ind3'],
+        ['5 · Inductor tipo 3', 'Consumo de inductores', 'abc_consumo', abc.consumo.length, 'Cantidad de cada inductor que consume cada producto', 'ind3'],
+        ['6 · Objetos de costo', 'Productos costeados', 'abc_objetos_costo', abc.objetos.length, 'Unidades producidas al mes y presentación', 'objetos']
+    ];
+    const seccion = id => (ABC_SECCIONES.find(s => s[0] === id) || [])[2] || id;
+    document.getElementById('abcEstructura').innerHTML = filas.map(([etapa, elem, tabla, cant, desc, tab]) => `
+        <tr>
+            <td><strong>${etapa}</strong></td>
+            <td>${elem}</td>
+            <td><code>${tabla}</code></td>
+            <td class="num">${abcFmt(cant, 0)}</td>
+            <td class="abc-muted">${desc}</td>
+            <td><button class="btn btn-sm" onclick="abcMostrarTab('${tab}')">${seccion(tab)} →</button></td>
+        </tr>`).join('');
+}
+
+function abcRenderCalculos() {
+    const c = abc.calc;
+    const el = document.getElementById('abcCalculos');
+    const act = c.actividades.filter(a => a.costo > 0 && a.totalInductor > 0).sort((a, b) => b.costo - a.costo)[0];
+    if (!act) { el.innerHTML = '<p class="abc-muted">Aún no hay datos suficientes para mostrar un ejemplo.</p>'; return; }
+
+    const centro = abc.centros.find(x => x.codigo === act.centro_codigo) || { nombre: act.centro_codigo };
+    const costoCentro = c.centroCosto[act.centro_codigo] || 0;
+    const aportes = c.recursos.map(r => {
+        const pct = abcPctRecurso(r.codigo, act.centro_codigo);
+        return { r, pct, v: r.montoCalc * pct / 100 };
+    }).filter(x => x.v > 0).sort((a, b) => b.v - a.v);
+    const rec = aportes[0];
+    const ind = abc.inductores.find(i => i.codigo === act.inductor_codigo) || { nombre: act.inductor_codigo, unidad: '' };
+    const prod = c.productos.filter(p => (act.asignado[p.codigo] || 0) > 0).sort((a, b) => b.unidades - a.unidades)[0] || c.productos[0];
+    const consumo = abcConsumoDe(act.inductor_codigo, prod.codigo);
+    const baseTrad = c.productos.reduce((s, p) => s + abcConsumoDe('IND-HMOD', p.codigo), 0);
+    const hmodProd = abcConsumoDe('IND-HMOD', prod.codigo);
+
+    const paso = (num, titulo, formula, ejemplo) => `
+        <div class="abc-calc-step">
+            <div class="abc-calc-num">${num}</div>
+            <div class="abc-calc-body">
+                <h3>${titulo}</h3>
+                <div class="abc-formula">${formula}</div>
+                <div class="abc-ejemplo">${ejemplo}</div>
+            </div>
+        </div>`;
+
+    el.innerHTML = [
+        paso(1, 'Monto de cada recurso',
+            'Recurso de planilla = Σ costo total empleador del cargo · Recurso de gasto = monto mensual registrado',
+            rec ? `${esc(rec.r.nombre)} (${rec.r.categoria}) = <b>${abcSoles(rec.r.montoCalc)}</b> en ${abcNombreMes(abc.periodo)}.` : '—'),
+        paso(2, 'Inductor tipo 1 · Costo del centro de actividad',
+            'Costo del centro<sub>j</sub> = Σ<sub>i</sub> ( Recurso<sub>i</sub> × %<sub>i→j</sub> )',
+            rec ? `${esc(rec.r.nombre)}: ${abcSoles(rec.r.montoCalc)} × ${abcPct(rec.pct)} = <b>${abcSoles(rec.v)}</b> hacia ${esc(centro.nombre)}.<br>
+                   Sumando los ${aportes.length} recursos que consume, <b>${esc(centro.nombre)}</b> acumula <b>${abcSoles(costoCentro)}</b>.` : '—'),
+        paso(3, 'Inductor tipo 2 · Costo de la actividad',
+            'Costo de la actividad<sub>k</sub> = Costo del centro<sub>j</sub> × %<sub>j→k</sub>',
+            `${esc(act.nombre)}: ${abcSoles(costoCentro)} × ${abcPct(act.porcentaje)} = <b>${abcSoles(act.costo)}</b>.`),
+        paso(4, 'Inductor tipo 3 · Tasa de la actividad',
+            'Tasa<sub>k</sub> = Costo de la actividad<sub>k</sub> ÷ Total del inductor consumido por todos los productos',
+            `${abcSoles(act.costo)} ÷ ${abcFmt(act.totalInductor, 0)} ${esc(ind.unidad)} (${esc(ind.nombre)}) = <b>${abcSoles(act.tasa, 4)} por ${esc(ind.unidad)}</b>.`),
+        paso(5, 'Asignación de la actividad al objeto de costo',
+            'Costo asignado<sub>k,p</sub> = Tasa<sub>k</sub> × Consumo del inductor por el producto<sub>p</sub>',
+            `${esc(prod.nombre)}: ${abcSoles(act.tasa, 4)} × ${abcFmt(consumo, 0)} ${esc(ind.unidad)} = <b>${abcSoles(act.asignado[prod.codigo] || 0)}</b>.`),
+        paso(6, 'Costo total, unitario y margen del producto',
+            'Costo total = MP directa + Σ actividades asignadas · Costo unitario = Costo total ÷ Unidades · Margen = (Ventas − Costo) ÷ Ventas',
+            `${esc(prod.nombre)}: ${abcSoles(prod.mp)} + ${abcSoles(prod.indirecto)} = <b>${abcSoles(prod.total)}</b> ÷ ${abcFmt(prod.unidades, 0)} und =
+             <b>${abcSoles(prod.unitario, 4)}</b> por unidad · margen <b>${abcPct(prod.margen)}</b>.`),
+        paso(7, 'Comparativo · costeo tradicional',
+            'Tasa única = Total de recursos indirectos ÷ Total de horas MOD · Indirecto del producto = Tasa única × Horas MOD del producto',
+            baseTrad > 0 ? `${abcSoles(c.totalRecursos)} ÷ ${abcFmt(baseTrad, 0)} h-h = ${abcSoles(c.totalRecursos / baseTrad, 4)} por h-h ·
+                ${esc(prod.nombre)}: × ${abcFmt(hmodProd, 0)} h-h + MP = <b>${abcSoles(prod.tradUnitario, 4)}</b> por unidad
+                (ABC: ${abcSoles(prod.unitario, 4)}).` : 'No hay consumo de horas MOD registrado.')
+    ].join('');
+}
+
 // ---------- CENTROS: Mapa de procesos · Organigrama · MOF ----------
 function abcCentrosOrdenados() {
     return abc.centros.slice().sort((a, b) => (a.orden || 0) - (b.orden || 0));
@@ -574,6 +756,79 @@ function abcRenderCentros() {
             <td>${abc.actividades.filter(a => a.centro_codigo === x.codigo).map(a => esc(a.nombre)).join('<br>')}</td>
             <td><button class="abc-icon-btn" title="Editar" onclick="abcAbrirCentro('${esc(x.codigo)}')">✏️</button></td>
         </tr>`).join('');
+
+    // Tabla de centros de costos
+    const totalCentros = Object.values(c.centroCosto).reduce((s, v) => s + v, 0);
+    document.getElementById('abcCentrosTabla').innerHTML = abcCentrosOrdenados().map(x => {
+        const costo = c.centroCosto[x.codigo] || 0;
+        const nRec = c.recursos.filter(r => r.montoCalc > 0 && abcPctRecurso(r.codigo, x.codigo) > 0).length;
+        return `<tr>
+            <td><strong>${esc(x.codigo)}</strong></td>
+            <td>${esc(x.nombre)}</td>
+            <td><span class="abc-tag abc-tag-${x.tipo}">${ABC_TIPOS[x.tipo] ? ABC_TIPOS[x.tipo].nombre : esc(x.tipo)}</span></td>
+            <td>${esc(x.responsable || '')}</td>
+            <td class="num">${nRec}</td>
+            <td class="num">${abc.actividades.filter(a => a.centro_codigo === x.codigo).length}</td>
+            <td class="num"><strong>${abcSoles(costo)}</strong></td>
+            <td class="num">${abcPct(totalCentros ? costo / totalCentros * 100 : 0)}</td>
+        </tr>`;
+    }).join('') + `<tr class="abc-total"><td colspan="5">TOTAL CENTROS DE COSTOS</td>
+        <td class="num">${abc.actividades.length}</td><td class="num">${abcSoles(totalCentros)}</td><td class="num">${abcPct(totalCentros ? 100 : 0)}</td></tr>`;
+}
+
+// ---------- ACTIVIDADES ----------
+function abcRenderActividades() {
+    const c = abc.calc;
+    const total = c.actividades.reduce((s, a) => s + a.costo, 0);
+    const nivelDe = a => ABC_NIVEL_INDUCTOR[a.inductor_codigo];
+
+    document.getElementById('abcActividadesTabla').innerHTML = c.actividades.map(a => {
+        const centro = abc.centros.find(x => x.codigo === a.centro_codigo) || {};
+        const i = abc.inductores.find(x => x.codigo === a.inductor_codigo) || { nombre: '—', unidad: '' };
+        const nivel = nivelDe(a);
+        return `<tr>
+            <td>${esc(a.codigo)}</td>
+            <td><strong>${esc(a.nombre)}</strong></td>
+            <td><span class="abc-tag abc-tag-${centro.tipo}">${esc(centro.nombre || a.centro_codigo)}</span></td>
+            <td>${nivel ? `<span class="abc-nivel abc-nivel-${nivel}">${ABC_NIVELES[nivel]}</span>` : '<span class="abc-muted">—</span>'}</td>
+            <td class="num">${abcPct(a.porcentaje)}</td>
+            <td class="num"><strong>${abcSoles(a.costo)}</strong></td>
+            <td class="num">${abcPct(total ? a.costo / total * 100 : 0)}</td>
+            <td>${esc(i.nombre)}</td>
+            <td class="num">${abcSoles(a.tasa, 4)} <small class="abc-muted">/ ${esc(i.unidad)}</small></td>
+        </tr>`;
+    }).join('') + `<tr class="abc-total"><td colspan="5">TOTAL ACTIVIDADES (${c.actividades.length})</td>
+        <td class="num">${abcSoles(total)}</td><td class="num">${abcPct(total ? 100 : 0)}</td><td colspan="2"></td></tr>`;
+
+    const top = c.actividades.slice().sort((a, b) => b.costo - a.costo).slice(0, 8);
+    const max = Math.max(1, ...top.map(a => a.costo));
+    const porNivel = {};
+    c.actividades.forEach(a => { const n = nivelDe(a) || 'otro'; porNivel[n] = (porNivel[n] || 0) + a.costo; });
+
+    document.getElementById('abcActividadesRanking').innerHTML = `
+        <div class="overview-grid">
+            <div>
+                <h3 class="abc-subtitle">Top ${top.length} por costo</h3>
+                <table class="abc-mini">
+                    <tbody>${top.map(a => `<tr>
+                        <td>${esc(a.nombre)}</td>
+                        <td class="abc-bar-cell"><div class="abc-stack"><span class="seg-op" style="width:${(a.costo / max * 100).toFixed(2)}%"></span></div></td>
+                        <td class="num">${abcSoles(a.costo, 0)}</td>
+                    </tr>`).join('')}</tbody>
+                </table>
+            </div>
+            <div>
+                <h3 class="abc-subtitle">Costo por nivel de jerarquía</h3>
+                <table class="abc-mini">
+                    <thead><tr><th>Nivel</th><th class="num">Costo</th><th class="num">%</th></tr></thead>
+                    <tbody>${Object.entries(porNivel).sort((a, b) => b[1] - a[1]).map(([n, v]) => `<tr>
+                        <td>${ABC_NIVELES[n] ? `<span class="abc-nivel abc-nivel-${n}">${ABC_NIVELES[n]}</span>` : 'Sin clasificar'}</td>
+                        <td class="num">${abcSoles(v)}</td>
+                        <td class="num">${abcPct(total ? v / total * 100 : 0)}</td>
+                    </tr>`).join('')}</tbody>
+                </table>
+            </div>
+        </div>`;
 }
 
 function abcRenderOrganigrama() {
@@ -816,7 +1071,7 @@ function abcGuardarCentroModal() {
         }
         const g = await abcGuardarFilaCentro(x);
         if (g && g.id) x.id = g.id;
-        showAlert(editando ? '✅ Centro actualizado' : '✅ Centro creado. Agregue sus actividades en Inductor tipo 2 y su distribución en Inductor tipo 1.', 'success');
+        showAlert(editando ? '✅ Centro actualizado' : '✅ Centro creado. Agregue sus actividades en "Centros → Actividades" y su distribución en "Recursos → Centros".', 'success');
     });
 }
 
@@ -999,8 +1254,41 @@ function abcRenderInd3() {
 }
 
 // ---------- OBJETO DE COSTOS ----------
+function abcRenderRubros() {
+    const prods = abc.calc.productos;
+    const fila = (titulo, fn, clase = '', dec = 2) => `<tr class="${clase}">
+        <td class="abc-sticky">${titulo}</td>
+        ${prods.map(p => `<td class="num">${abcFmt(fn(p), dec)}</td>`).join('')}
+        <td class="num">${dec === 2 ? abcFmt(prods.reduce((s, p) => s + fn(p), 0)) : ''}</td>
+    </tr>`;
+    const unit = (p, v) => p.unidades > 0 ? v / p.unidades : 0;
+    document.getElementById('abcRubros').innerHTML = `
+        <thead><tr><th class="abc-sticky">Rubro</th>${prods.map(p => `<th class="num">${esc(p.nombre)}</th>`).join('')}<th class="num">Total</th></tr></thead>
+        <tbody>
+            ${fila('Materia prima directa', p => p.mp)}
+            ${fila('Mano de obra directa (MOD)', p => p.rubros.MOD)}
+            ${fila('Mano de obra indirecta (MOI)', p => p.rubros.MOI)}
+            ${fila('Costos indirectos de fabricación (CIF)', p => p.rubros.CIF)}
+            ${fila('COSTO DE PRODUCCIÓN', p => p.costoProduccion, 'abc-total')}
+            ${fila('Gastos de administración', p => p.rubros.GADM)}
+            ${fila('Gastos de ventas', p => p.rubros.GVTA)}
+            ${fila('GASTOS DE OPERACIÓN', p => p.gastosOperacion, 'abc-total')}
+            ${fila('COSTO TOTAL', p => p.total, 'abc-total')}
+            ${fila('Ventas', p => p.ventas)}
+            ${fila('UTILIDAD', p => p.utilidad, 'abc-total')}
+            <tr class="abc-group"><td class="abc-sticky" colspan="${prods.length + 2}">Por unidad</td></tr>
+            ${fila('Unidades producidas', p => p.unidades, '', 0)}
+            ${fila('Costo de producción unitario', p => unit(p, p.costoProduccion), '', 4)}
+            ${fila('Gasto de operación unitario', p => unit(p, p.gastosOperacion), '', 4)}
+            ${fila('Costo total unitario', p => p.unitario, 'abc-total', 4)}
+            ${fila('Precio de venta', p => p.precio, '', 4)}
+            ${fila('Margen %', p => p.margen, '', 1)}
+        </tbody>`;
+}
+
 function abcRenderObjetos() {
     const c = abc.calc;
+    abcRenderRubros();
     document.getElementById('abcObjetos').innerHTML = c.productos.map(p => {
         const mats = abc.materiales.filter(m => m.producto_codigo === p.codigo);
         return `
@@ -1228,7 +1516,7 @@ function abcGuardarRecurso() {
         abc.recursos.push(g || rec);
         const [g2] = await abcInsertar('abc_inductor1', [dist]);
         abc.inductor1.push(g2 || dist);
-        showAlert('✅ Recurso registrado. Ajuste su distribución en Inductor tipo 1.', 'success');
+        showAlert('✅ Recurso registrado. Ajuste su distribución en "Recursos → Centros".', 'success');
     });
 }
 

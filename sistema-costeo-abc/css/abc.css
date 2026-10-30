@@ -225,6 +225,31 @@
 .abc-prod-kpis small { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .4px; }
 .abc-prod-kpis b { font-size: 16px; }
 
+/* ==================== ANÁLISIS · CÁLCULOS ==================== */
+.abc-analisis { margin: 0; padding-left: 22px; line-height: 1.6; font-size: 14px; }
+.abc-analisis li { padding: 6px 0; border-bottom: 1px dashed #eee; }
+.abc-analisis li:last-child { border-bottom: 0; }
+.abc-calc-step { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px dashed #e5e5e5; }
+.abc-calc-step:last-child { border-bottom: 0; }
+.abc-calc-num {
+    flex: 0 0 32px; height: 32px; border-radius: 50%; background: var(--abc-ope); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-weight: 800;
+}
+.abc-calc-body { min-width: 0; flex: 1; }
+.abc-calc-body h3 { font-size: 15px; margin: 4px 0 8px; color: #2B2B2B; }
+.abc-formula {
+    background: #f7f7f9; border-left: 4px solid var(--abc-mp); border-radius: 6px; padding: 8px 12px;
+    font-family: Consolas, 'Courier New', monospace; font-size: 13px; color: #1f2937; overflow-wrap: anywhere;
+}
+.abc-ejemplo { margin-top: 8px; font-size: 13px; color: #374151; line-height: 1.6; }
+
+/* Nivel de jerarquía de la actividad */
+.abc-nivel { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.abc-nivel-unidad      { background: #e8f0fb; color: var(--abc-mp); }
+.abc-nivel-lote        { background: #fff1e5; color: #b45309; }
+.abc-nivel-producto    { background: #e3f4f1; color: var(--abc-apo); }
+.abc-nivel-instalacion { background: #f1eafe; color: var(--abc-est); }
+
 @media (max-width: 1100px) {
     .abc-flow { grid-template-columns: 1fr; gap: 0; }
     .abc-arrow { height: 64px; }

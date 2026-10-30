@@ -29,11 +29,13 @@
 
 <div class="sub-nav">
     <button data-tab="resumen">📊 Resumen</button>
+    <button data-tab="analisis">🧠 Análisis y Estructura</button>
     <button data-tab="centros">🏢 Centros de Actividad</button>
     <button data-tab="recursos">💰 Recursos</button>
-    <button data-tab="ind1">① Inductor tipo 1</button>
-    <button data-tab="ind2">② Inductor tipo 2</button>
-    <button data-tab="ind3">③ Inductor tipo 3</button>
+    <button data-tab="actividades">⚙️ Actividades</button>
+    <button data-tab="ind1" title="Inductor tipo 1">① Recursos → Centros</button>
+    <button data-tab="ind2" title="Inductor tipo 2">② Centros → Actividades</button>
+    <button data-tab="ind3" title="Inductor tipo 3">③ Actividades → Productos</button>
     <button data-tab="objetos">🎯 Objeto de Costos</button>
 </div>
 
@@ -79,6 +81,30 @@
         </div>
     </div>
 
+    <!-- ==================== ANÁLISIS Y ESTRUCTURA ==================== -->
+    <div class="tab-content" id="tab-analisis">
+        <div class="card">
+            <h2>🧠 Análisis de resultados</h2>
+            <p class="abc-muted">Conclusiones generadas automáticamente con los datos del período seleccionado.</p>
+            <div id="abcAnalisis"></div>
+        </div>
+        <div class="card">
+            <h2>🏗️ Estructura del sistema</h2>
+            <p class="abc-muted">Etapas del modelo ABC, tablas de Supabase que las almacenan y fuente de cada dato.</p>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Etapa</th><th>Elemento</th><th>Tabla en Supabase</th><th class="num">Registros</th><th>Fuente / descripción</th><th>Módulo</th></tr></thead>
+                    <tbody id="abcEstructura"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card">
+            <h2>🧮 Principales cálculos</h2>
+            <p class="abc-muted">Fórmulas del costeo ABC con un ejemplo resuelto tomado de los datos actuales.</p>
+            <div id="abcCalculos"></div>
+        </div>
+    </div>
+
     <!-- ==================== CENTROS DE ACTIVIDAD ==================== -->
     <div class="tab-content" id="tab-centros">
         <div class="card">
@@ -98,6 +124,20 @@
                 <table>
                     <thead><tr><th>Código</th><th>Centro de actividad</th><th>Tipo</th><th>Responsable</th><th>Funciones</th><th>Actividades</th><th></th></tr></thead>
                     <tbody id="abcMof"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card">
+            <h2>④ Tabla de centros de costos</h2>
+            <p class="abc-muted">Costo acumulado de cada centro (recursos × inductor tipo 1) y su participación en el total.</p>
+            <div class="btn-group abc-actions">
+                <button class="btn" onclick="abcExportarCSV('abcCentrosTabla','centros-costos')">📥 Exportar CSV</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Código</th><th>Centro de costo</th><th>Tipo</th><th>Responsable</th><th class="num">Recursos</th>
+                        <th class="num">Actividades</th><th class="num">Costo S/</th><th class="num">% del total</th></tr></thead>
+                    <tbody id="abcCentrosTabla"></tbody>
                 </table>
             </div>
         </div>
@@ -130,10 +170,34 @@
         </div>
     </div>
 
+    <!-- ==================== ACTIVIDADES ==================== -->
+    <div class="tab-content" id="tab-actividades">
+        <div class="card">
+            <h2>⚙️ Catálogo de actividades</h2>
+            <p class="abc-muted">Cada actividad recibe un % del costo de su centro (inductor tipo 2) y se asigna a los productos con su inductor tipo 3.
+               El nivel indica la jerarquía de costos: unidad, lote, producto o sostenimiento de la empresa.</p>
+            <div class="btn-group abc-actions">
+                <button class="btn btn-primary" onclick="abcAbrirActividad()">+ Nueva actividad</button>
+                <button class="btn" onclick="abcExportarCSV('abcActividadesTabla','actividades-abc')">📥 Exportar CSV</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Código</th><th>Actividad</th><th>Centro</th><th>Nivel</th><th class="num">% centro</th>
+                        <th class="num">Costo S/</th><th class="num">% del total</th><th>Inductor tipo 3</th><th class="num">Tasa</th></tr></thead>
+                    <tbody id="abcActividadesTabla"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card">
+            <h2>🏆 Actividades de mayor costo</h2>
+            <div id="abcActividadesRanking"></div>
+        </div>
+    </div>
+
     <!-- ==================== INDUCTOR TIPO 1 ==================== -->
     <div class="tab-content" id="tab-ind1">
         <div class="card">
-            <h2>① Inductor tipo 1 · Recursos → Centros de actividad (% = tasa)</h2>
+            <h2>① Recursos → Centros de actividad <small class="abc-muted">· inductor tipo 1 (% = tasa)</small></h2>
             <p class="abc-muted">Indique qué % de cada recurso consume cada centro. Cada fila debe sumar 100%. Los cambios se guardan al salir de la celda.</p>
             <div class="btn-group abc-actions">
                 <button class="btn" onclick="abcExportarCSV('abcInd1Tabla','inductor-tipo-1')">📥 Exportar CSV</button>
@@ -156,7 +220,7 @@
     <!-- ==================== INDUCTOR TIPO 2 ==================== -->
     <div class="tab-content" id="tab-ind2">
         <div class="card">
-            <h2>② Inductor tipo 2 · Centros de actividad → Actividades</h2>
+            <h2>② Centros de actividad → Actividades <small class="abc-muted">· inductor tipo 2</small></h2>
             <p class="abc-muted">Distribuya el costo de cada centro entre sus actividades (cada centro debe sumar 100%) y elija el inductor tipo 3 de cada actividad.</p>
             <div id="abcInd2"></div>
         </div>
@@ -165,7 +229,7 @@
     <!-- ==================== INDUCTOR TIPO 3 ==================== -->
     <div class="tab-content" id="tab-ind3">
         <div class="card">
-            <h2>③ Inductor tipo 3 · Tasa por actividad</h2>
+            <h2>③ Actividades → Productos · Tasa por actividad <small class="abc-muted">· inductor tipo 3</small></h2>
             <p class="abc-muted">Tasa = costo de la actividad ÷ total del inductor consumido por todos los productos.</p>
             <div class="table-container">
                 <table>
@@ -202,6 +266,17 @@
             <div class="btn-group abc-actions">
                 <button class="btn btn-primary" onclick="abcAbrirProducto()">+ Agregar producto</button>
                 <button class="btn btn-warning" onclick="abcRestablecer()">↺ Restablecer datos de ejemplo</button>
+            </div>
+        </div>
+        <div class="card">
+            <h2>📊 Rubros de costo por objeto de costo</h2>
+            <p class="abc-muted">El costo ABC de cada producto se separa según el origen del recurso: costo de producción (MP + MOD + MOI + CIF)
+               y gastos de operación (administración y ventas).</p>
+            <div class="btn-group abc-actions">
+                <button class="btn" onclick="abcExportarCSV('abcRubros','rubros-objetos-costo')">📥 Exportar CSV</button>
+            </div>
+            <div class="table-container abc-scroll">
+                <table id="abcRubros" class="abc-matrix"></table>
             </div>
         </div>
         <div id="abcObjetos"></div>
