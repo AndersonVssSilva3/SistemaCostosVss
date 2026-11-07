@@ -1,6 +1,7 @@
 -- =====================================================================
 -- SISTEMA DE COSTEO BASADO EN ACTIVIDADES (ABC) · VSS S.A.C.
--- Ejecutar UNA VEZ en Supabase → SQL Editor → New query → Run.
+-- Ejecutar en Supabase → SQL Editor → New query → Run (se puede volver a
+-- ejecutar sin perder datos: solo crea lo que falta, p. ej. las tablas 10-13).
 -- Al abrir sistema-costeo-abc/index.html las tablas vacías se llenan
 -- automáticamente con los datos de ejemplo (productos, gastos, inductores).
 --
@@ -107,13 +108,59 @@ create table if not exists abc_organigrama (
     created_at    timestamptz default now()
 );
 
+-- 10. Etapas de reparto adicionales (modelo de 5 etapas como mínimo, se pueden agregar más)
+--     nivel 'centro'    → se aplica entre "Recursos → Centros" y "Centros → Actividades"
+--     nivel 'actividad' → se aplica entre "Centros → Actividades" y "Actividades → Productos"
+create table if not exists abc_etapas (
+    id          bigserial primary key,
+    codigo      text unique not null,
+    nombre      text not null,
+    nivel       text not null check (nivel in ('centro', 'actividad')),
+    orden       int default 0,
+    descripcion text,
+    created_at  timestamptz default now()
+);
+
+-- 11. Distribución de cada etapa: % del costo del origen que pasa a cada destino
+create table if not exists abc_etapa_dist (
+    id           bigserial primary key,
+    etapa_codigo text not null references abc_etapas (codigo) on delete cascade on update cascade,
+    origen       text not null,   -- código de centro o de actividad (según el nivel de la etapa)
+    destino      text not null,
+    porcentaje   numeric(7, 3) not null default 0,
+    created_at   timestamptz default now(),
+    unique (etapa_codigo, origen, destino)
+);
+
+-- 12. Presupuesto mensual por centro o actividad y umbral de alerta (%)
+create table if not exists abc_presupuestos (
+    id         bigserial primary key,
+    tipo       text not null check (tipo in ('centro', 'actividad')),
+    codigo     text not null,
+    monto      numeric(14, 2) not null default 0,
+    umbral     numeric(6, 2) not null default 80,   -- % del presupuesto a partir del cual se alerta
+    created_at timestamptz default now(),
+    unique (tipo, codigo)
+);
+
+-- 13. Monto de un recurso manual en un mes específico (si no existe se usa abc_recursos.monto)
+create table if not exists abc_recursos_mes (
+    id             bigserial primary key,
+    recurso_codigo text not null references abc_recursos (codigo) on delete cascade on update cascade,
+    periodo        text not null,   -- 'YYYY-MM'
+    monto          numeric(14, 2) not null default 0,
+    created_at     timestamptz default now(),
+    unique (recurso_codigo, periodo)
+);
+
 -- Acceso desde la aplicación (misma política abierta que el resto de tablas del sistema)
 do $$
 declare t text;
 begin
     foreach t in array array['abc_centros', 'abc_recursos', 'abc_inductor1', 'abc_inductores',
                              'abc_actividades', 'abc_objetos_costo', 'abc_consumo', 'abc_materiales',
-                             'abc_organigrama']
+                             'abc_organigrama', 'abc_etapas', 'abc_etapa_dist', 'abc_presupuestos',
+                             'abc_recursos_mes']
     loop
         execute format('alter table %I enable row level security', t);
         execute format('drop policy if exists %I on %I', t || '_acceso', t);

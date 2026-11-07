@@ -262,3 +262,31 @@ function abcConstruirSemilla(planillas) {
 
     return { centros, recursos, inductor1, inductores, actividades, objetos, consumo, materiales, organigrama };
 }
+
+// -------- Etapas de reparto adicionales (modelo ABC de 5 etapas como mínimo) --------
+// Etapas fijas: ① Recursos → Centros · Centros → Actividades · Actividades → Productos.
+// Las etapas de nivel "centro" se aplican después del reparto de recursos y las de nivel
+// "actividad" después de asignar el costo de los centros a sus actividades.
+// En cada etapa, el origen envía el % indicado a cada destino y retiene el resto.
+const ABC_SEED_ETAPAS = [
+    { codigo: 'ET-01', nivel: 'centro', orden: 1, nombre: 'Centros de apoyo → Centros',
+      descripcion: 'Reparto secundario: los centros de apoyo (TI, RRHH) trasladan parte de su costo a los centros que atienden.',
+      dist: {
+          'CA-TI':   { 'CA-CONT': 15, 'CA-GER': 10, 'CA-COM': 10, 'CA-ALM': 10, 'CA-RRHH': 5, 'CA-EMB': 10 },
+          'CA-RRHH': { 'CA-EMB': 20, 'CA-AGU': 5, 'CA-MEZ': 5, 'CA-ALM': 10, 'CA-CAL': 5, 'CA-COM': 5 }
+      } },
+    { codigo: 'ET-02', nivel: 'actividad', orden: 1, nombre: 'Actividades de apoyo → Actividades principales',
+      descripcion: 'Las actividades de mantenimiento trasladan su costo a las actividades productivas a las que dan servicio.',
+      dist: {
+          'ACT-21': { 'ACT-10': 50, 'ACT-09': 30, 'ACT-06': 20 },
+          'ACT-22': { 'ACT-10': 60, 'ACT-09': 40 }
+      } }
+];
+
+function abcConstruirSemillaEtapas() {
+    const etapas = ABC_SEED_ETAPAS.map(e => ({ codigo: e.codigo, nombre: e.nombre, nivel: e.nivel, orden: e.orden, descripcion: e.descripcion }));
+    const dist = [];
+    ABC_SEED_ETAPAS.forEach(e => Object.entries(e.dist).forEach(([origen, destinos]) =>
+        Object.entries(destinos).forEach(([destino, porcentaje]) => dist.push({ etapa_codigo: e.codigo, origen, destino, porcentaje }))));
+    return { etapas, dist };
+}
