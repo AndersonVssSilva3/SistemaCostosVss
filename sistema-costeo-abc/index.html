@@ -12,6 +12,14 @@
     <link rel="stylesheet" href="../sistema-ordenes/css/fab-menu.css">
     <link rel="stylesheet" href="../sistema-ordenes/css/ordenes.css">
     <link rel="stylesheet" href="css/abc.css">
+    <!-- Aplicación instalable (PWA) -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#E30613">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="VSS Costeo ABC">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
 <body>
 
@@ -23,21 +31,13 @@
     <div class="abc-header-right">
         <label for="abcPeriodo">Período</label>
         <select id="abcPeriodo" class="abc-periodo"></select>
+        <button class="btn btn-success abc-btn-head" onclick="abcExportarTodoExcel()" title="Descargar todas las tablas en un libro de Excel">📊 Exportar todo a Excel</button>
+        <button class="btn btn-primary abc-btn-head" id="abcInstalar" hidden onclick="abcInstalarApp()" title="Instalar como aplicación">📲 Instalar app</button>
         <div class="datetime" id="currentDateTime"></div>
     </div>
 </div>
 
-<div class="sub-nav">
-    <button data-tab="resumen">📊 Resumen</button>
-    <button data-tab="analisis">🧠 Análisis y Estructura</button>
-    <button data-tab="centros">🏢 Centros de Actividad</button>
-    <button data-tab="recursos">💰 Recursos</button>
-    <button data-tab="actividades">⚙️ Actividades</button>
-    <button data-tab="ind1" title="Inductor tipo 1">① Recursos → Centros</button>
-    <button data-tab="ind2" title="Inductor tipo 2">② Centros → Actividades</button>
-    <button data-tab="ind3" title="Inductor tipo 3">③ Actividades → Productos</button>
-    <button data-tab="objetos">🎯 Objeto de Costos</button>
-</div>
+<div class="sub-nav" id="abcSubNav"></div>
 
 <div class="main-content">
     <div id="alertContainer"></div>
@@ -50,12 +50,14 @@
             <div>
                 <div class="eyebrow">SISTEMA DE COSTOS BASADO EN ACTIVIDADES</div>
                 <h2>🎯 Recursos → Centros de Actividad → Actividades → Objeto de Costos</h2>
-                <p>Los recursos se asignan a los centros con el <b>inductor tipo 1</b> (% = tasa), los centros a sus actividades con el
-                   <b>inductor tipo 2</b> y las actividades a cada producto con el <b>inductor tipo 3</b>. La materia prima es costo directo.</p>
+                <p>Modelo ABC de <b>5 etapas o más</b>: los recursos se asignan a los centros (% = tasa), los centros de apoyo reparten su costo a otros centros,
+                   los centros se asignan a sus actividades, las actividades de apoyo se reparten a las principales y, por último, las actividades se asignan
+                   a cada producto con su inductor. La materia prima es costo directo.</p>
             </div>
         </div>
 
         <div class="metrics" id="abcMetricas"></div>
+        <div id="abcAlertasResumen"></div>
         <div id="abcAvisos"></div>
 
         <div class="card">
@@ -64,7 +66,15 @@
         </div>
 
         <div class="card">
+            <h2>🔗 Etapas del modelo</h2>
+            <div id="abcEtapasCadena"></div>
+        </div>
+
+        <div class="card">
             <h2>🎯 Costo por objeto de costo</h2>
+            <div class="btn-group abc-actions">
+                <button class="btn" onclick="abcExportarExcel('abcResumenProductos','costo-por-producto')">📥 Exportar Excel</button>
+            </div>
             <div class="abc-legend">
                 <span><i class="seg-mp"></i>Materia prima</span><span><i class="seg-op"></i>Act. operativas</span>
                 <span><i class="seg-ap"></i>Act. de apoyo</span><span><i class="seg-es"></i>Act. estratégicas</span>
@@ -76,6 +86,31 @@
                         <th class="num">Costo total</th><th class="num">C. unitario</th><th class="num">Precio</th><th class="num">Margen</th><th>Composición</th>
                     </tr></thead>
                     <tbody id="abcResumenProductos"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== ALERTAS Y PRESUPUESTO ==================== -->
+    <div class="tab-content" id="tab-alertas">
+        <div class="card">
+            <h2>🚨 Alertas de presupuesto</h2>
+            <p class="abc-muted">Cada centro y actividad tiene un <b>presupuesto mensual</b> y un <b>umbral de alerta</b> (% del presupuesto).
+               🟠 <b>Cerca del límite</b>: el costo del mes alcanzó el umbral · 🔴 <b>Excedido</b>: superó el 100%.
+               Pulse <b>📈 Gráfica</b> para ver el comportamiento mes a mes, la tendencia y la proyección del mes siguiente.</p>
+            <div class="abc-alerta-kpis" id="abcAlertasMetricas"></div>
+            <div id="abcAlertasNota"></div>
+            <div class="abc-actions abc-filtros" id="abcAlertasFiltros"></div>
+            <div class="btn-group abc-actions">
+                <button class="btn btn-primary" onclick="abcSugerirPresupuestos(true)">💡 Sugerir presupuesto a los que no tienen</button>
+                <button class="btn btn-warning" onclick="abcSugerirPresupuestos(false)">↺ Recalcular todos (promedio + 15%)</button>
+                <button class="btn" onclick="abcExportarExcel('abcAlertasTabla','alertas-presupuesto')">📥 Exportar Excel</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Estado</th><th>Tipo</th><th>Centro / actividad</th><th class="num">Costo del mes</th><th class="num">Presupuesto mensual</th>
+                        <th class="num">Umbral %</th><th>Consumo del presupuesto</th><th class="num">Disponible</th><th class="num">vs mes anterior</th><th></th></tr></thead>
+                    <tbody id="abcAlertasTabla"></tbody>
                 </table>
             </div>
         </div>
@@ -131,7 +166,7 @@
             <h2>④ Tabla de centros de costos</h2>
             <p class="abc-muted">Costo acumulado de cada centro (recursos × inductor tipo 1) y su participación en el total.</p>
             <div class="btn-group abc-actions">
-                <button class="btn" onclick="abcExportarCSV('abcCentrosTabla','centros-costos')">📥 Exportar CSV</button>
+                <button class="btn" onclick="abcExportarExcel('abcCentrosTabla','centros-costos')">📥 Exportar Excel</button>
             </div>
             <div class="table-container">
                 <table>
@@ -147,10 +182,12 @@
     <div class="tab-content" id="tab-recursos">
         <div class="card">
             <h2>💰 Recursos del período</h2>
-            <p class="abc-muted">MP: costo directo (ver Objeto de Costos). MOD y MOI provienen de la tabla <b>planillas</b>; CIF, gastos de administración y de ventas son montos mensuales editables.</p>
+            <p class="abc-muted">MP: costo directo (ver Objeto de Costos). MOD y MOI provienen de la tabla <b>planillas</b>; CIF, gastos de administración y de ventas
+               tienen un <b>monto base</b> y, si se registra, un <b>monto propio para cada mes</b> (así las alertas y gráficas reflejan el comportamiento real).</p>
+            <div class="abc-actions abc-filtros" id="abcModoMonto"></div>
             <div class="btn-group abc-actions">
                 <button class="btn btn-primary" onclick="abcAbrirRecurso()">+ Nuevo recurso</button>
-                <button class="btn" onclick="abcExportarCSV('abcRecursosTabla','recursos-abc')">📥 Exportar CSV</button>
+                <button class="btn" onclick="abcExportarExcel('abcRecursosTabla','recursos-abc')">📥 Exportar Excel</button>
             </div>
             <div class="table-container">
                 <table>
@@ -178,7 +215,7 @@
                El nivel indica la jerarquía de costos: unidad, lote, producto o sostenimiento de la empresa.</p>
             <div class="btn-group abc-actions">
                 <button class="btn btn-primary" onclick="abcAbrirActividad()">+ Nueva actividad</button>
-                <button class="btn" onclick="abcExportarCSV('abcActividadesTabla','actividades-abc')">📥 Exportar CSV</button>
+                <button class="btn" onclick="abcExportarExcel('abcActividadesTabla','actividades-abc')">📥 Exportar Excel</button>
             </div>
             <div class="table-container">
                 <table>
@@ -197,17 +234,17 @@
     <!-- ==================== INDUCTOR TIPO 1 ==================== -->
     <div class="tab-content" id="tab-ind1">
         <div class="card">
-            <h2>① Recursos → Centros de actividad <small class="abc-muted">· inductor tipo 1 (% = tasa)</small></h2>
+            <h2><span data-num-etapa="ind1">①</span> Recursos → Centros de actividad <small class="abc-muted">· inductor de recursos (% = tasa)</small></h2>
             <p class="abc-muted">Indique qué % de cada recurso consume cada centro. Cada fila debe sumar 100%. Los cambios se guardan al salir de la celda.</p>
             <div class="btn-group abc-actions">
-                <button class="btn" onclick="abcExportarCSV('abcInd1Tabla','inductor-tipo-1')">📥 Exportar CSV</button>
+                <button class="btn" onclick="abcExportarExcel('abcInd1Tabla','recursos-centros')">📥 Exportar Excel</button>
             </div>
             <div class="table-container abc-scroll">
                 <table id="abcInd1Tabla" class="abc-matrix"></table>
             </div>
         </div>
         <div class="card">
-            <h2>🏢 Costo acumulado por centro de actividad</h2>
+            <h2>🏢 Costo acumulado por centro de actividad <small class="abc-muted">· reparto primario, antes de las etapas entre centros</small></h2>
             <div class="table-container">
                 <table>
                     <thead><tr><th>Código</th><th>Centro</th><th>Tipo</th><th class="num">MOD</th><th class="num">MOI</th><th class="num">CIF</th><th class="num">G. Adm.</th><th class="num">G. Ventas</th><th class="num">Total</th></tr></thead>
@@ -220,8 +257,9 @@
     <!-- ==================== INDUCTOR TIPO 2 ==================== -->
     <div class="tab-content" id="tab-ind2">
         <div class="card">
-            <h2>② Centros de actividad → Actividades <small class="abc-muted">· inductor tipo 2</small></h2>
-            <p class="abc-muted">Distribuya el costo de cada centro entre sus actividades (cada centro debe sumar 100%) y elija el inductor tipo 3 de cada actividad.</p>
+            <h2><span data-num-etapa="ind2">②</span> Centros de actividad → Actividades <small class="abc-muted">· % por actividad</small></h2>
+            <p class="abc-muted">Distribuya el costo final de cada centro (después de las etapas de reparto entre centros) entre sus actividades — cada centro debe sumar 100% —
+               y elija el inductor de actividad con el que cada una se asigna a los productos.</p>
             <div id="abcInd2"></div>
         </div>
     </div>
@@ -229,8 +267,11 @@
     <!-- ==================== INDUCTOR TIPO 3 ==================== -->
     <div class="tab-content" id="tab-ind3">
         <div class="card">
-            <h2>③ Actividades → Productos · Tasa por actividad <small class="abc-muted">· inductor tipo 3</small></h2>
-            <p class="abc-muted">Tasa = costo de la actividad ÷ total del inductor consumido por todos los productos.</p>
+            <h2><span data-num-etapa="ind3">③</span> Actividades → Productos · Tasa por actividad <small class="abc-muted">· inductor de actividad</small></h2>
+            <p class="abc-muted">Tasa = costo final de la actividad (después de las etapas de reparto entre actividades) ÷ total del inductor consumido por todos los productos.</p>
+            <div class="btn-group abc-actions">
+                <button class="btn" onclick="abcExportarExcel('abcTasas','tasas-actividad')">📥 Exportar Excel</button>
+            </div>
             <div class="table-container">
                 <table>
                     <thead><tr><th>Código</th><th>Actividad</th><th>Centro</th><th class="num">Costo</th><th>Inductor</th><th class="num">Total inductor</th><th class="num">Tasa</th></tr></thead>
@@ -241,6 +282,9 @@
         <div class="card">
             <h2>📏 Consumo de inductores por producto (mensual)</h2>
             <div class="btn-group abc-actions">
+                <button class="btn" onclick="abcExportarExcel('abcConsumo','consumo-inductores')">📥 Exportar Excel</button>
+            </div>
+            <div class="btn-group abc-actions">
                 <button class="btn btn-primary" onclick="abcAbrirInductor()">+ Nuevo inductor</button>
             </div>
             <div class="table-container abc-scroll">
@@ -250,12 +294,17 @@
         <div class="card">
             <h2>🎯 Asignación de actividades a objetos de costo (S/)</h2>
             <div class="btn-group abc-actions">
-                <button class="btn" onclick="abcExportarCSV('abcAsignacion','asignacion-abc')">📥 Exportar CSV</button>
+                <button class="btn" onclick="abcExportarExcel('abcAsignacion','asignacion-abc')">📥 Exportar Excel</button>
             </div>
             <div class="table-container abc-scroll">
                 <table id="abcAsignacion" class="abc-matrix"></table>
             </div>
         </div>
+    </div>
+
+    <!-- ==================== ETAPAS DE REPARTO ADICIONALES ==================== -->
+    <div class="tab-content" id="tab-etapa">
+        <div id="abcEtapa"></div>
     </div>
 
     <!-- ==================== OBJETO DE COSTOS ==================== -->
@@ -273,7 +322,7 @@
             <p class="abc-muted">El costo ABC de cada producto se separa según el origen del recurso: costo de producción (MP + MOD + MOI + CIF)
                y gastos de operación (administración y ventas).</p>
             <div class="btn-group abc-actions">
-                <button class="btn" onclick="abcExportarCSV('abcRubros','rubros-objetos-costo')">📥 Exportar CSV</button>
+                <button class="btn" onclick="abcExportarExcel('abcRubros','rubros-objetos-costo')">📥 Exportar Excel</button>
             </div>
             <div class="table-container abc-scroll">
                 <table id="abcRubros" class="abc-matrix"></table>
@@ -283,6 +332,9 @@
         <div class="card">
             <h2>⚖️ ABC vs. costeo tradicional</h2>
             <p class="abc-muted">El costeo tradicional reparte todos los costos indirectos con una sola base (horas de MOD).</p>
+            <div class="btn-group abc-actions">
+                <button class="btn" onclick="abcExportarExcel('abcComparativo','abc-vs-tradicional')">📥 Exportar Excel</button>
+            </div>
             <div class="table-container">
                 <table>
                     <thead><tr><th>Producto</th><th class="num">C. unit. tradicional</th><th class="num">C. unit. ABC</th><th class="num">Diferencia</th><th>Interpretación</th></tr></thead>
@@ -348,8 +400,8 @@
         <h2>⚙️ Nueva actividad</h2>
         <div class="form-group"><label>Centro de actividad</label><select id="actCentro"></select></div>
         <div class="form-group"><label>Nombre de la actividad</label><input id="actNombre"></div>
-        <div class="form-group"><label>% del centro (inductor tipo 2)</label><input id="actPct" type="number" step="0.1" min="0" max="100"></div>
-        <div class="form-group"><label>Inductor tipo 3</label><select id="actInductor"></select></div>
+        <div class="form-group"><label>% del centro</label><input id="actPct" type="number" step="0.1" min="0" max="100"></div>
+        <div class="form-group"><label>Inductor de actividad (asignación a productos)</label><select id="actInductor"></select></div>
         <div class="btn-group">
             <button class="btn btn-success" onclick="abcGuardarActividadNueva()">Guardar</button>
             <button class="btn" onclick="closeModal('modalActividad')">Cancelar</button>
@@ -359,13 +411,47 @@
 
 <div class="modal-overlay" id="modalInductor">
     <div class="modal">
-        <h2>📏 Nuevo inductor tipo 3</h2>
+        <h2>📏 Nuevo inductor de actividad</h2>
         <div class="form-group"><label>Código</label><input id="indCodigo"></div>
         <div class="form-group"><label>Nombre</label><input id="indNombre" placeholder="Ej. Nº de cambios de formato"></div>
         <div class="form-group"><label>Unidad</label><input id="indUnidad" placeholder="Ej. cambios"></div>
         <div class="btn-group">
             <button class="btn btn-success" onclick="abcGuardarInductor()">Guardar</button>
             <button class="btn" onclick="closeModal('modalInductor')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalEtapa">
+    <div class="modal">
+        <h2 id="etaTituloModal">🔗 Nueva etapa de reparto</h2>
+        <div class="form-group"><label>Nombre</label><input id="etaNombre" placeholder="Ej. Control de calidad → Centros operativos"></div>
+        <div class="form-group"><label>Nivel</label>
+            <select id="etaNivel">
+                <option value="centro">Centros → Centros (se aplica antes de asignar los centros a sus actividades)</option>
+                <option value="actividad">Actividades → Actividades (se aplica antes de asignar las actividades a los productos)</option>
+            </select></div>
+        <div class="form-group"><label>Descripción</label><textarea id="etaDescripcion" rows="3" placeholder="Qué costo se traslada y por qué"></textarea></div>
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="abcGuardarEtapa()">Guardar</button>
+            <button class="btn" onclick="closeModal('modalEtapa')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalGrafica">
+    <div class="modal abc-modal-grafica">
+        <div class="abc-graf-head">
+            <div><h2 id="grafTitulo">📈 Comportamiento mensual</h2><p class="abc-muted" id="grafSub"></p></div>
+            <button class="abc-icon-btn abc-cerrar" title="Cerrar" onclick="closeModal('modalGrafica')">✕</button>
+        </div>
+        <div class="abc-graf-kpis" id="grafKpis"></div>
+        <div class="abc-graf-canvas"><canvas id="grafCanvas"></canvas></div>
+        <div class="abc-graf-interp" id="grafInterpretacion"></div>
+        <div class="table-container"><table class="abc-mini" id="grafTabla"></table></div>
+        <div class="btn-group">
+            <button class="btn btn-success" onclick="abcExportarGrafica()">📥 Exportar historial a Excel</button>
+            <button class="btn" onclick="closeModal('modalGrafica')">Cerrar</button>
         </div>
     </div>
 </div>
@@ -390,6 +476,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="../sistema-ordenes/js/supabase-config.js"></script>
 <script src="../sistema-ordenes/js/db.js"></script>
 <script src="../sistema-ordenes/js/utils.js"></script>

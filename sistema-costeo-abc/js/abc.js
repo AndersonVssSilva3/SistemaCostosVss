@@ -1,9 +1,15 @@
 // ==================== SISTEMA DE COSTEO BASADO EN ACTIVIDADES (ABC) ====================
-// Recursos ─(inductor tipo 1: %)→ Centros de actividad ─(inductor tipo 2: %)→ Actividades
-//          ─(inductor tipo 3: consumo)→ Objetos de costo
+// Recursos ─(%)→ Centros de actividad ─[etapas de reparto entre centros]─(%)→ Actividades
+//          ─[etapas de reparto entre actividades]─(inductor de actividad: consumo)→ Objetos de costo
+// Por defecto el modelo tiene 5 etapas y se pueden agregar más (tabla abc_etapas).
 
 const ABC_TABLAS = ['abc_centros', 'abc_recursos', 'abc_inductor1', 'abc_inductores',
                     'abc_actividades', 'abc_objetos_costo', 'abc_consumo', 'abc_materiales', 'abc_organigrama'];
+// Tablas agregadas después: si aún no existen se trabaja con ellas en memoria
+const ABC_TABLAS_EXT = { abc_etapas: 'etapas', abc_etapa_dist: 'etapaDist', abc_presupuestos: 'presupuestos', abc_recursos_mes: 'recursosMes' };
+const ABC_MIN_ETAPAS = 5;
+const ABC_UMBRAL_DEFECTO = 90;
+const ABC_NIVELES_ETAPA = { centro: 'Centros → Centros', actividad: 'Actividades → Actividades' };
 
 const ABC_TIPOS = {
     estrategico: { nombre: 'Estratégicos', icono: '🧭' },
@@ -34,17 +40,37 @@ const ABC_NIVEL_INDUCTOR = {
     'IND-VTA': 'instalacion'
 };
 
-const ABC_SECCIONES = [
+const ABC_SECCIONES_INICIO = [
     ['resumen',     '◉', 'Resumen ABC'],
+    ['alertas',     '🚨', 'Alertas y Presupuesto'],
     ['analisis',    '◇', 'Análisis y Estructura'],
     ['centros',     '◈', 'Centros de Actividad'],
     ['recursos',    '▦', 'Recursos'],
-    ['actividades', '⚙', 'Actividades'],
-    ['ind1',     '①', 'Recursos → Centros'],
-    ['ind2',     '②', 'Centros → Actividades'],
-    ['ind3',     '③', 'Actividades → Productos'],
-    ['objetos',  '◎', 'Objeto de Costos']
+    ['actividades', '⚙', 'Actividades']
 ];
+const ABC_SECCIONES_FIN = [['objetos', '◎', 'Objeto de Costos']];
+
+const abcCirculo = n => n >= 1 && n <= 20 ? String.fromCharCode(0x2460 + n - 1) : '(' + n + ')';
+
+function abcEtapasDe(nivel) {
+    return abc.etapas.filter(e => e.nivel === nivel).sort((a, b) => (a.orden || 0) - (b.orden || 0) || String(a.codigo).localeCompare(b.codigo));
+}
+
+// Todas las etapas del modelo en orden de cálculo: [{ id, nombre, fija, etapa? }]
+function abcEtapasModelo() {
+    const lista = [{ id: 'ind1', nombre: 'Recursos → Centros', fija: true }];
+    abcEtapasDe('centro').forEach(e => lista.push({ id: 'etapa:' + e.codigo, nombre: e.nombre, etapa: e }));
+    lista.push({ id: 'ind2', nombre: 'Centros → Actividades', fija: true });
+    abcEtapasDe('actividad').forEach(e => lista.push({ id: 'etapa:' + e.codigo, nombre: e.nombre, etapa: e }));
+    lista.push({ id: 'ind3', nombre: 'Actividades → Productos', fija: true });
+    lista.forEach((x, i) => { x.num = i + 1; x.simbolo = abcCirculo(i + 1); });
+    return lista;
+}
+const abcNumEtapa = id => (abcEtapasModelo().find(x => x.id === id) || {}).simbolo || '';
+
+function abcSecciones() {
+    return [...ABC_SECCIONES_INICIO, ...abcEtapasModelo().map(x => [x.id, x.simbolo, x.nombre]), ...ABC_SECCIONES_FIN];
+}
 
 const abc = {
     modo: 'db',            // 'db' = tablas abc_* en Supabase · 'local' = en memoria
@@ -54,8 +80,14 @@ const abc = {
     productos: [],
     centros: [], recursos: [], inductor1: [], inductores: [],
     actividades: [], objetos: [], consumo: [], materiales: [], organigrama: [],
+    etapas: [], etapaDist: [], presupuestos: [], recursosMes: [],
+    faltan: new Set(),     // tablas nuevas que aún no existen en Supabase (se usan en memoria)
     editMapa: false, editOrg: false,
-    calc: null
+    etapaActiva: null,
+    modoMonto: 'mes',      // al editar un gasto: 'mes' = solo el período seleccionado · 'base' = monto base
+    filtroAlertas: { tipo: 'todos', estado: 'alertas' },
+    umbralNuevo: ABC_UMBRAL_DEFECTO,
+    calc: null, hist: null, alertas: []
 };
 
 // ==================== FORMATO ====================
@@ -82,9 +114,22 @@ function abcTablaNoExiste(error) {
     return error && (error.code === 'PGRST205' || error.code === '42P01' || /does not exist|schema cache/i.test(error.message || ''));
 }
 
+const abcEnBD = tabla => abc.modo === 'db' && !abc.faltan.has(tabla);
+
+// Upsert de varias filas a la vez
+async function abcGuardarVarios(tabla, filas, conflicto) {
+    if (!abcEnBD(tabla) || !filas.length) return filas;
+    const { data, error } = await supabaseClient.from(tabla).upsert(filas, { onConflict: conflicto }).select();
+    if (error) {
+        showAlert('❌ No se pudo guardar en ' + tabla + ': ' + error.message, 'error');
+        throw error;
+    }
+    return data;
+}
+
 // Guarda (upsert) una fila; en modo local solo se mantiene en memoria
 async function abcGuardar(tabla, fila, conflicto) {
-    if (abc.modo !== 'db') return fila;
+    if (!abcEnBD(tabla)) return fila;
     const { data, error } = await supabaseClient.from(tabla).upsert([fila], { onConflict: conflicto }).select();
     if (error) {
         console.error('Error guardando en ' + tabla, error);
@@ -95,7 +140,7 @@ async function abcGuardar(tabla, fila, conflicto) {
 }
 
 async function abcInsertar(tabla, filas) {
-    if (abc.modo !== 'db' || !filas.length) return filas;
+    if (!abcEnBD(tabla) || !filas.length) return filas;
     const { data, error } = await supabaseClient.from(tabla).insert(filas).select();
     if (error) {
         showAlert('❌ No se pudo insertar en ' + tabla + ': ' + error.message, 'error');
@@ -105,8 +150,19 @@ async function abcInsertar(tabla, filas) {
 }
 
 async function abcBorrar(tabla, campo, valor) {
-    if (abc.modo !== 'db') return;
+    if (!abcEnBD(tabla)) return;
     const { error } = await supabaseClient.from(tabla).delete().eq(campo, valor);
+    if (error) {
+        showAlert('❌ No se pudo eliminar en ' + tabla + ': ' + error.message, 'error');
+        throw error;
+    }
+}
+
+async function abcBorrarDonde(tabla, filtros) {
+    if (!abcEnBD(tabla)) return;
+    let q = supabaseClient.from(tabla).delete();
+    Object.entries(filtros).forEach(([k, v]) => { q = q.eq(k, v); });
+    const { error } = await q;
     if (error) {
         showAlert('❌ No se pudo eliminar en ' + tabla + ': ' + error.message, 'error');
         throw error;
@@ -133,9 +189,6 @@ async function abcCargar() {
     const [pl, pr] = await Promise.all([DB.getAll('planillas'), DB.getAll('productos')]);
     abc.planillas = pl;
     abc.productos = pr;
-    abc.periodos = [...new Set(pl.map(p => p.periodo).filter(Boolean))].sort();
-    if (!abc.periodo || !abc.periodos.includes(abc.periodo)) abc.periodo = abc.periodos[abc.periodos.length - 1] || null;
-
     await abcAsegurarProductos();
 
     // ¿Existen las tablas abc_*?
@@ -143,6 +196,8 @@ async function abcCargar() {
     if (abcTablaNoExiste(prueba.error)) {
         abc.modo = 'local';
         Object.assign(abc, abcSemillaEnMemoria());
+        abcCalcularPeriodos();
+        abcSembrarPresupuestos();
         return;
     }
     if (prueba.error) throw prueba.error;
@@ -158,16 +213,62 @@ async function abcCargar() {
     abc.centros.sort((a, b) => (a.orden || 0) - (b.orden || 0));
 
     await abcSincronizarPlanilla();
+    await abcCargarExtensiones();
+    abcCalcularPeriodos();
+    await abcSembrarPresupuestos();
+}
+
+// Períodos disponibles: los de la planilla y los de montos mensuales de gastos (o el mes actual)
+function abcCalcularPeriodos() {
+    const set = new Set(abc.planillas.map(p => p.periodo).filter(Boolean));
+    abc.recursosMes.forEach(r => r.periodo && set.add(r.periodo));
+    if (!set.size) set.add(new Date().toISOString().slice(0, 7));
+    abc.periodos = [...set].sort();
+    if (!abc.periodo || !abc.periodos.includes(abc.periodo)) abc.periodo = abc.periodos[abc.periodos.length - 1];
+}
+
+// Etapas, presupuestos y montos mensuales (tablas agregadas en la versión de 5 etapas)
+async function abcCargarExtensiones() {
+    abc.faltan = new Set();
+    for (const [tabla, campo] of Object.entries(ABC_TABLAS_EXT)) {
+        const r = await abcLeer(tabla);
+        if (r.error && !abcTablaNoExiste(r.error)) throw r.error;
+        if (r.error) abc.faltan.add(tabla);
+        abc[campo] = r.data;
+    }
+    if (!abc.etapas.length) {
+        const s = abcConstruirSemillaEtapas();
+        const g = await abcInsertar('abc_etapas', s.etapas);
+        abc.etapas = abcConId(g || s.etapas);
+        const g2 = abcEnBD('abc_etapa_dist') && abcEnBD('abc_etapas') ? await abcInsertar('abc_etapa_dist', s.dist) : null;
+        if (!abc.etapaDist.length) abc.etapaDist = abcConId(g2 || s.dist);
+        if (abcEnBD('abc_etapas')) showAlert('✅ Se crearon las etapas ② y ④ del modelo ABC de 5 etapas', 'success');
+    }
+}
+
+let abcIdLocal = 1e9;
+const abcConId = arr => arr.map(r => (r.id ? r : { id: abcIdLocal++, ...r }));
+
+// Si no hay presupuestos, se sugieren a partir del promedio mensual + 15%
+async function abcSembrarPresupuestos() {
+    if (abc.presupuestos.length) return;
+    const filas = abcPresupuestosSugeridos(true);
+    if (!filas.length) return;
+    const g = await abcGuardarVarios('abc_presupuestos', filas, 'tipo,codigo');
+    abc.presupuestos = abcConId(g || filas);
+    if (abcEnBD('abc_presupuestos')) showAlert('✅ Se generó un presupuesto mensual sugerido (promedio + 15%) para centros y actividades', 'success');
 }
 
 function abcSemillaEnMemoria() {
     const s = abcConstruirSemilla(abc.planillas);
+    const e = abcConstruirSemillaEtapas();
     let id = 1;
     const conId = arr => arr.map(r => ({ id: id++, ...r }));
     return {
         centros: conId(s.centros), recursos: conId(s.recursos), inductor1: conId(s.inductor1),
         inductores: conId(s.inductores), actividades: conId(s.actividades), objetos: conId(s.objetos),
-        consumo: conId(s.consumo), materiales: conId(s.materiales), organigrama: conId(s.organigrama)
+        consumo: conId(s.consumo), materiales: conId(s.materiales), organigrama: conId(s.organigrama),
+        etapas: conId(e.etapas), etapaDist: conId(e.dist), presupuestos: [], recursosMes: []
     };
 }
 
@@ -220,17 +321,28 @@ async function abcSincronizarPlanilla() {
 }
 
 // ==================== MOTOR DE CÁLCULO ABC ====================
+// Monto de un gasto manual en un período: el registrado para ese mes o, si no hay, el monto base
+function abcMontoMes(r, periodo) {
+    const m = abc.recursosMes.find(x => x.recurso_codigo === r.codigo && x.periodo === periodo);
+    return m ? { monto: Number(m.monto) || 0, propio: true } : { monto: Number(r.monto) || 0, propio: false };
+}
+
 function abcMontoRecurso(r, periodo) {
     if (r.origen === 'planilla') {
         return abc.planillas
             .filter(p => p.periodo === periodo && abcNorm(p.empleado_cargo) === abcNorm(r.cargo))
             .reduce((s, p) => s + (Number(p.costo_total_empleador) || 0), 0);
     }
-    return Number(r.monto) || 0;
+    return abcMontoMes(r, periodo).monto;
 }
 
 function abcPctRecurso(recurso, centro) {
     const f = abc.inductor1.find(x => x.recurso_codigo === recurso && x.centro_codigo === centro);
+    return f ? Number(f.porcentaje) || 0 : 0;
+}
+
+function abcPctEtapa(etapa, origen, destino) {
+    const f = abc.etapaDist.find(x => x.etapa_codigo === etapa && x.origen === origen && x.destino === destino);
     return f ? Number(f.porcentaje) || 0 : 0;
 }
 
@@ -246,12 +358,53 @@ function abcProducto(codigo) {
              presentacion: o.presentacion || '', unidades: Number(o.unidades) || 0 };
 }
 
-function abcCalcular() {
-    const periodo = abc.periodo;
+// Vectores de costo por categoría de recurso { MOD, MOI, CIF, GADM, GVTA }
+const abcVecTotal = v => Object.values(v).reduce((s, x) => s + x, 0);
+function abcVecSumar(destino, origen, factor) {
+    Object.entries(origen).forEach(([k, x]) => { destino[k] = (destino[k] || 0) + x * factor; });
+}
+
+// Aplica una etapa de reparto sobre los nodos (centros o actividades). Cada origen envía a sus destinos
+// el % indicado del costo que tenía al iniciar la etapa y retiene el resto.
+function abcAplicarEtapa(etapa, nodos, nombreDe, avisos) {
+    const antes = {};
+    Object.entries(nodos).forEach(([k, v]) => { antes[k] = abcVecTotal(v); });
+    const enviado = {}, recibido = {}, pctEnviado = {};
+    const traslados = [];
+    Object.keys(nodos).forEach(origen => {
+        const filas = abc.etapaDist.filter(d => d.etapa_codigo === etapa.codigo && d.origen === origen &&
+            d.destino !== origen && nodos[d.destino] !== undefined && (Number(d.porcentaje) || 0) > 0);
+        const suma = filas.reduce((s, d) => s + Number(d.porcentaje), 0);
+        if (!suma) return;
+        pctEnviado[origen] = suma;
+        let escala = 1;
+        if (suma > 100.01) {
+            escala = 100 / suma;
+            if (antes[origen] > 0) avisos.push(`Etapa "${etapa.nombre}": ${nombreDe(origen)} reparte ${abcPct(suma)} (máximo 100%); se ajustó proporcionalmente.`);
+        }
+        const base = { ...nodos[origen] };
+        filas.forEach(d => traslados.push([origen, d.destino, base, Number(d.porcentaje) / 100 * escala]));
+    });
+    traslados.forEach(([o, d, base, f]) => {
+        abcVecSumar(nodos[d], base, f);
+        abcVecSumar(nodos[o], base, -f);
+        const v = abcVecTotal(base) * f;
+        enviado[o] = (enviado[o] || 0) + v;
+        recibido[d] = (recibido[d] || 0) + v;
+    });
+    const despues = {};
+    Object.entries(nodos).forEach(([k, v]) => { despues[k] = abcVecTotal(v); });
+    return { codigo: etapa.codigo, nombre: etapa.nombre, nivel: etapa.nivel, antes, enviado, recibido, despues, pctEnviado,
+             movido: Object.values(enviado).reduce((s, x) => s + x, 0) };
+}
+
+function abcCalcular(periodo = abc.periodo) {
     const prods = abc.objetos.map(o => abcProducto(o.producto_codigo));
     const avisos = [];
+    const nombreCentro = cod => (abc.centros.find(x => x.codigo === cod) || {}).nombre || cod;
+    const nombreAct = cod => (abc.actividades.find(x => x.codigo === cod) || {}).nombre || cod;
 
-    // ---- Etapa 1: Recursos → Centros (inductor tipo 1) ----
+    // ---- Etapa ①: Recursos → Centros ----
     const recursos = abc.recursos.map(r => {
         const monto = abcMontoRecurso(r, periodo);
         const pctTotal = abc.centros.reduce((s, c) => s + abcPctRecurso(r.codigo, c.codigo), 0);
@@ -259,40 +412,53 @@ function abcCalcular() {
         return { ...r, montoCalc: monto, pctTotal };
     });
 
-    const centroCosto = {};
-    const centroPorCategoria = {};
-    abc.centros.forEach(c => { centroCosto[c.codigo] = 0; centroPorCategoria[c.codigo] = {}; });
+    const vecCentro = {};
+    abc.centros.forEach(c => { vecCentro[c.codigo] = {}; });
     recursos.forEach(r => {
         abc.centros.forEach(c => {
             const v = r.montoCalc * abcPctRecurso(r.codigo, c.codigo) / 100;
-            centroCosto[c.codigo] += v;
-            centroPorCategoria[c.codigo][r.categoria] = (centroPorCategoria[c.codigo][r.categoria] || 0) + v;
+            if (v) vecCentro[c.codigo][r.categoria] = (vecCentro[c.codigo][r.categoria] || 0) + v;
         });
     });
+    const centroPrimario = {}, centroPrimarioCat = {};
+    abc.centros.forEach(c => { centroPrimario[c.codigo] = abcVecTotal(vecCentro[c.codigo]); centroPrimarioCat[c.codigo] = { ...vecCentro[c.codigo] }; });
 
-    // ---- Etapa 2: Centros → Actividades (inductor tipo 2) ----
+    // ---- Etapas adicionales entre centros ----
+    const etapas = {};
+    abcEtapasDe('centro').forEach(e => { etapas[e.codigo] = abcAplicarEtapa(e, vecCentro, nombreCentro, avisos); });
+
+    const centroCosto = {}, centroPorCategoria = vecCentro;
+    abc.centros.forEach(c => { centroCosto[c.codigo] = abcVecTotal(vecCentro[c.codigo]); });
+
+    // ---- Centros → Actividades ----
     abc.centros.forEach(c => {
         const suma = abc.actividades.filter(a => a.centro_codigo === c.codigo).reduce((s, a) => s + (Number(a.porcentaje) || 0), 0);
-        if (centroCosto[c.codigo] > 0 && Math.abs(suma - 100) > 0.01) avisos.push(`Centro "${c.nombre}": sus actividades suman ${abcPct(suma)} (debe ser 100%).`);
+        if (centroCosto[c.codigo] > 0.005 && Math.abs(suma - 100) > 0.01) avisos.push(`Centro "${c.nombre}": sus actividades suman ${abcPct(suma)} (debe ser 100%).`);
     });
+    const vecAct = {};
+    abc.actividades.forEach(a => {
+        vecAct[a.codigo] = {};
+        abcVecSumar(vecAct[a.codigo], vecCentro[a.centro_codigo] || {}, (Number(a.porcentaje) || 0) / 100);
+    });
+    const actPrimario = {};
+    abc.actividades.forEach(a => { actPrimario[a.codigo] = abcVecTotal(vecAct[a.codigo]); });
+
+    // ---- Etapas adicionales entre actividades ----
+    abcEtapasDe('actividad').forEach(e => { etapas[e.codigo] = abcAplicarEtapa(e, vecAct, nombreAct, avisos); });
 
     const totalInductor = {};
     abc.inductores.forEach(i => { totalInductor[i.codigo] = prods.reduce((s, p) => s + abcConsumoDe(i.codigo, p.codigo), 0); });
 
-    // ---- Etapa 3: Actividades → Objetos de costo (inductor tipo 3) ----
+    // ---- Actividades → Objetos de costo (inductor de actividad) ----
     const actividades = abc.actividades.map(a => {
-        const costo = (centroCosto[a.centro_codigo] || 0) * (Number(a.porcentaje) || 0) / 100;
+        const costoCategoria = vecAct[a.codigo];
+        const costo = abcVecTotal(costoCategoria);
         const total = totalInductor[a.inductor_codigo] || 0;
         const tasa = total > 0 ? costo / total : 0;
-        if (costo > 0 && !(total > 0)) avisos.push(`Actividad "${a.nombre}": su inductor no tiene consumo; S/ ${abcFmt(costo)} quedan sin asignar.`);
+        if (costo > 0.005 && !(total > 0)) avisos.push(`Actividad "${a.nombre}": su inductor no tiene consumo; S/ ${abcFmt(costo)} quedan sin asignar.`);
         const asignado = {};
         prods.forEach(p => { asignado[p.codigo] = tasa * abcConsumoDe(a.inductor_codigo, p.codigo); });
-        // Costo de la actividad según la categoría del recurso que lo originó (MOD, MOI, CIF, GADM, GVTA)
-        const costoCategoria = {};
-        Object.entries(centroPorCategoria[a.centro_codigo] || {}).forEach(([k, v]) => {
-            costoCategoria[k] = v * (Number(a.porcentaje) || 0) / 100;
-        });
-        return { ...a, costo, totalInductor: total, tasa, asignado, costoCategoria };
+        return { ...a, costoPrimario: actPrimario[a.codigo], costo, totalInductor: total, tasa, asignado, costoCategoria };
     });
 
     const productos = prods.map(p => {
@@ -333,12 +499,94 @@ function abcCalcular() {
     const porCategoria = {};
     recursos.forEach(r => { porCategoria[r.categoria] = (porCategoria[r.categoria] || 0) + r.montoCalc; });
 
-    abc.calc = {
-        recursos, centroCosto, centroPorCategoria, actividades, totalInductor, productos, avisos,
+    return {
+        periodo, recursos, centroPrimario, centroPrimarioCat, centroCosto, centroPorCategoria, etapas,
+        actividades, totalInductor, productos, avisos,
         totalRecursos: totalIndirecto, totalAsignado, porCategoria,
         totalMP: productos.reduce((s, p) => s + p.mp, 0)
     };
-    return abc.calc;
+}
+
+// Costo de cada centro y actividad en todos los períodos (para alertas y gráficas)
+function abcHistorial() {
+    if (abc.hist) return abc.hist;
+    const hist = {};
+    abc.periodos.forEach(p => {
+        const c = p === abc.periodo && abc.calc ? abc.calc : abcCalcular(p);
+        const actividades = {};
+        c.actividades.forEach(a => { actividades[a.codigo] = a.costo; });
+        hist[p] = { centro: { ...c.centroCosto }, actividad: actividades, total: c.totalRecursos };
+    });
+    abc.hist = hist;
+    return hist;
+}
+
+function abcSerie(tipo, codigo) {
+    const h = abcHistorial();
+    return abc.periodos.map(p => ({ periodo: p, costo: (h[p] && h[p][tipo] && h[p][tipo][codigo]) || 0 }));
+}
+
+// ==================== PRESUPUESTO Y ALERTAS ====================
+function abcPresupuesto(tipo, codigo) {
+    return abc.presupuestos.find(x => x.tipo === tipo && x.codigo === codigo) || null;
+}
+
+// Presupuesto sugerido = promedio mensual × 1.15, redondeado a decenas
+function abcPresupuestosSugeridos(soloFaltantes) {
+    const filas = [];
+    const sugerir = (tipo, codigo) => {
+        const actual = abcPresupuesto(tipo, codigo);
+        if (soloFaltantes && actual && Number(actual.monto) > 0) return;
+        const serie = abcSerie(tipo, codigo).filter(x => x.costo > 0);
+        if (!serie.length) return;
+        const prom = serie.reduce((s, x) => s + x.costo, 0) / serie.length;
+        filas.push({ tipo, codigo, monto: Math.ceil(prom * 1.15 / 10) * 10,
+                     umbral: actual ? Number(actual.umbral) || ABC_UMBRAL_DEFECTO : abc.umbralNuevo });
+    };
+    abc.hist = null;
+    abc.centros.forEach(c => sugerir('centro', c.codigo));
+    abc.actividades.forEach(a => sugerir('actividad', a.codigo));
+    abc.hist = null;
+    return filas;
+}
+
+const ABC_ESTADOS = {
+    excedido: { nombre: 'Excedido', icono: '🔴', orden: 0 },
+    cerca:    { nombre: 'Cerca del límite', icono: '🟠', orden: 1 },
+    ok:       { nombre: 'Dentro del presupuesto', icono: '🟢', orden: 2 },
+    sin:      { nombre: 'Sin presupuesto', icono: '⚪', orden: 3 }
+};
+
+function abcEstado(costo, pres) {
+    const monto = pres ? Number(pres.monto) || 0 : 0;
+    const umbral = pres ? Number(pres.umbral) || ABC_UMBRAL_DEFECTO : ABC_UMBRAL_DEFECTO;
+    if (!(monto > 0)) return { estado: 'sin', pct: 0, monto: 0, umbral };
+    const pct = costo / monto * 100;
+    return { estado: pct >= 100 ? 'excedido' : pct >= umbral ? 'cerca' : 'ok', pct, monto, umbral };
+}
+
+// Estado de presupuesto de todos los centros y actividades en el período seleccionado
+function abcCalcularAlertas() {
+    const c = abc.calc;
+    const idx = abc.periodos.indexOf(abc.periodo);
+    const previo = idx > 0 ? abc.periodos[idx - 1] : null;
+    const h = previo ? abcHistorial()[previo] : null;
+    const fila = (tipo, x, costo, extra) => {
+        const e = abcEstado(costo, abcPresupuesto(tipo, x.codigo));
+        const ant = h ? (h[tipo][x.codigo] || 0) : null;
+        return { tipo, codigo: x.codigo, nombre: x.nombre, costo, ...e, ...extra,
+                 anterior: ant, variacion: ant > 0 ? (costo - ant) / ant * 100 : null };
+    };
+    const lista = [
+        ...abc.centros.map(x => fila('centro', x, c.centroCosto[x.codigo] || 0, { centroTipo: x.tipo })),
+        ...c.actividades.map(a => {
+            const cen = abc.centros.find(x => x.codigo === a.centro_codigo) || {};
+            return fila('actividad', a, a.costo, { centroTipo: cen.tipo, centroNombre: cen.nombre || a.centro_codigo });
+        })
+    ];
+    lista.sort((a, b) => ABC_ESTADOS[a.estado].orden - ABC_ESTADOS[b.estado].orden || b.pct - a.pct);
+    abc.alertas = lista;
+    return lista;
 }
 
 // ==================== INTERFAZ ====================
@@ -352,10 +600,7 @@ function abcConstruirSidebar() {
                 <small>COSTOS POR ACTIVIDADES</small>
             </a>
             <div class="nav-caption">Espacio de trabajo</div>
-            <nav aria-label="Navegación principal" id="abcNav">
-                ${ABC_SECCIONES.map(([id, icon, label]) =>
-                    `<a href="#${id}" data-tab="${id}"><span class="nav-symbol" aria-hidden="true">${icon}</span>${label}</a>`).join('')}
-            </nav>
+            <nav aria-label="Navegación principal" id="abcNav"></nav>
             <div class="sidebar-bottom">
                 <strong>VSS S.A.C.</strong>
                 RUC 20601234567<br>
@@ -364,10 +609,36 @@ function abcConstruirSidebar() {
             </div>
         </aside>`;
     document.body.insertAdjacentHTML('afterbegin', html);
-    document.querySelectorAll('#abcNav a').forEach(a => a.addEventListener('click', e => {
+    document.getElementById('abcNav').addEventListener('click', e => {
+        const a = e.target.closest('a[data-tab]');
+        if (!a) return;
         e.preventDefault();
         abcMostrarTab(a.dataset.tab);
-    }));
+    });
+}
+
+// Menú lateral y sub-navegación: incluye una entrada por cada etapa del modelo
+function abcRenderNav() {
+    const n = abc.alertas.filter(x => x.estado === 'excedido' || x.estado === 'cerca').length;
+    const exc = abc.alertas.some(x => x.estado === 'excedido');
+    const badge = id => id === 'alertas' && n ? ` <span class="abc-badge ${exc ? 'abc-badge-red' : ''}">${n}</span>` : '';
+    const actual = abc.tabActual;
+    const nav = document.getElementById('abcNav');
+    if (nav) nav.innerHTML = abcSecciones().map(([id, icon, label]) =>
+        `<a href="#${esc(id)}" data-tab="${esc(id)}" ${id === actual ? 'aria-current="page"' : ''}><span class="nav-symbol" aria-hidden="true">${icon}</span>${esc(label)}${badge(id)}</a>`).join('');
+
+    const etapas = abcEtapasModelo();
+    const sub = document.getElementById('abcSubNav');
+    if (sub) sub.innerHTML = [
+        ...ABC_SECCIONES_INICIO.map(([id, icon, label]) => [id, icon + ' ' + label]),
+        ...etapas.map(x => [x.id, x.simbolo + ' ' + x.nombre]),
+        ...ABC_SECCIONES_FIN.map(([id, icon, label]) => [id, icon + ' ' + label])
+    ].map(([id, label]) => `<button data-tab="${esc(id)}" class="${id === actual ? 'active' : ''} ${id.startsWith('etapa:') ? 'abc-subnav-etapa' : ''}"
+        onclick="abcMostrarTab(this.dataset.tab)">${esc(label)}${badge(id)}</button>`).join('') +
+        `<button class="abc-subnav-add" title="Agregar una etapa de reparto" onclick="abcAbrirEtapa()">＋ Etapa</button>`;
+
+    // Números de etapa en los títulos fijos
+    document.querySelectorAll('[data-num-etapa]').forEach(el => { el.textContent = abcNumEtapa(el.dataset.numEtapa); });
 }
 
 async function abcCerrarSesion() {
@@ -377,17 +648,22 @@ async function abcCerrarSesion() {
     window.location.href = '../index.html';
 }
 
-function abcMostrarTab(id) {
-    if (!ABC_SECCIONES.some(s => s[0] === id)) id = 'resumen';
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + id));
+function abcMostrarTab(id, sinScroll) {
+    try { id = decodeURIComponent(id); } catch (e) { /* hash inválido */ }
+    const secciones = abcSecciones();
+    if (!secciones.some(s => s[0] === id)) id = 'resumen';
+    abc.tabActual = id;
+    const contenedor = id.startsWith('etapa:') ? 'etapa' : id;
+    if (contenedor === 'etapa') { abc.etapaActiva = id.slice(6); abcRenderEtapa(); }
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + contenedor));
     document.querySelectorAll('.sub-nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
     document.querySelectorAll('#abcNav a').forEach(a => {
         if (a.dataset.tab === id) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
-    const sec = ABC_SECCIONES.find(s => s[0] === id);
-    document.getElementById('abcTitulo').textContent = '🎯 ' + sec[2];
+    const sec = secciones.find(s => s[0] === id);
+    document.getElementById('abcTitulo').textContent = (id.startsWith('etapa:') || ['ind1', 'ind2', 'ind3'].includes(id) ? '🔗 Etapa ' + sec[1] + ' · ' : '🎯 ') + sec[2];
     history.replaceState(null, '', '#' + id);
-    window.scrollTo({ top: 0 });
+    if (!sinScroll) window.scrollTo({ top: 0 });
 }
 
 // Resumen del costeo calculado para Aurora (asistente), disponible desde cualquier página
@@ -407,6 +683,9 @@ function abcGuardarResumenAurora() {
         centros: abc.centros.map(x => ({ codigo: x.codigo, nombre: x.nombre, tipo: x.tipo, depende_de: x.padre_codigo || null, costo: r4(c.centroCosto[x.codigo]) })),
         actividades: c.actividades.map(a => ({ nombre: a.nombre, centro: centro(a.centro_codigo), porcentaje: a.porcentaje,
             costo: r4(a.costo), inductor: ind(a.inductor_codigo), total_inductor: a.totalInductor, tasa: r4(a.tasa) })),
+        etapas_del_modelo: abcEtapasModelo().map(x => x.simbolo + ' ' + x.nombre),
+        alertas_presupuesto: abc.alertas.filter(x => x.estado === 'excedido' || x.estado === 'cerca').map(x => ({
+            tipo: x.tipo, nombre: x.nombre, costo: r4(x.costo), presupuesto: x.monto, consumo_pct: r4(x.pct), estado: ABC_ESTADOS[x.estado].nombre })),
         avisos: c.avisos,
         actualizado: new Date().toLocaleString('es-PE')
     };
@@ -414,9 +693,13 @@ function abcGuardarResumenAurora() {
 }
 
 function abcRenderTodo() {
-    abcCalcular();
+    abc.hist = null;
+    abc.calc = abcCalcular(abc.periodo);
+    abcCalcularAlertas();
     abcGuardarResumenAurora();
+    abcRenderNav();
     abcRenderAvisos();
+    abcRenderAlertas();
     abcRenderResumen();
     abcRenderAnalisis();
     abcRenderCentros();
@@ -426,6 +709,10 @@ function abcRenderTodo() {
     abcRenderInd2();
     abcRenderInd3();
     abcRenderObjetos();
+    if (abc.tabActual && abc.tabActual.startsWith('etapa:')) {
+        if (abc.etapas.some(e => 'etapa:' + e.codigo === abc.tabActual)) abcRenderEtapa();
+        else abcMostrarTab('resumen');
+    }
 }
 
 function abcRenderAvisos() {
@@ -436,6 +723,12 @@ function abcRenderAvisos() {
             El sistema está calculando con los datos de ejemplo en memoria (los cambios no se guardan).
             Para guardarlos, ejecute una vez el archivo <code>sistema-costeo-abc/sql/abc_schema.sql</code>
             en Supabase → SQL Editor y recargue la página: los datos se generarán automáticamente.
+        </div>` : abc.faltan.size ? `
+        <div class="abc-banner abc-banner-warn">
+            <strong>⚠️ Falta actualizar la base de datos.</strong>
+            Las tablas ${[...abc.faltan].map(t => `<code>${t}</code>`).join(', ')} aún no existen: etapas, presupuestos y montos mensuales
+            funcionan en memoria (no se guardan). Vuelva a ejecutar <code>sistema-costeo-abc/sql/abc_schema.sql</code> en Supabase → SQL Editor
+            (no borra datos) y recargue la página.
         </div>` : '';
 
     const av = abc.calc.avisos;
@@ -464,6 +757,11 @@ function abcRenderResumen() {
         <div class="metric metric-inventario"><div class="metric-icon">📈</div><div class="metric-label">Margen sobre ventas</div>
             <strong>${abcPct(totalVentas ? (totalVentas - totalCosto) / totalVentas * 100 : 0)}</strong><small>Ventas ${abcSoles(totalVentas)}</small></div>`;
 
+    const flechaExtra = nivel => {
+        const html = abcEtapasDe(nivel).map(e => `<em class="abc-arrow-extra" title="${esc(e.nombre)}"
+            onclick="event.stopPropagation(); abcMostrarTab('etapa:${esc(e.codigo)}')">+ ${abcNumEtapa('etapa:' + e.codigo)} reparto</em>`).join('');
+        return html ? `<div class="abc-arrow-extras">${html}</div>` : '';
+    };
     const cat = Object.keys(ABC_CATEGORIAS).filter(k => c.porCategoria[k])
         .map(k => `<li><span>${k === 'GADM' ? 'G. Adm.' : k === 'GVTA' ? 'G. Ventas' : k}</span><b>${abcSoles(c.porCategoria[k], 0)}</b></li>`).join('');
 
@@ -474,7 +772,7 @@ function abcRenderResumen() {
                 <ul class="abc-node-list"><li><span>MP (directa)</span><b>${abcSoles(c.totalMP, 0)}</b></li>${cat}</ul>
                 <div class="abc-node-foot">${abc.recursos.length} recursos</div>
             </div>
-            <div class="abc-arrow" onclick="abcMostrarTab('ind1')"><span>Inductor tipo 1</span><small>% = tasa</small></div>
+            <div class="abc-arrow" onclick="abcMostrarTab('ind1')"><span>Etapa ${abcNumEtapa('ind1')}</span><small>% = tasa</small>${flechaExtra('centro')}</div>
             <div class="abc-node abc-node-cen" onclick="abcMostrarTab('centros')">
                 <div class="abc-node-title">Centros de Actividad</div>
                 <ul class="abc-node-list">
@@ -485,7 +783,7 @@ function abcRenderResumen() {
                 </ul>
                 <div class="abc-node-foot">${abc.centros.length} centros</div>
             </div>
-            <div class="abc-arrow" onclick="abcMostrarTab('ind2')"><span>Inductor tipo 2</span><small>% por actividad</small></div>
+            <div class="abc-arrow" onclick="abcMostrarTab('ind2')"><span>Etapa ${abcNumEtapa('ind2')}</span><small>% por actividad</small>${flechaExtra('actividad')}</div>
             <div class="abc-node abc-node-act" onclick="abcMostrarTab('ind3')">
                 <div class="abc-node-title">Actividades</div>
                 <ul class="abc-node-list">
@@ -494,7 +792,7 @@ function abcRenderResumen() {
                 </ul>
                 <div class="abc-node-foot">${abc.actividades.length} actividades</div>
             </div>
-            <div class="abc-arrow" onclick="abcMostrarTab('ind3')"><span>Inductor tipo 3</span><small>consumo</small></div>
+            <div class="abc-arrow" onclick="abcMostrarTab('ind3')"><span>Etapa ${abcNumEtapa('ind3')}</span><small>consumo</small></div>
             <div class="abc-node abc-node-obj" onclick="abcMostrarTab('objetos')">
                 <div class="abc-node-title">Objeto de Costos</div>
                 <ul class="abc-node-list">
@@ -503,6 +801,9 @@ function abcRenderResumen() {
                 <div class="abc-node-foot">costo unitario</div>
             </div>
         </div>`;
+
+    abcRenderCadenaEtapas('abcEtapasCadena');
+    abcRenderAlertasResumen();
 
     const maxTotal = Math.max(1, ...c.productos.map(p => p.total));
     document.getElementById('abcResumenProductos').innerHTML = c.productos.map(p => {
@@ -605,16 +906,21 @@ function abcRenderEstructura() {
         ['0 · Datos base', 'Productos', 'productos', abc.productos.length, 'Código, nombre y precio de venta', 'objetos'],
         ['1 · Recursos', 'Recursos indirectos', 'abc_recursos', abc.recursos.length, 'Planilla + CIF, gastos de administración y de ventas', 'recursos'],
         ['1 · Recursos', 'Materia prima directa', 'abc_materiales', abc.materiales.length, 'Lista de materiales por unidad (costo directo)', 'objetos'],
-        ['2 · Inductor tipo 1', 'Recurso → centro', 'abc_inductor1', abc.inductor1.length, '% de cada recurso que consume cada centro', 'ind1'],
+        ['2 · Etapa ' + abcNumEtapa('ind1'), 'Recurso → centro', 'abc_inductor1', abc.inductor1.length, '% de cada recurso que consume cada centro', 'ind1'],
+        ['2 · Etapas adicionales', 'Etapas de reparto', 'abc_etapas', abc.etapas.length,
+            abcEtapasDe('centro').length + ' entre centros y ' + abcEtapasDe('actividad').length + ' entre actividades', abc.etapas[0] ? 'etapa:' + abc.etapas[0].codigo : 'ind1'],
+        ['2 · Etapas adicionales', 'Distribución de etapas', 'abc_etapa_dist', abc.etapaDist.length, '% que cada origen envía a cada destino', abc.etapas[0] ? 'etapa:' + abc.etapas[0].codigo : 'ind1'],
+        ['1 · Recursos', 'Montos mensuales de gastos', 'abc_recursos_mes', abc.recursosMes.length, 'Monto de un gasto en un mes específico (si falta se usa el monto base)', 'recursos'],
+        ['7 · Control', 'Presupuestos y umbrales', 'abc_presupuestos', abc.presupuestos.length, 'Presupuesto mensual por centro y actividad; alerta al superar el umbral', 'alertas'],
         ['3 · Centros de actividad', 'Centros de costo', 'abc_centros', abc.centros.length,
             `${n('estrategico')} estratégicos, ${n('operativo')} operativos y ${n('apoyo')} de apoyo`, 'centros'],
         ['3 · Centros de actividad', 'Puestos del organigrama', 'abc_organigrama', abc.organigrama.length, 'Cargos de la planilla ubicados en cada centro', 'centros'],
-        ['4 · Inductor tipo 2', 'Actividades', 'abc_actividades', abc.actividades.length, '% del costo del centro que consume cada actividad', 'actividades'],
-        ['5 · Inductor tipo 3', 'Inductores de actividad', 'abc_inductores', abc.inductores.length, 'Bases de asignación actividad → producto', 'ind3'],
-        ['5 · Inductor tipo 3', 'Consumo de inductores', 'abc_consumo', abc.consumo.length, 'Cantidad de cada inductor que consume cada producto', 'ind3'],
+        ['4 · Etapa ' + abcNumEtapa('ind2'), 'Actividades', 'abc_actividades', abc.actividades.length, '% del costo del centro que consume cada actividad', 'actividades'],
+        ['5 · Etapa ' + abcNumEtapa('ind3'), 'Inductores de actividad', 'abc_inductores', abc.inductores.length, 'Bases de asignación actividad → producto', 'ind3'],
+        ['5 · Etapa ' + abcNumEtapa('ind3'), 'Consumo de inductores', 'abc_consumo', abc.consumo.length, 'Cantidad de cada inductor que consume cada producto', 'ind3'],
         ['6 · Objetos de costo', 'Productos costeados', 'abc_objetos_costo', abc.objetos.length, 'Unidades producidas al mes y presentación', 'objetos']
     ];
-    const seccion = id => (ABC_SECCIONES.find(s => s[0] === id) || [])[2] || id;
+    const seccion = id => (abcSecciones().find(s => s[0] === id) || [])[2] || id;
     document.getElementById('abcEstructura').innerHTML = filas.map(([etapa, elem, tabla, cant, desc, tab]) => `
         <tr>
             <td><strong>${etapa}</strong></td>
@@ -624,6 +930,18 @@ function abcRenderEstructura() {
             <td class="abc-muted">${desc}</td>
             <td><button class="btn btn-sm" onclick="abcMostrarTab('${tab}')">${seccion(tab)} →</button></td>
         </tr>`).join('');
+}
+
+function abcEjemploEtapa(c) {
+    const movs = Object.values(c.etapas).filter(e => e.movido > 0.005).sort((a, b) => b.movido - a.movido);
+    if (!movs.length) return 'Las etapas adicionales no movieron costos en este período.';
+    const e = movs[0];
+    const nombre = cod => ((e.nivel === 'centro' ? abc.centros : abc.actividades).find(x => x.codigo === cod) || {}).nombre || cod;
+    const origen = Object.entries(e.enviado).sort((a, b) => b[1] - a[1])[0];
+    const destino = Object.entries(e.recibido).sort((a, b) => b[1] - a[1])[0];
+    return `Etapa ${abcNumEtapa('etapa:' + e.codigo)} "${esc(e.nombre)}": ${esc(nombre(origen[0]))} tenía ${abcSoles(e.antes[origen[0]])},
+        envía ${abcPct(e.pctEnviado[origen[0]])} = <b>${abcSoles(origen[1])}</b> y retiene ${abcSoles(e.despues[origen[0]])}.
+        El mayor receptor es ${esc(nombre(destino[0]))} (+${abcSoles(destino[1])}). En total se trasladaron <b>${abcSoles(movs.reduce((s, x) => s + x.movido, 0))}</b> entre etapas.`;
 }
 
 function abcRenderCalculos() {
@@ -659,14 +977,18 @@ function abcRenderCalculos() {
         paso(1, 'Monto de cada recurso',
             'Recurso de planilla = Σ costo total empleador del cargo · Recurso de gasto = monto mensual registrado',
             rec ? `${esc(rec.r.nombre)} (${rec.r.categoria}) = <b>${abcSoles(rec.r.montoCalc)}</b> en ${abcNombreMes(abc.periodo)}.` : '—'),
-        paso(2, 'Inductor tipo 1 · Costo del centro de actividad',
+        paso(2, `Etapa ${abcNumEtapa('ind1')} · Reparto primario al centro de actividad`,
             'Costo del centro<sub>j</sub> = Σ<sub>i</sub> ( Recurso<sub>i</sub> × %<sub>i→j</sub> )',
             rec ? `${esc(rec.r.nombre)}: ${abcSoles(rec.r.montoCalc)} × ${abcPct(rec.pct)} = <b>${abcSoles(rec.v)}</b> hacia ${esc(centro.nombre)}.<br>
-                   Sumando los ${aportes.length} recursos que consume, <b>${esc(centro.nombre)}</b> acumula <b>${abcSoles(costoCentro)}</b>.` : '—'),
-        paso(3, 'Inductor tipo 2 · Costo de la actividad',
-            'Costo de la actividad<sub>k</sub> = Costo del centro<sub>j</sub> × %<sub>j→k</sub>',
-            `${esc(act.nombre)}: ${abcSoles(costoCentro)} × ${abcPct(act.porcentaje)} = <b>${abcSoles(act.costo)}</b>.`),
-        paso(4, 'Inductor tipo 3 · Tasa de la actividad',
+                   Sumando los ${aportes.length} recursos que consume, <b>${esc(centro.nombre)}</b> acumula <b>${abcSoles(c.centroPrimario[act.centro_codigo] || 0)}</b>.` : '—'),
+        paso('2b', 'Etapas de reparto adicionales (' + abc.etapas.length + ')',
+            'Costo final<sub>j</sub> = Costo<sub>j</sub> × (100% − Σ% enviado<sub>j</sub>) + Σ<sub>i</sub> ( Costo<sub>i</sub> × %<sub>i→j</sub> )',
+            abcEjemploEtapa(c)),
+        paso(3, `Etapa ${abcNumEtapa('ind2')} · Costo de la actividad`,
+            'Costo de la actividad<sub>k</sub> = Costo final del centro<sub>j</sub> × %<sub>j→k</sub> (± etapas de reparto entre actividades)',
+            `${esc(act.nombre)}: ${abcSoles(costoCentro)} × ${abcPct(act.porcentaje)} = <b>${abcSoles(act.costoPrimario)}</b>` +
+            (Math.abs(act.costo - act.costoPrimario) > 0.005 ? ` → tras las etapas de reparto entre actividades: <b>${abcSoles(act.costo)}</b>.` : '.')),
+        paso(4, `Etapa ${abcNumEtapa('ind3')} · Tasa de la actividad`,
             'Tasa<sub>k</sub> = Costo de la actividad<sub>k</sub> ÷ Total del inductor consumido por todos los productos',
             `${abcSoles(act.costo)} ÷ ${abcFmt(act.totalInductor, 0)} ${esc(ind.unidad)} (${esc(ind.nombre)}) = <b>${abcSoles(act.tasa, 4)} por ${esc(ind.unidad)}</b>.`),
         paso(5, 'Asignación de la actividad al objeto de costo',
@@ -769,11 +1091,12 @@ function abcRenderCentros() {
             <td>${esc(x.responsable || '')}</td>
             <td class="num">${nRec}</td>
             <td class="num">${abc.actividades.filter(a => a.centro_codigo === x.codigo).length}</td>
+            <td class="num">${abcSoles(c.centroPrimario[x.codigo] || 0)}</td>
             <td class="num"><strong>${abcSoles(costo)}</strong></td>
             <td class="num">${abcPct(totalCentros ? costo / totalCentros * 100 : 0)}</td>
         </tr>`;
     }).join('') + `<tr class="abc-total"><td colspan="5">TOTAL CENTROS DE COSTOS</td>
-        <td class="num">${abc.actividades.length}</td><td class="num">${abcSoles(totalCentros)}</td><td class="num">${abcPct(totalCentros ? 100 : 0)}</td></tr>`;
+        <td class="num">${abc.actividades.length}</td><td class="num">${abcSoles(Object.values(c.centroPrimario).reduce((s, v) => s + v, 0))}</td><td class="num">${abcSoles(totalCentros)}</td><td class="num">${abcPct(totalCentros ? 100 : 0)}</td></tr>`;
 }
 
 // ---------- ACTIVIDADES ----------
@@ -792,7 +1115,8 @@ function abcRenderActividades() {
             <td><span class="abc-tag abc-tag-${centro.tipo}">${esc(centro.nombre || a.centro_codigo)}</span></td>
             <td>${nivel ? `<span class="abc-nivel abc-nivel-${nivel}">${ABC_NIVELES[nivel]}</span>` : '<span class="abc-muted">—</span>'}</td>
             <td class="num">${abcPct(a.porcentaje)}</td>
-            <td class="num"><strong>${abcSoles(a.costo)}</strong></td>
+            <td class="num"><strong>${abcSoles(a.costo)}</strong>${Math.abs(a.costo - a.costoPrimario) > 0.005
+                ? `<br><small class="abc-muted" title="Costo recibido del centro antes de las etapas de reparto entre actividades">antes: ${abcSoles(a.costoPrimario, 0)}</small>` : ''}</td>
             <td class="num">${abcPct(total ? a.costo / total * 100 : 0)}</td>
             <td>${esc(i.nombre)}</td>
             <td class="num">${abcSoles(a.tasa, 4)} <small class="abc-muted">/ ${esc(i.unidad)}</small></td>
@@ -1082,7 +1406,10 @@ function abcEliminarCentroModal() {
     if (!confirm(`¿Eliminar el centro ${codigo}?\nTambién se eliminan sus ${nAct} actividades y su distribución del inductor tipo 1. Sus puestos quedan sin asignar.`)) return;
     closeModal('modalCentro');
     abcTrasCambio(async () => {
+        const actsCentro = abc.actividades.filter(a => a.centro_codigo === codigo).map(a => a.codigo);
         await abcBorrar('abc_centros', 'codigo', codigo);
+        await abcLimpiarReferencias('centro', codigo);
+        for (const a of actsCentro) await abcLimpiarReferencias('actividad', a);
         abc.centros = abc.centros.filter(c => c.codigo !== codigo);
         abc.centros.forEach(c => { if (c.padre_codigo === codigo) c.padre_codigo = null; });
         abc.actividades = abc.actividades.filter(a => a.centro_codigo !== codigo);
@@ -1092,8 +1419,25 @@ function abcEliminarCentroModal() {
 }
 
 // ---------- RECURSOS ----------
+function abcCeldaMonto(r) {
+    const m = abcMontoMes(r, abc.periodo);
+    const valor = abc.modoMonto === 'base' ? Number(r.monto) || 0 : m.monto;
+    return `<input type="number" step="0.01" min="0" class="abc-input abc-input-w ${m.propio && abc.modoMonto === 'mes' ? 'abc-has' : ''}" value="${valor}"
+            onchange="abcCambiarMontoRecurso('${esc(r.codigo)}', this.value)">
+        <br><small class="abc-muted">${m.propio
+            ? `monto de ${abcNombreMes(abc.periodo).toLowerCase()} · base ${abcFmt(r.monto)} <button class="abc-icon-btn" title="Volver al monto base" onclick="abcQuitarMontoMes('${esc(r.codigo)}')">↺</button>`
+            : 'monto base (todos los meses)'}</small>`;
+}
+
 function abcRenderRecursos() {
     const c = abc.calc;
+    const modo = document.getElementById('abcModoMonto');
+    if (modo) modo.innerHTML = `<label>Al editar el monto de un gasto:
+        <select class="abc-input-sel" onchange="abc.modoMonto=this.value; abcRenderRecursos()">
+            <option value="mes" ${abc.modoMonto === 'mes' ? 'selected' : ''}>Cambiar solo ${abcNombreMes(abc.periodo)}</option>
+            <option value="base" ${abc.modoMonto === 'base' ? 'selected' : ''}>Cambiar el monto base (meses sin monto propio)</option>
+        </select></label>
+        <button class="btn btn-sm" onclick="abcGenerarVariacionEjemplo()">🎲 Generar montos mensuales de ejemplo</button>`;
     let html = '';
     Object.entries(ABC_CATEGORIAS).forEach(([cat, nombre]) => {
         const filas = c.recursos.filter(r => r.categoria === cat);
@@ -1112,7 +1456,7 @@ function abcRenderRecursos() {
                 <td class="num ${Math.abs(r.pctTotal - 100) > 0.01 ? 'abc-neg' : ''}">${abcPct(r.pctTotal)}</td>
                 <td class="num">${r.origen === 'planilla'
                     ? `<span title="Suma de costo_total_empleador del período">${abcSoles(r.montoCalc)}</span>`
-                    : `<input type="number" step="0.01" min="0" class="abc-input abc-input-w" value="${Number(r.monto) || 0}" onchange="abcCambiarMonto('${esc(r.codigo)}', this.value)">`}</td>
+                    : abcCeldaMonto(r)}</td>
                 <td>${r.origen === 'planilla' ? '' : `<button class="abc-icon-btn" title="Eliminar" onclick="abcEliminarRecurso('${esc(r.codigo)}')">🗑️</button>`}</td>
             </tr>`).join('');
     });
@@ -1153,18 +1497,18 @@ function abcRenderInd1() {
             <td class="num ${Math.abs(r.pctTotal - 100) > 0.01 ? 'abc-neg' : 'abc-pos'}"><strong>${abcPct(r.pctTotal)}</strong></td>
         </tr>`).join('');
     const pie = `<tr class="abc-total"><td class="abc-sticky">COSTO POR CENTRO</td><td class="num">${abcSoles(c.totalRecursos, 0)}</td>
-        ${cols.map(x => `<td class="num">${abcFmt(c.centroCosto[x.codigo] || 0, 0)}</td>`).join('')}<td></td></tr>`;
+        ${cols.map(x => `<td class="num">${abcFmt(c.centroPrimario[x.codigo] || 0, 0)}</td>`).join('')}<td></td></tr>`;
     document.getElementById('abcInd1Tabla').innerHTML = `<thead>${head}</thead><tbody>${body}${pie}</tbody>`;
 
     document.getElementById('abcInd1Centros').innerHTML = cols.map(x => {
-        const cat = c.centroPorCategoria[x.codigo] || {};
+        const cat = c.centroPrimarioCat[x.codigo] || {};
         return `<tr>
             <td><strong>${esc(x.codigo)}</strong></td><td>${esc(x.nombre)}</td>
             <td><span class="abc-tag abc-tag-${x.tipo}">${ABC_TIPOS[x.tipo].nombre}</span></td>
             ${['MOD', 'MOI', 'CIF', 'GADM', 'GVTA'].map(k => `<td class="num">${cat[k] ? abcFmt(cat[k]) : '–'}</td>`).join('')}
-            <td class="num"><strong>${abcSoles(c.centroCosto[x.codigo] || 0)}</strong></td>
+            <td class="num"><strong>${abcSoles(c.centroPrimario[x.codigo] || 0)}</strong></td>
         </tr>`;
-    }).join('') + `<tr class="abc-total"><td colspan="8">TOTAL</td><td class="num">${abcSoles(Object.values(c.centroCosto).reduce((s, v) => s + v, 0))}</td></tr>`;
+    }).join('') + `<tr class="abc-total"><td colspan="8">TOTAL</td><td class="num">${abcSoles(Object.values(c.centroPrimario).reduce((s, v) => s + v, 0))}</td></tr>`;
 }
 
 // ---------- INDUCTOR TIPO 2 ----------
@@ -1190,12 +1534,12 @@ function abcRenderInd2() {
                         <td>${esc(a.nombre)}<br><small class="abc-muted">${esc(a.codigo)}</small></td>
                         <td class="num"><input type="number" step="0.1" min="0" max="100" class="abc-input abc-pct abc-has" value="${Number(a.porcentaje) || 0}"
                             onchange="abcCambiarActividad('${esc(a.codigo)}','porcentaje', this.value)"></td>
-                        <td class="num">${abcFmt(a.costo)}</td>
+                        <td class="num">${abcFmt(a.costoPrimario)}</td>
                         <td><select class="abc-input-sel" onchange="abcCambiarActividad('${esc(a.codigo)}','inductor_codigo', this.value)">${opcionesInd(a.inductor_codigo)}</select></td>
                         <td><button class="abc-icon-btn" title="Eliminar actividad" onclick="abcEliminarActividad('${esc(a.codigo)}')">🗑️</button></td>
                     </tr>`).join('')}
                     <tr class="abc-total"><td>Σ</td><td class="num ${Math.abs(suma - 100) > 0.01 ? 'abc-neg' : 'abc-pos'}">${abcPct(suma)}</td>
-                        <td class="num">${abcFmt(acts.reduce((s, a) => s + a.costo, 0))}</td>
+                        <td class="num">${abcFmt(acts.reduce((s, a) => s + a.costoPrimario, 0))}</td>
                         <td colspan="2"><button class="btn btn-sm" onclick="abcAbrirActividad('${esc(x.codigo)}')">+ Actividad</button></td></tr>
                     </tbody>
                 </table>
@@ -1461,9 +1805,11 @@ function abcEliminarMaterial(id) {
 function abcEliminarRecurso(codigo) {
     if (!confirm('¿Eliminar el recurso ' + codigo + ' y su distribución?')) return;
     abcTrasCambio(async () => {
+        await abcBorrar('abc_recursos_mes', 'recurso_codigo', codigo);
         await abcBorrar('abc_recursos', 'codigo', codigo);
         abc.recursos = abc.recursos.filter(r => r.codigo !== codigo);
         abc.inductor1 = abc.inductor1.filter(f => f.recurso_codigo !== codigo);
+        abc.recursosMes = abc.recursosMes.filter(f => f.recurso_codigo !== codigo);
     });
 }
 
@@ -1472,6 +1818,7 @@ function abcEliminarActividad(codigo) {
     abcTrasCambio(async () => {
         await abcBorrar('abc_actividades', 'codigo', codigo);
         abc.actividades = abc.actividades.filter(a => a.codigo !== codigo);
+        await abcLimpiarReferencias('actividad', codigo);
     });
 }
 
@@ -1616,13 +1963,19 @@ async function abcRestablecer() {
     if (!confirm('¿Borrar la configuración ABC actual y volver a generar los datos de ejemplo?')) return;
     try {
         if (abc.modo === 'db') {
+            for (const t of ['abc_etapa_dist', 'abc_etapas', 'abc_presupuestos', 'abc_recursos_mes'].filter(abcEnBD)) {
+                const { error } = await supabaseClient.from(t).delete().neq('id', 0);
+                if (error) throw error;
+            }
             for (const t of ['abc_organigrama', 'abc_consumo', 'abc_materiales', 'abc_objetos_costo', 'abc_actividades',
                              'abc_inductor1', 'abc_inductores', 'abc_recursos', 'abc_centros']) {
                 const { error } = await supabaseClient.from(t).delete().neq('id', 0);
                 if (error) throw error;
             }
         }
+        abc.etapas = []; abc.etapaDist = []; abc.presupuestos = []; abc.recursosMes = [];
         await abcCargar();
+        abcRellenarPeriodos();
         abcRenderTodo();
     } catch (e) {
         console.error(e);
@@ -1630,20 +1983,641 @@ async function abcRestablecer() {
     }
 }
 
-function abcExportarCSV(idTabla, nombre) {
-    const rows = [...document.querySelectorAll('#' + idTabla + ' tr')];
-    const txt = rows.map(r => [...r.cells].map(cel => {
-        const input = cel.querySelector('input,select');
-        let s = (input ? input.value : cel.textContent).trim().replace(/\s+/g, ' ');
-        if (/^[=+@-]/.test(s)) s = "'" + s;
-        return '"' + s.replaceAll('"', '""') + '"';
-    }).join(';')).join('\r\n');
-    const url = URL.createObjectURL(new Blob(['﻿' + txt], { type: 'text/csv;charset=utf-8' }));
+// ==================== ETAPAS DEL MODELO (5 como mínimo, se pueden agregar más) ====================
+function abcRenderCadenaEtapas(idEl) {
+    const el = document.getElementById(idEl);
+    if (!el) return;
+    const c = abc.calc;
+    const movido = x => x.etapa && c.etapas[x.etapa.codigo] ? c.etapas[x.etapa.codigo].movido : null;
+    el.innerHTML = `<div class="abc-etapas-cadena">
+        ${abcEtapasModelo().map(x => `
+            <button class="abc-etapa-chip ${x.fija ? '' : 'abc-etapa-chip-extra'} ${abc.tabActual === x.id ? 'activa' : ''}" onclick="abcMostrarTab('${esc(x.id)}')">
+                <b>${x.simbolo}</b><span>${esc(x.nombre)}</span>
+                <small>${x.fija ? 'etapa base' : (ABC_NIVELES_ETAPA[x.etapa.nivel] + ' · ' + abcSoles(movido(x) || 0, 0) + ' trasladados')}</small>
+            </button>`).join('<span class="abc-chain-arrow">➜</span>')}
+        <button class="abc-etapa-chip abc-etapa-add" onclick="abcAbrirEtapa()"><b>＋</b><span>Agregar etapa</span><small>entre centros o actividades</small></button>
+    </div>
+    <p class="abc-muted abc-note">El modelo tiene <b>${abcEtapasModelo().length} etapas</b> (mínimo ${ABC_MIN_ETAPAS}).
+        Las etapas de reparto trasladan costo entre centros (p. ej. de apoyo a operativos) o entre actividades (p. ej. mantenimiento → llenado).</p>`;
+}
+
+function abcRenderEtapa() {
+    const e = abc.etapas.find(x => x.codigo === abc.etapaActiva);
+    const el = document.getElementById('abcEtapa');
+    if (!e || !el || !abc.calc) return;
+    const c = abc.calc;
+    const r = c.etapas[e.codigo] || { antes: {}, enviado: {}, recibido: {}, despues: {}, pctEnviado: {}, movido: 0 };
+    const esCentro = e.nivel === 'centro';
+    const nodos = esCentro ? abcCentrosOrdenados() : abc.actividades.slice();
+    const mismas = abcEtapasDe(e.nivel);
+    const i = mismas.indexOf(e);
+    const puedeEliminar = abcEtapasModelo().length > ABC_MIN_ETAPAS;
+    const corto = x => esCentro ? x.codigo.replace('CA-', '') : x.codigo.replace('ACT-', 'A');
+    const tipoDe = x => esCentro ? x.tipo : ((abc.centros.find(cc => cc.codigo === x.centro_codigo) || {}).tipo || '');
+    const soloConReparto = abc.etapaSoloOrigen;
+    const filas = nodos.filter(x => !soloConReparto || r.pctEnviado[x.codigo] || (r.antes[x.codigo] || 0) > 0.005);
+
+    el.innerHTML = `
+    <div class="card">
+        <div class="abc-etapa-head">
+            <div>
+                <h2>${abcNumEtapa('etapa:' + e.codigo)} ${esc(e.nombre)} <small class="abc-muted">· ${ABC_NIVELES_ETAPA[e.nivel]} · ${esc(e.codigo)}</small></h2>
+                <p class="abc-muted">${esc(e.descripcion || '')}</p>
+                <p class="abc-muted">Indique qué % de su costo envía cada <b>origen</b> (fila) a cada <b>destino</b> (columna). Lo que no se envía lo retiene el origen.
+                    Se aplica ${esCentro ? `después de la etapa ${abcNumEtapa('ind1')} (Recursos → Centros) y antes de asignar los centros a sus actividades`
+                                         : `después de la etapa ${abcNumEtapa('ind2')} (Centros → Actividades) y antes de asignar las actividades a los productos`}.</p>
+            </div>
+            <div class="abc-etapa-kpi"><small>Trasladado en ${abcNombreMes(abc.periodo)}</small><b>${abcSoles(r.movido)}</b></div>
+        </div>
+        <div class="btn-group abc-actions">
+            <button class="btn" onclick="abcAbrirEtapa('${esc(e.codigo)}')">✏️ Editar etapa</button>
+            <button class="btn" ${i <= 0 ? 'disabled' : ''} onclick="abcMoverEtapa('${esc(e.codigo)}',-1)">⬆ Antes</button>
+            <button class="btn" ${i >= mismas.length - 1 ? 'disabled' : ''} onclick="abcMoverEtapa('${esc(e.codigo)}',1)">⬇ Después</button>
+            <button class="btn btn-primary" onclick="abcAbrirEtapa()">＋ Nueva etapa</button>
+            <button class="btn btn-danger" ${puedeEliminar ? '' : `disabled title="El modelo debe tener al menos ${ABC_MIN_ETAPAS} etapas"`} onclick="abcEliminarEtapa('${esc(e.codigo)}')">🗑️ Eliminar etapa</button>
+            <button class="btn" onclick="abcExportarExcel('abcEtapaMatriz','etapa-${esc(e.codigo)}')">📥 Exportar Excel</button>
+            <label class="abc-check"><input type="checkbox" ${soloConReparto ? 'checked' : ''} onchange="abc.etapaSoloOrigen=this.checked; abcRenderEtapa()"> Solo orígenes con costo o reparto</label>
+        </div>
+        <div class="table-container abc-scroll">
+            <table id="abcEtapaMatriz" class="abc-matrix">
+                <thead><tr><th class="abc-sticky">Origen</th><th class="num">Costo al inicio</th>
+                    ${nodos.map(x => `<th class="num abc-th-${tipoDe(x)}" title="${esc(x.nombre)}">${esc(corto(x))}</th>`).join('')}
+                    <th class="num">Σ % enviado</th><th class="num">Retiene</th></tr></thead>
+                <tbody>
+                ${filas.map(o => {
+                    const suma = r.pctEnviado[o.codigo] || 0;
+                    return `<tr>
+                        <td class="abc-sticky"><strong>${esc(o.nombre)}</strong><br><small class="abc-muted">${esc(o.codigo)}</small></td>
+                        <td class="num">${abcSoles(r.antes[o.codigo] || 0, 0)}</td>
+                        ${nodos.map(d => {
+                            if (d.codigo === o.codigo) return '<td class="num abc-celda-off">—</td>';
+                            const p = abcPctEtapa(e.codigo, o.codigo, d.codigo);
+                            return `<td class="num"><input type="number" step="0.1" min="0" max="100" class="abc-input abc-pct ${p ? 'abc-has' : ''}"
+                                value="${p || ''}" placeholder="0" title="${esc(o.nombre)} → ${esc(d.nombre)}"
+                                onchange="abcCambiarEtapaDist('${esc(e.codigo)}','${esc(o.codigo)}','${esc(d.codigo)}', this.value)"></td>`;
+                        }).join('')}
+                        <td class="num ${suma > 100.01 ? 'abc-neg' : suma ? 'abc-pos' : ''}"><strong>${abcPct(suma)}</strong></td>
+                        <td class="num">${abcPct(Math.max(0, 100 - suma))}</td>
+                    </tr>`;
+                }).join('')}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card">
+        <h2>📦 Resultado de la etapa · ${abcNombreMes(abc.periodo)}</h2>
+        <div class="table-container">
+            <table id="abcEtapaResultado">
+                <thead><tr><th>Código</th><th>${esCentro ? 'Centro' : 'Actividad'}</th><th class="num">Costo al inicio</th><th class="num">Enviado</th>
+                    <th class="num">Recibido</th><th class="num">Costo al final</th><th class="num">Variación</th></tr></thead>
+                <tbody>
+                ${nodos.filter(x => (r.antes[x.codigo] || 0) > 0.005 || (r.despues[x.codigo] || 0) > 0.005).map(x => {
+                    const a = r.antes[x.codigo] || 0, d = r.despues[x.codigo] || 0;
+                    return `<tr><td>${esc(x.codigo)}</td><td>${esc(x.nombre)}</td><td class="num">${abcSoles(a)}</td>
+                        <td class="num">${r.enviado[x.codigo] ? '−' + abcFmt(r.enviado[x.codigo]) : '–'}</td>
+                        <td class="num">${r.recibido[x.codigo] ? '+' + abcFmt(r.recibido[x.codigo]) : '–'}</td>
+                        <td class="num"><strong>${abcSoles(d)}</strong></td>
+                        <td class="num ${d - a > 0.005 ? 'abc-neg' : d - a < -0.005 ? 'abc-pos' : ''}">${Math.abs(d - a) > 0.005 ? (d > a ? '+' : '') + abcFmt(d - a) : '–'}</td></tr>`;
+                }).join('')}
+                <tr class="abc-total"><td colspan="3">TOTAL TRASLADADO</td><td class="num">${abcFmt(r.movido)}</td><td class="num">${abcFmt(r.movido)}</td><td colspan="2"></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>`;
+}
+
+function abcAbrirEtapa(codigo) {
+    const e = codigo ? abc.etapas.find(x => x.codigo === codigo) : null;
+    abc._etapaEditando = e ? e.codigo : null;
+    document.getElementById('etaTituloModal').textContent = e ? '🔗 Editar etapa de reparto' : '🔗 Nueva etapa de reparto';
+    document.getElementById('etaNombre').value = e ? e.nombre : '';
+    document.getElementById('etaNivel').value = e ? e.nivel : 'centro';
+    document.getElementById('etaNivel').disabled = !!e;
+    document.getElementById('etaDescripcion').value = e ? (e.descripcion || '') : '';
+    openModal('modalEtapa');
+}
+
+function abcGuardarEtapa() {
+    const nombre = document.getElementById('etaNombre').value.trim();
+    if (!nombre) { showAlert('Ingrese el nombre de la etapa', 'error'); return; }
+    const nivel = document.getElementById('etaNivel').value;
+    const descripcion = document.getElementById('etaDescripcion').value.trim();
+    const editando = abc._etapaEditando;
+    closeModal('modalEtapa');
+    abcTrasCambio(async () => {
+        let e = abc.etapas.find(x => x.codigo === editando);
+        if (e) Object.assign(e, { nombre, descripcion });
+        else {
+            e = { id: abcIdLocal++, codigo: abcSiguienteCodigo(abc.etapas, 'ET-'), nombre, nivel, descripcion,
+                  orden: Math.max(0, ...abcEtapasDe(nivel).map(x => x.orden || 0)) + 1 };
+            abc.etapas.push(e);
+        }
+        const g = await abcGuardar('abc_etapas', { codigo: e.codigo, nombre: e.nombre, nivel: e.nivel, orden: e.orden, descripcion: e.descripcion || null }, 'codigo');
+        if (g && g.id) e.id = g.id;
+        if (!editando) {
+            showAlert(`✅ Etapa creada: ahora el modelo tiene ${abcEtapasModelo().length} etapas. Indique los % de reparto.`, 'success');
+            setTimeout(() => abcMostrarTab('etapa:' + e.codigo), 0);
+        }
+    });
+}
+
+function abcMoverEtapa(codigo, paso) {
+    const e = abc.etapas.find(x => x.codigo === codigo);
+    const lista = abcEtapasDe(e.nivel);
+    const i = lista.indexOf(e), j = i + paso;
+    if (j < 0 || j >= lista.length) return;
+    lista.splice(i, 1);
+    lista.splice(j, 0, e);
+    abcTrasCambio(async () => {
+        lista.forEach((x, k) => { x.orden = k + 1; });
+        await abcGuardarVarios('abc_etapas', lista.map(x => ({ codigo: x.codigo, nombre: x.nombre, nivel: x.nivel, orden: x.orden, descripcion: x.descripcion || null })), 'codigo');
+    });
+}
+
+function abcEliminarEtapa(codigo) {
+    if (abcEtapasModelo().length <= ABC_MIN_ETAPAS) { showAlert(`⚠️ El modelo debe tener al menos ${ABC_MIN_ETAPAS} etapas`, 'error'); return; }
+    const e = abc.etapas.find(x => x.codigo === codigo);
+    if (!e || !confirm(`¿Eliminar la etapa "${e.nombre}" y su distribución?`)) return;
+    abcTrasCambio(async () => {
+        await abcBorrar('abc_etapa_dist', 'etapa_codigo', codigo);
+        await abcBorrar('abc_etapas', 'codigo', codigo);
+        abc.etapas = abc.etapas.filter(x => x.codigo !== codigo);
+        abc.etapaDist = abc.etapaDist.filter(x => x.etapa_codigo !== codigo);
+        abc.tabActual = 'resumen';
+        setTimeout(() => abcMostrarTab('resumen'), 0);
+    });
+}
+
+function abcCambiarEtapaDist(etapa, origen, destino, valor) {
+    abcTrasCambio(async () => {
+        const pct = Math.max(0, abcNum(valor));
+        let f = abc.etapaDist.find(x => x.etapa_codigo === etapa && x.origen === origen && x.destino === destino);
+        if (!f) { f = { id: abcIdLocal++, etapa_codigo: etapa, origen, destino, porcentaje: pct }; abc.etapaDist.push(f); }
+        f.porcentaje = pct;
+        await abcGuardar('abc_etapa_dist', { etapa_codigo: etapa, origen, destino, porcentaje: pct }, 'etapa_codigo,origen,destino');
+    });
+}
+
+// Limpia repartos y presupuestos de un centro o actividad eliminado
+async function abcLimpiarReferencias(tipo, codigo) {
+    const etapas = abc.etapas.filter(e => e.nivel === tipo).map(e => e.codigo);
+    for (const campo of ['origen', 'destino']) {
+        for (const et of etapas) {
+            if (abc.etapaDist.some(d => d.etapa_codigo === et && d[campo] === codigo)) await abcBorrarDonde('abc_etapa_dist', { etapa_codigo: et, [campo]: codigo });
+        }
+    }
+    abc.etapaDist = abc.etapaDist.filter(d => !(etapas.includes(d.etapa_codigo) && (d.origen === codigo || d.destino === codigo)));
+    if (abcPresupuesto(tipo, codigo)) await abcBorrarDonde('abc_presupuestos', { tipo, codigo });
+    abc.presupuestos = abc.presupuestos.filter(p => !(p.tipo === tipo && p.codigo === codigo));
+}
+
+// ==================== ALERTAS Y PRESUPUESTO ====================
+function abcBarraConsumo(x) {
+    if (x.estado === 'sin') return '<span class="abc-muted">—</span>';
+    const w = Math.min(100, x.pct);
+    return `<div class="abc-consumo" title="${abcPct(x.pct)} del presupuesto · umbral ${abcPct(x.umbral)}">
+        <div class="abc-consumo-bar abc-consumo-${x.estado}" style="width:${w.toFixed(1)}%"></div>
+        <i class="abc-consumo-umbral" style="left:${Math.min(100, x.umbral).toFixed(1)}%"></i>
+        <span>${abcPct(x.pct)}</span></div>`;
+}
+
+const abcChipEstado = x => `<span class="abc-estado abc-estado-${x.estado}">${ABC_ESTADOS[x.estado].icono} ${ABC_ESTADOS[x.estado].nombre}</span>`;
+const abcVariacion = x => x.variacion === null ? '<span class="abc-muted">—</span>'
+    : `<span class="${x.variacion > 0.05 ? 'abc-neg' : x.variacion < -0.05 ? 'abc-pos' : ''}">${x.variacion > 0 ? '▲ +' : x.variacion < 0 ? '▼ ' : ''}${abcPct(x.variacion)}</span>`;
+
+function abcRenderAlertasResumen() {
+    const el = document.getElementById('abcAlertasResumen');
+    if (!el) return;
+    const activas = abc.alertas.filter(x => x.estado === 'excedido' || x.estado === 'cerca');
+    if (!activas.length) {
+        el.innerHTML = abc.presupuestos.length ? `<div class="abc-banner abc-banner-ok"><strong>🟢 Sin alertas de presupuesto en ${abcNombreMes(abc.periodo)}.</strong>
+            Todos los centros y actividades con presupuesto están por debajo de su umbral.</div>` : '';
+        return;
+    }
+    const exc = activas.filter(x => x.estado === 'excedido').length;
+    el.innerHTML = `<div class="abc-banner ${exc ? 'abc-banner-alerta' : 'abc-banner-warn'}">
+        <strong>🚨 Alertas de presupuesto · ${abcNombreMes(abc.periodo)}: ${exc} excedidos, ${activas.length - exc} cerca del límite</strong>
+        <ul class="abc-alerta-lista">${activas.slice(0, 6).map(x => `<li>
+            ${ABC_ESTADOS[x.estado].icono} <b>${esc(x.nombre)}</b> <small>(${x.tipo === 'centro' ? 'centro' : 'actividad'})</small>:
+            ${abcSoles(x.costo, 0)} de ${abcSoles(x.monto, 0)} (<b>${abcPct(x.pct)}</b>)
+            <button class="btn btn-sm" onclick="abcAbrirGrafica('${x.tipo}','${esc(x.codigo)}')">📈 Ver gráfica</button></li>`).join('')}</ul>
+        ${activas.length > 6 ? `<p>… y ${activas.length - 6} más.</p>` : ''}
+        <button class="btn btn-sm" onclick="abcMostrarTab('alertas')">Ver todas las alertas →</button>
+    </div>`;
+}
+
+function abcRenderAlertas() {
+    const el = document.getElementById('abcAlertasTabla');
+    if (!el) return;
+    const f = abc.filtroAlertas;
+    const lista = abc.alertas.filter(x => (f.tipo === 'todos' || x.tipo === f.tipo) &&
+        (f.estado === 'todos' || (f.estado === 'alertas' ? (x.estado === 'excedido' || x.estado === 'cerca') : x.estado === f.estado)));
+    const cuenta = e => abc.alertas.filter(x => x.estado === e).length;
+
+    document.getElementById('abcAlertasMetricas').innerHTML = ['excedido', 'cerca', 'ok', 'sin'].map(e => `
+        <button class="abc-alerta-kpi abc-alerta-kpi-${e} ${f.estado === e ? 'activa' : ''}" onclick="abcFiltrarAlertas('estado','${f.estado === e ? 'todos' : e}')">
+            <span>${ABC_ESTADOS[e].icono}</span><b>${cuenta(e)}</b><small>${ABC_ESTADOS[e].nombre}</small></button>`).join('');
+
+    document.getElementById('abcAlertasFiltros').innerHTML = `
+        <label>Mostrar <select class="abc-input-sel" onchange="abcFiltrarAlertas('tipo', this.value)">
+            ${[['todos', 'Centros y actividades'], ['centro', 'Solo centros'], ['actividad', 'Solo actividades']].map(([v, t]) => `<option value="${v}" ${f.tipo === v ? 'selected' : ''}>${t}</option>`).join('')}
+        </select></label>
+        <label>Estado <select class="abc-input-sel" onchange="abcFiltrarAlertas('estado', this.value)">
+            ${[['alertas', '🚨 Solo alertas'], ['todos', 'Todos'], ['excedido', '🔴 Excedidos'], ['cerca', '🟠 Cerca del límite'], ['ok', '🟢 Dentro'], ['sin', '⚪ Sin presupuesto']]
+                .map(([v, t]) => `<option value="${v}" ${f.estado === v ? 'selected' : ''}>${t}</option>`).join('')}
+        </select></label>
+        <label>Umbral para nuevos / aplicar a todos <input type="number" min="1" max="100" step="1" class="abc-input abc-input-s" value="${abc.umbralNuevo}"
+            onchange="abc.umbralNuevo = Math.min(100, Math.max(1, abcNum(this.value)) || ${ABC_UMBRAL_DEFECTO})"> %</label>
+        <button class="btn btn-sm" onclick="abcAplicarUmbralTodos()">Aplicar umbral a todos</button>`;
+
+    el.innerHTML = lista.length ? lista.map(x => `<tr class="abc-fila-${x.estado}">
+        <td>${abcChipEstado(x)}</td>
+        <td><span class="abc-tag abc-tag-${x.centroTipo || ''}">${x.tipo === 'centro' ? 'Centro' : 'Actividad'}</span></td>
+        <td><strong>${esc(x.nombre)}</strong><br><small class="abc-muted">${esc(x.codigo)}${x.centroNombre ? ' · ' + esc(x.centroNombre) : ''}</small></td>
+        <td class="num"><strong>${abcSoles(x.costo)}</strong></td>
+        <td class="num"><input type="number" min="0" step="10" class="abc-input abc-input-w" value="${x.monto || ''}" placeholder="Sin presupuesto"
+            onchange="abcCambiarPresupuesto('${x.tipo}','${esc(x.codigo)}','monto', this.value)"></td>
+        <td class="num"><input type="number" min="1" max="100" step="1" class="abc-input abc-input-s" value="${x.umbral}"
+            onchange="abcCambiarPresupuesto('${x.tipo}','${esc(x.codigo)}','umbral', this.value)"></td>
+        <td class="abc-bar-cell">${abcBarraConsumo(x)}</td>
+        <td class="num">${x.estado === 'sin' ? '–' : abcSoles(x.monto - x.costo)}</td>
+        <td class="num">${abcVariacion(x)}</td>
+        <td><button class="btn btn-sm" onclick="abcAbrirGrafica('${x.tipo}','${esc(x.codigo)}')">📈 Gráfica</button></td>
+    </tr>`).join('') : `<tr><td colspan="10" class="abc-muted abc-vacio">No hay elementos con este filtro${f.estado === 'alertas' ? ': ningún centro o actividad está cerca o por encima de su presupuesto 🎉' : ''}.</td></tr>`;
+
+    const conMes = abc.recursosMes.length;
+    document.getElementById('abcAlertasNota').innerHTML = conMes ? '' : `<div class="abc-banner abc-banner-info">
+        <strong>ℹ️ Los gastos (CIF, administración y ventas) tienen el mismo monto todos los meses.</strong>
+        Solo la planilla cambia de un mes a otro, por eso las gráficas pueden verse planas. Registre el monto real de cada mes en
+        <a href="#recursos" onclick="abcMostrarTab('recursos'); return false;">Recursos</a> (modo "solo este mes") o
+        <button class="btn btn-sm" onclick="abcGenerarVariacionEjemplo()">🎲 genere montos mensuales de ejemplo</button>.</div>`;
+}
+
+function abcFiltrarAlertas(campo, valor) {
+    abc.filtroAlertas[campo] = valor;
+    abcRenderAlertas();
+}
+
+function abcCambiarPresupuesto(tipo, codigo, campo, valor) {
+    abcTrasCambio(async () => {
+        let p = abcPresupuesto(tipo, codigo);
+        if (!p) { p = { id: abcIdLocal++, tipo, codigo, monto: 0, umbral: abc.umbralNuevo }; abc.presupuestos.push(p); }
+        p[campo] = campo === 'umbral' ? Math.min(100, Math.max(1, abcNum(valor) || ABC_UMBRAL_DEFECTO)) : Math.max(0, abcNum(valor));
+        await abcGuardar('abc_presupuestos', { tipo, codigo, monto: p.monto, umbral: p.umbral }, 'tipo,codigo');
+    });
+}
+
+function abcAplicarUmbralTodos() {
+    if (!abc.presupuestos.length || !confirm(`¿Usar ${abc.umbralNuevo}% como umbral de alerta en todos los presupuestos?`)) return;
+    abcTrasCambio(async () => {
+        abc.presupuestos.forEach(p => { p.umbral = abc.umbralNuevo; });
+        await abcGuardarVarios('abc_presupuestos', abc.presupuestos.map(p => ({ tipo: p.tipo, codigo: p.codigo, monto: p.monto, umbral: p.umbral })), 'tipo,codigo');
+        showAlert('✅ Umbral actualizado', 'success');
+    });
+}
+
+function abcSugerirPresupuestos(soloFaltantes) {
+    if (!soloFaltantes && !confirm('¿Reemplazar TODOS los presupuestos por el promedio mensual + 15%?')) return;
+    abcTrasCambio(async () => {
+        const filas = abcPresupuestosSugeridos(soloFaltantes);
+        if (!filas.length) { showAlert('No hay elementos sin presupuesto con costo registrado', 'info'); return; }
+        const g = await abcGuardarVarios('abc_presupuestos', filas, 'tipo,codigo');
+        filas.forEach((f, k) => {
+            const p = abcPresupuesto(f.tipo, f.codigo);
+            if (p) Object.assign(p, f); else abc.presupuestos.push((g && g[k]) || { id: abcIdLocal++, ...f });
+        });
+        showAlert(`✅ Se asignó presupuesto sugerido a ${filas.length} elementos`, 'success');
+    });
+}
+
+// ==================== GRÁFICA MES A MES ====================
+// Regresión lineal simple: pendiente por mes y proyección del mes siguiente
+function abcTendencia(valores) {
+    const n = valores.length;
+    if (n < 2) return { pendiente: 0, proyeccion: valores[0] || 0, pctMes: 0 };
+    const mx = (n - 1) / 2, my = valores.reduce((s, v) => s + v, 0) / n;
+    let num = 0, den = 0;
+    valores.forEach((v, i) => { num += (i - mx) * (v - my); den += (i - mx) * (i - mx); });
+    const pendiente = den ? num / den : 0;
+    return { pendiente, proyeccion: Math.max(0, my + pendiente * (n - mx)), pctMes: my ? pendiente / my * 100 : 0 };
+}
+
+function abcSiguientePeriodo(p) {
+    const [a, m] = p.split('-').map(Number);
+    return m === 12 ? (a + 1) + '-01' : a + '-' + String(m + 1).padStart(2, '0');
+}
+
+function abcAbrirGrafica(tipo, codigo) {
+    const x = tipo === 'centro' ? abc.centros.find(c => c.codigo === codigo) : abc.actividades.find(a => a.codigo === codigo);
+    if (!x) return;
+    abc._grafica = { tipo, codigo };
+    const serie = abcSerie(tipo, codigo);
+    const pres = abcPresupuesto(tipo, codigo);
+    const monto = pres ? Number(pres.monto) || 0 : 0;
+    const umbral = pres ? Number(pres.umbral) || ABC_UMBRAL_DEFECTO : ABC_UMBRAL_DEFECTO;
+    const valores = serie.map(s => s.costo);
+    const t = abcTendencia(valores);
+    const prom = valores.reduce((s, v) => s + v, 0) / (valores.length || 1);
+    const max = Math.max(...valores), min = Math.min(...valores);
+    const estados = serie.map(s => abcEstado(s.costo, pres));
+    const excedidos = estados.filter(e => e.estado === 'excedido').length, cerca = estados.filter(e => e.estado === 'cerca').length;
+    // Racha de meses seguidos al alza al final de la serie
+    let racha = 0;
+    for (let i = valores.length - 1; i > 0 && valores[i] > valores[i - 1] + 0.005; i--) racha++;
+    const patron = Math.abs(t.pctMes) < 1 ? 'estable' : t.pctMes > 0 ? 'creciente' : 'decreciente';
+    const sigP = serie.length ? abcSiguientePeriodo(serie[serie.length - 1].periodo) : '';
+    const proyEstado = abcEstado(t.proyeccion, pres);
+
+    document.getElementById('grafTitulo').textContent = '📈 ' + x.nombre;
+    document.getElementById('grafSub').textContent = (tipo === 'centro' ? 'Centro de actividad' : 'Actividad') + ' · ' + codigo +
+        (monto ? ` · presupuesto mensual ${abcSoles(monto, 0)} · alerta al ${abcPct(umbral)}` : ' · sin presupuesto asignado');
+
+    const interpretacion = [];
+    interpretacion.push(`Patrón <b>${patron}</b>: ${Math.abs(t.pctMes) < 1 ? 'el costo se mantiene sin cambios importantes' :
+        `el costo ${t.pctMes > 0 ? 'sube' : 'baja'} en promedio <b>${abcSoles(Math.abs(t.pendiente), 0)}</b> por mes (${abcPct(Math.abs(t.pctMes))})`}.`);
+    if (racha >= 2) interpretacion.push(`<span class="abc-neg">Lleva ${racha} meses seguidos al alza.</span>`);
+    if (monto) {
+        interpretacion.push(`${excedidos} de ${serie.length} meses superaron el presupuesto y ${cerca} estuvieron cerca del límite.`);
+        interpretacion.push(`Proyección para ${abcNombreMes(sigP)}: <b>${abcSoles(t.proyeccion, 0)}</b> (${abcPct(proyEstado.pct)} del presupuesto) → ${abcChipEstado(proyEstado)}`);
+    } else {
+        interpretacion.push(`Proyección para ${abcNombreMes(sigP)}: <b>${abcSoles(t.proyeccion, 0)}</b>. Asigne un presupuesto para activar las alertas.`);
+    }
+    if (max - min > 0 && prom > 0 && (max - min) / prom > 0.25) interpretacion.push('Variación alta entre meses (más de 25% del promedio): revise los gastos de los meses pico.');
+
+    document.getElementById('grafKpis').innerHTML = `
+        <div><small>${abcNombreMes(abc.periodo)}</small><b>${abcSoles(abcSerie(tipo, codigo).find(s => s.periodo === abc.periodo)?.costo || 0, 0)}</b></div>
+        <div><small>Promedio mensual</small><b>${abcSoles(prom, 0)}</b></div>
+        <div><small>Máximo / mínimo</small><b>${abcSoles(max, 0)} / ${abcSoles(min, 0)}</b></div>
+        <div><small>Tendencia</small><b class="${t.pctMes > 1 ? 'abc-neg' : t.pctMes < -1 ? 'abc-pos' : ''}">${t.pctMes > 1 ? '▲' : t.pctMes < -1 ? '▼' : '▬'} ${abcPct(t.pctMes)} / mes</b></div>`;
+    document.getElementById('grafInterpretacion').innerHTML = `<ul>${interpretacion.map(i => `<li>${i}</li>`).join('')}</ul>`;
+    document.getElementById('grafTabla').innerHTML = `
+        <thead><tr><th>Mes</th><th class="num">Costo S/</th><th class="num">Presupuesto</th><th class="num">% consumido</th><th class="num">Var. vs mes anterior</th><th>Estado</th></tr></thead>
+        <tbody>${serie.map((s, i) => {
+            const e = estados[i], ant = i > 0 ? valores[i - 1] : null;
+            const v = ant > 0 ? (s.costo - ant) / ant * 100 : null;
+            return `<tr class="${s.periodo === abc.periodo ? 'abc-fila-actual' : ''}"><td>${abcNombreMes(s.periodo)}</td><td class="num">${abcFmt(s.costo)}</td>
+                <td class="num">${monto ? abcFmt(monto) : '–'}</td><td class="num">${monto ? abcPct(e.pct) : '–'}</td>
+                <td class="num">${abcVariacion({ variacion: v })}</td><td>${abcChipEstado(e)}</td></tr>`;
+        }).join('')}</tbody>`;
+
+    openModal('modalGrafica');
+    abcDibujarGrafica(serie, estados, monto, umbral, t, sigP);
+}
+
+function abcDibujarGrafica(serie, estados, monto, umbral, t, sigP) {
+    const canvas = document.getElementById('grafCanvas');
+    if (abc._chart) { abc._chart.destroy(); abc._chart = null; }
+    if (typeof Chart === 'undefined') {
+        canvas.replaceWith(Object.assign(document.createElement('p'), { id: 'grafCanvas', className: 'abc-muted', textContent: 'No se pudo cargar la librería de gráficos (revise su conexión a internet).' }));
+        return;
+    }
+    const colores = { excedido: '#c81e1e', cerca: '#F58220', ok: '#087565', sin: '#1765bc' };
+    const etiquetas = [...serie.map(s => abcNombreMes(s.periodo)), abcNombreMes(sigP) + ' (proy.)'];
+    const datos = [...serie.map(s => s.costo), null];
+    const n = serie.length;
+    const tendencia = etiquetas.map((_, i) => {
+        const mx = (n - 1) / 2, my = serie.reduce((s, x) => s + x.costo, 0) / (n || 1);
+        return Math.max(0, my + t.pendiente * (i - mx));
+    });
+    const ds = [{
+        type: 'bar', label: 'Costo real', data: datos, order: 3, borderRadius: 4,
+        backgroundColor: estados.map((e, i) => serie[i].periodo === abc.periodo ? colores[e.estado] : colores[e.estado] + 'B3').concat(['transparent'])
+    }, {
+        type: 'line', label: 'Tendencia y proyección', data: tendencia, order: 1, borderColor: '#7c3aed', borderDash: [6, 4],
+        pointRadius: etiquetas.map((_, i) => i === n ? 5 : 0), pointBackgroundColor: '#7c3aed', fill: false, tension: 0
+    }];
+    if (monto) {
+        ds.push({ type: 'line', label: 'Presupuesto', data: etiquetas.map(() => monto), order: 0, borderColor: '#c81e1e', borderWidth: 2, pointRadius: 0, fill: false });
+        ds.push({ type: 'line', label: `Umbral de alerta (${abcPct(umbral)})`, data: etiquetas.map(() => monto * umbral / 100), order: 0,
+                  borderColor: '#F58220', borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0, fill: false });
+    }
+    abc._chart = new Chart(canvas.getContext('2d'), {
+        data: { labels: etiquetas, datasets: ds },
+        options: {
+            responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 14, font: { size: window.innerWidth < 640 ? 10 : 12 } } },
+                tooltip: { callbacks: { label: ctx => ctx.raw === null ? null : `${ctx.dataset.label}: ${abcSoles(ctx.raw)}` } }
+            },
+            scales: {
+                x: { ticks: { maxRotation: 50, font: { size: window.innerWidth < 640 ? 9 : 12 } } },
+                y: { beginAtZero: true, ticks: { callback: v => 'S/ ' + abcFmt(v, 0) } }
+            }
+        }
+    });
+}
+
+function abcExportarGrafica() {
+    const g = abc._grafica;
+    if (!g) return;
+    const x = g.tipo === 'centro' ? abc.centros.find(c => c.codigo === g.codigo) : abc.actividades.find(a => a.codigo === g.codigo);
+    const pres = abcPresupuesto(g.tipo, g.codigo);
+    const filas = [['Mes', 'Período', 'Costo S/', 'Presupuesto S/', '% consumido', 'Estado']];
+    abcSerie(g.tipo, g.codigo).forEach(s => {
+        const e = abcEstado(s.costo, pres);
+        filas.push([abcNombreMes(s.periodo), s.periodo, abcRedondear(s.costo), e.monto || '', e.monto ? abcRedondear(e.pct) : '', ABC_ESTADOS[e.estado].nombre]);
+    });
+    abcDescargarLibro([[ 'Historial', filas ]], 'historial-' + g.codigo + '-' + abcNorm(x ? x.nombre : '').replace(/[^a-z0-9]+/g, '-'));
+}
+
+// ==================== MONTOS MENSUALES DE GASTOS ====================
+function abcCambiarMontoRecurso(codigo, valor) {
+    const r = abc.recursos.find(x => x.codigo === codigo);
+    if (!r) return;
+    if (abc.modoMonto === 'base') { abcCambiarMonto(codigo, valor); return; }
+    abcTrasCambio(async () => {
+        const monto = Math.max(0, abcNum(valor));
+        let m = abc.recursosMes.find(x => x.recurso_codigo === codigo && x.periodo === abc.periodo);
+        if (!m) { m = { id: abcIdLocal++, recurso_codigo: codigo, periodo: abc.periodo, monto }; abc.recursosMes.push(m); }
+        m.monto = monto;
+        await abcGuardar('abc_recursos_mes', { recurso_codigo: codigo, periodo: abc.periodo, monto }, 'recurso_codigo,periodo');
+    });
+}
+
+function abcQuitarMontoMes(codigo) {
+    abcTrasCambio(async () => {
+        await abcBorrarDonde('abc_recursos_mes', { recurso_codigo: codigo, periodo: abc.periodo });
+        abc.recursosMes = abc.recursosMes.filter(x => !(x.recurso_codigo === codigo && x.periodo === abc.periodo));
+    });
+}
+
+// Montos de ejemplo: monto base con tendencia de +1.5% mensual y variación de ±8% (determinística)
+function abcGenerarVariacionEjemplo() {
+    const manuales = abc.recursos.filter(r => r.origen !== 'planilla' && Number(r.monto) > 0);
+    if (!manuales.length) { showAlert('No hay gastos manuales con monto base', 'error'); return; }
+    if (!confirm(`¿Generar montos mensuales de ejemplo para ${manuales.length} gastos en ${abc.periodos.length} meses?\nSe reemplazan los montos mensuales ya registrados de esos meses.`)) return;
+    const ruido = (txt) => { let h = 0; for (const ch of txt) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return ((h % 1000) / 1000 - 0.5) * 0.16; };
+    const filas = [];
+    manuales.forEach(r => abc.periodos.forEach((p, i) => {
+        const factor = 1 + 0.015 * (i - (abc.periodos.length - 1)) + ruido(r.codigo + p);
+        filas.push({ recurso_codigo: r.codigo, periodo: p, monto: Math.round(Number(r.monto) * factor * 100) / 100 });
+    }));
+    abcTrasCambio(async () => {
+        const g = await abcGuardarVarios('abc_recursos_mes', filas, 'recurso_codigo,periodo');
+        abc.recursosMes = abc.recursosMes.filter(m => !filas.some(f => f.recurso_codigo === m.recurso_codigo && f.periodo === m.periodo))
+            .concat(abcConId(g || filas));
+        showAlert(`✅ Se generaron ${filas.length} montos mensuales de ejemplo`, 'success');
+    });
+}
+
+// ==================== EXPORTAR A EXCEL ====================
+const abcRedondear = n => Math.round((Number(n) || 0) * 10000) / 10000;
+
+// Texto de una celda tal como se ve (valor de inputs/selects, sin botones)
+function abcTextoCelda(cel) {
+    const input = cel.querySelector('input:not([type=checkbox]),select');
+    if (input) return input.tagName === 'SELECT' ? (input.selectedOptions[0] || {}).textContent || '' : input.value;
+    const copia = cel.cloneNode(true);
+    copia.querySelectorAll('button,.abc-consumo-umbral').forEach(b => b.remove());
+    copia.querySelectorAll('br').forEach(b => b.replaceWith(' · '));
+    copia.querySelectorAll('small').forEach(b => b.prepend(' '));
+    return copia.textContent.replace(/\s+/g, ' ').replace(/^ · | · $/g, '').trim();
+}
+
+// Convierte "S/ 1,234.50", "12.5%", "−1,000.00" en número; otros textos se dejan igual
+function abcValorExcel(txt) {
+    const t = txt.replace(/^S\/\s*/, '').replace(/^[▲▼]\s*/, '').replace('−', '-').replace(/\s*%$/, '').trim();
+    if (/^[+-]?\d{1,3}(,\d{3})*(\.\d+)?$|^[+-]?\d+(\.\d+)?$/.test(t)) return Number(t.replace(/,/g, ''));
+    return txt;
+}
+
+function abcFilasTabla(idTabla) {
+    const el = document.getElementById(idTabla);
+    if (!el) return [];
+    const tabla = el.tagName === 'TABLE' ? el : el.closest('table') || el;
+    return [...tabla.querySelectorAll('tr')].map(r => {
+        const fila = [];
+        [...r.cells].forEach(cel => {
+            fila.push(cel.tagName === 'TH' ? abcTextoCelda(cel) : abcValorExcel(abcTextoCelda(cel)));
+            for (let k = 1; k < (cel.colSpan || 1); k++) fila.push('');
+        });
+        return fila;
+    }).filter(f => f.some(v => v !== ''));
+}
+
+function abcDescargarLibro(hojas, nombre) {
+    const archivo = nombre + '-' + (abc.periodo || '') + '.xlsx';
+    if (typeof XLSX === 'undefined') {
+        // Sin librería (sin conexión): se descarga la primera hoja como CSV compatible con Excel
+        const txt = hojas[0][1].map(f => f.map(v => '"' + String(v).replaceAll('"', '""') + '"').join(';')).join('\r\n');
+        abcDescargarBlob(new Blob(['﻿' + txt], { type: 'text/csv;charset=utf-8' }), archivo.replace('.xlsx', '.csv'));
+        return;
+    }
+    const libro = XLSX.utils.book_new();
+    const usados = new Set();
+    hojas.forEach(([titulo, filas]) => {
+        if (!filas.length) return;
+        let n = String(titulo).replace(/[\[\]:*?\/\\]/g, ' ').slice(0, 31).trim() || 'Hoja';
+        let k = 2;
+        while (usados.has(n)) n = n.slice(0, 28) + ' ' + k++;
+        usados.add(n);
+        const hoja = XLSX.utils.aoa_to_sheet(filas);
+        const ancho = [];
+        filas.forEach(f => f.forEach((v, i) => { ancho[i] = Math.min(50, Math.max(ancho[i] || 8, String(v).length + 2)); }));
+        hoja['!cols'] = ancho.map(w => ({ wch: w }));
+        XLSX.utils.book_append_sheet(libro, hoja, n);
+    });
+    XLSX.writeFile(libro, archivo);
+}
+
+function abcDescargarBlob(blob, nombre) {
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = nombre + '-' + (abc.periodo || '') + '.csv';
+    a.download = nombre;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function abcExportarExcel(idTabla, nombre) {
+    abcDescargarLibro([[nombre, abcFilasTabla(idTabla)]], nombre);
+}
+
+// Libro completo: una hoja por tabla del sistema + historial mensual de centros y actividades
+function abcExportarTodoExcel() {
+    const hojas = [
+        ['Resumen productos', abcFilasTabla('abcResumenProductos')],
+        ['Alertas', abcFilasAlertas()],
+        ['Recursos', abcFilasTabla('abcRecursosTabla')],
+        ['Planilla', abcFilasTabla('abcPlanillaTabla')],
+        ['Centros de costos', abcFilasTabla('abcCentrosTabla')],
+        ['MOF', abcFilasTabla('abcMof')],
+        ['Actividades', abcFilasTabla('abcActividadesTabla')],
+        [abcNumEtapa('ind1') + ' Recursos-Centros', abcFilasTabla('abcInd1Tabla')],
+        ['Costo por centro', abcFilasTabla('abcInd1Centros')],
+        ...abcEtapasModelo().filter(x => x.etapa).map(x => [x.simbolo + ' ' + x.nombre, abcFilasEtapa(x.etapa)]),
+        ['Tasas por actividad', abcFilasTabla('abcTasas')],
+        ['Consumo inductores', abcFilasTabla('abcConsumo')],
+        ['Asignación', abcFilasTabla('abcAsignacion')],
+        ['Rubros', abcFilasTabla('abcRubros')],
+        ['ABC vs tradicional', abcFilasTabla('abcComparativo')],
+        ['Historial mensual', abcFilasHistorial()]
+    ];
+    abcDescargarLibro(hojas, 'costeo-abc-completo');
+    showAlert('📊 Libro de Excel generado con ' + hojas.filter(h => h[1].length).length + ' hojas', 'success');
+}
+
+function abcFilasAlertas() {
+    const filas = [['Estado', 'Tipo', 'Código', 'Nombre', 'Costo S/', 'Presupuesto S/', 'Umbral %', '% consumido', 'Disponible S/', 'Var. vs mes anterior %']];
+    abc.alertas.forEach(x => filas.push([ABC_ESTADOS[x.estado].nombre, x.tipo, x.codigo, x.nombre, abcRedondear(x.costo), x.monto || '', x.umbral,
+        x.monto ? abcRedondear(x.pct) : '', x.monto ? abcRedondear(x.monto - x.costo) : '', x.variacion === null ? '' : abcRedondear(x.variacion)]));
+    return filas;
+}
+
+function abcFilasEtapa(e) {
+    const r = abc.calc.etapas[e.codigo];
+    const nodos = e.nivel === 'centro' ? abcCentrosOrdenados() : abc.actividades;
+    const filas = [['Origen', 'Código', 'Costo al inicio', ...nodos.map(d => d.codigo), 'Σ % enviado', 'Enviado S/', 'Recibido S/', 'Costo al final']];
+    nodos.forEach(o => filas.push([o.nombre, o.codigo, abcRedondear(r.antes[o.codigo]),
+        ...nodos.map(d => d.codigo === o.codigo ? '' : abcPctEtapa(e.codigo, o.codigo, d.codigo) || ''),
+        r.pctEnviado[o.codigo] || 0, abcRedondear(r.enviado[o.codigo] || 0), abcRedondear(r.recibido[o.codigo] || 0), abcRedondear(r.despues[o.codigo])]));
+    return filas;
+}
+
+function abcFilasHistorial() {
+    const filas = [['Tipo', 'Código', 'Nombre', 'Presupuesto S/', ...abc.periodos.map(abcNombreMes)]];
+    const h = abcHistorial();
+    const agregar = (tipo, x) => {
+        const p = abcPresupuesto(tipo, x.codigo);
+        filas.push([tipo, x.codigo, x.nombre, p ? Number(p.monto) || '' : '', ...abc.periodos.map(per => abcRedondear(h[per][tipo][x.codigo]))]);
+    };
+    abcCentrosOrdenados().forEach(x => agregar('centro', x));
+    abc.actividades.forEach(x => agregar('actividad', x));
+    return filas;
+}
+
+// ==================== APLICACIÓN INSTALABLE (PWA) ====================
+function abcIniciarPWA() {
+    const btn = document.getElementById('abcInstalar');
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+        navigator.serviceWorker.register('sw.js').catch(e => console.warn('Service worker no registrado:', e));
+    }
+    if (!btn || standalone) return;
+    window.addEventListener('beforeinstallprompt', e => {
+        e.preventDefault();
+        abc._instalar = e;
+        btn.hidden = false;
+    });
+    window.addEventListener('appinstalled', () => {
+        btn.hidden = true;
+        showAlert('✅ Aplicación instalada. Ábrala desde el menú de inicio o el escritorio.', 'success');
+    });
+    // iPhone / iPad: no existe el evento de instalación, se muestran las instrucciones
+    if (/iphone|ipad|ipod/i.test(navigator.userAgent)) btn.hidden = false;
+}
+
+async function abcInstalarApp() {
+    if (abc._instalar) {
+        abc._instalar.prompt();
+        const r = await abc._instalar.userChoice;
+        if (r.outcome === 'accepted') document.getElementById('abcInstalar').hidden = true;
+        abc._instalar = null;
+        return;
+    }
+    alert(/iphone|ipad|ipod/i.test(navigator.userAgent)
+        ? 'Para instalar en iPhone/iPad: toque el botón Compartir (□↑) de Safari y elija "Agregar a pantalla de inicio".'
+        : 'Para instalar: abra el menú del navegador (⋮) y elija "Instalar aplicación" o "Agregar a pantalla de inicio".\nLa página debe abrirse desde una dirección https (no como archivo local).');
 }
 
 // ==================== INICIO ====================
@@ -1661,11 +2635,17 @@ async function initCosteoABC() {
     }
 
     const sel = document.getElementById('abcPeriodo');
-    sel.innerHTML = abc.periodos.map(p => `<option value="${p}" ${p === abc.periodo ? 'selected' : ''}>${abcNombreMes(p)}</option>`).join('');
+    abcRellenarPeriodos();
     sel.addEventListener('change', () => { abc.periodo = sel.value; abcRenderTodo(); });
 
-    document.querySelectorAll('.sub-nav button').forEach(b => b.addEventListener('click', () => abcMostrarTab(b.dataset.tab)));
+    abc.tabActual = decodeURIComponent((location.hash || '#resumen').slice(1));
     abcRenderTodo();
     abcMostrarTab((location.hash || '#resumen').slice(1));
     document.getElementById('abcCargando').style.display = 'none';
+    abcIniciarPWA();
+}
+
+function abcRellenarPeriodos() {
+    const sel = document.getElementById('abcPeriodo');
+    if (sel) sel.innerHTML = abc.periodos.map(p => `<option value="${p}" ${p === abc.periodo ? 'selected' : ''}>${abcNombreMes(p)}</option>`).join('');
 }

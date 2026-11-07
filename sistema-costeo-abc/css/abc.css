@@ -264,3 +264,111 @@
     .abc-mapa { grid-template-columns: 1fr; }
     .abc-mapa-side { writing-mode: horizontal-tb; transform: none; padding: 6px; }
 }
+
+/* ==================== ETAPAS DEL MODELO ==================== */
+.sub-nav .abc-subnav-etapa { border-style: dashed; }
+.sub-nav .abc-subnav-add { background: #fff; border: 1px dashed #9ca3af; color: #374151; }
+.abc-arrow-extras {
+    position: absolute; left: 0; right: 0; bottom: 6px; z-index: 2;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.abc-arrow-extra {
+    display: block; font-size: 10px; font-style: normal; font-weight: 700; white-space: nowrap;
+    color: var(--abc-est); background: #f1eafe; border-radius: 999px; padding: 2px 6px; cursor: pointer;
+}
+@media (max-width: 1100px) {
+    .abc-arrow-extras { position: static; margin-left: 70px; align-items: flex-start; }
+}
+.abc-etapas-cadena { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.abc-etapa-chip {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 150px; max-width: 220px;
+    padding: 10px 12px; border-radius: 10px; border: 2px solid var(--abc-mp); background: #fff; cursor: pointer; text-align: left;
+    font: inherit; color: #2B2B2B; transition: transform .15s, box-shadow .15s;
+}
+.abc-etapa-chip:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.08); }
+.abc-etapa-chip b { font-size: 20px; line-height: 1; color: var(--abc-mp); }
+.abc-etapa-chip span { font-weight: 700; font-size: 13px; }
+.abc-etapa-chip small { font-size: 11px; color: #6b7280; }
+.abc-etapa-chip-extra { border-color: var(--abc-est); border-style: dashed; }
+.abc-etapa-chip-extra b { color: var(--abc-est); }
+.abc-etapa-chip.activa { box-shadow: 0 0 0 3px rgba(23,101,188,.25); }
+.abc-etapa-add { border: 2px dashed #9ca3af; }
+.abc-etapa-add b { color: #6b7280; }
+.abc-etapa-head { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.abc-etapa-head p { margin: 4px 0; }
+.abc-etapa-kpi { text-align: right; }
+.abc-etapa-kpi small { display: block; color: #6b7280; font-size: 12px; }
+.abc-etapa-kpi b { font-size: 22px; color: var(--abc-est); }
+.abc-celda-off { background: #f3f4f6; color: #9ca3af; }
+.abc-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #374151; }
+
+/* ==================== ALERTAS ==================== */
+.abc-badge {
+    display: inline-block; min-width: 18px; padding: 0 6px; margin-left: 6px; border-radius: 999px;
+    background: #F58220; color: #fff; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center;
+}
+.abc-badge-red { background: #c81e1e; animation: abc-pulso 1.6s ease-in-out infinite; }
+@keyframes abc-pulso { 50% { box-shadow: 0 0 0 4px rgba(200,30,30,.25); } }
+@media (prefers-reduced-motion: reduce) { .abc-badge-red { animation: none; } }
+
+.abc-banner-alerta { background: #fdecec; border: 1px solid #f5a3a3; color: #7a1010; }
+.abc-banner-ok { background: #e9f7f3; border: 1px solid #a7dccd; color: #0b4f45; }
+.abc-alerta-lista { list-style: none; margin: 8px 0 !important; padding: 0; }
+.abc-alerta-lista li { padding: 4px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+.abc-alerta-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.abc-alerta-kpi {
+    display: flex; flex-direction: column; align-items: center; padding: 12px; border-radius: 10px; cursor: pointer;
+    border: 2px solid #e5e7eb; background: #fff; font: inherit;
+}
+.abc-alerta-kpi span { font-size: 20px; }
+.abc-alerta-kpi b { font-size: 26px; line-height: 1.1; color: #2B2B2B; }
+.abc-alerta-kpi small { font-size: 12px; color: #6b7280; text-align: center; }
+.abc-alerta-kpi-excedido { border-color: #f5a3a3; }
+.abc-alerta-kpi-cerca { border-color: #fbc58d; }
+.abc-alerta-kpi-ok { border-color: #a7dccd; }
+.abc-alerta-kpi.activa { box-shadow: 0 0 0 3px rgba(23,101,188,.25); }
+.abc-filtros { align-items: center; gap: 14px !important; font-size: 13px; }
+.abc-filtros label { display: inline-flex; align-items: center; gap: 6px; }
+
+.abc-estado { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.abc-estado-excedido { background: #fdecec; color: #c81e1e; }
+.abc-estado-cerca { background: #fff1e3; color: #b45309; }
+.abc-estado-ok { background: #e3f4f1; color: #087565; }
+.abc-estado-sin { background: #f3f4f6; color: #6b7280; }
+.abc-fila-excedido td:first-child { box-shadow: inset 4px 0 0 #c81e1e; }
+.abc-fila-cerca td:first-child { box-shadow: inset 4px 0 0 #F58220; }
+.abc-fila-actual td { background: #fffbe6; font-weight: 600; }
+.abc-vacio { text-align: center; padding: 24px !important; }
+
+.abc-consumo { position: relative; height: 20px; min-width: 140px; background: #f3f4f6; border-radius: 6px; overflow: hidden; }
+.abc-consumo-bar { height: 100%; border-radius: 6px; }
+.abc-consumo-ok { background: #34a38f; }
+.abc-consumo-cerca { background: #F58220; }
+.abc-consumo-excedido { background: #c81e1e; }
+.abc-consumo-umbral { position: absolute; top: 0; bottom: 0; width: 2px; background: #374151; opacity: .5; }
+.abc-consumo span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #111; text-shadow: 0 0 3px #fff; }
+
+/* ==================== GRÁFICA MES A MES ==================== */
+.modal.abc-modal-grafica { max-width: 980px; width: 95%; max-height: 92vh; }
+.abc-graf-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.abc-graf-head h2 { margin-bottom: 4px !important; }
+.abc-cerrar { font-size: 18px; }
+.abc-graf-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
+.abc-graf-kpis div { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; }
+.abc-graf-kpis small { display: block; font-size: 11px; color: #6b7280; }
+.abc-graf-kpis b { font-size: 15px; }
+.abc-graf-canvas { position: relative; height: 320px; margin-bottom: 12px; }
+.abc-graf-interp { background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; }
+.abc-graf-interp ul { margin: 0 0 0 18px; }
+.abc-graf-interp li { margin: 3px 0; }
+
+.abc-btn-head { padding: 8px 12px !important; font-size: 13px !important; }
+
+@media (max-width: 640px) {
+    .abc-alerta-kpis, .abc-graf-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .abc-graf-canvas { height: 340px; }
+    .modal.abc-modal-grafica { padding: 16px; width: 100%; max-height: 96vh; }
+    .abc-etapa-chip { min-width: 0; max-width: none; flex: 1 1 100%; }
+    .abc-etapas-cadena .abc-chain-arrow { display: none; }
+}
