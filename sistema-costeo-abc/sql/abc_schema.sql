@@ -153,6 +153,36 @@ create table if not exists abc_recursos_mes (
     unique (recurso_codigo, periodo)
 );
 
+-- 14. Simulación en vivo de un mes (solo la última simulación; no modifica los datos reales)
+create table if not exists abc_simulacion (
+    id           bigserial primary key,
+    sim_id       text unique not null,
+    periodo      text not null,            -- mes simulado 'YYYY-MM'
+    base_periodo text,                     -- mes cuyos montos sirven de referencia
+    estado       text not null default 'corriendo' check (estado in ('corriendo', 'pausada', 'terminada')),
+    dia          int not null default 0,
+    dias         int not null default 30,
+    duracion_seg int not null default 600, -- duración del mes completo a velocidad x1
+    velocidad    numeric(5, 2) not null default 1,
+    controlador  text,                     -- dispositivo que maneja la simulación
+    created_at   timestamptz default now(),
+    updated_at   timestamptz default now()
+);
+
+-- 15. Gastos registrados día a día durante la simulación
+create table if not exists abc_movimientos (
+    id             bigserial primary key,
+    sim_id         text not null references abc_simulacion (sim_id) on delete cascade,
+    dia            int not null,
+    grupo          text,          -- evento al que pertenece (planilla del día, avería, campaña…)
+    icono          text,
+    descripcion    text,
+    recurso_codigo text not null,
+    monto          numeric(14, 2) not null default 0,
+    created_at     timestamptz default now()
+);
+create index if not exists abc_movimientos_sim_idx on abc_movimientos (sim_id, id);
+
 -- Acceso desde la aplicación (misma política abierta que el resto de tablas del sistema)
 do $$
 declare t text;
@@ -160,13 +190,28 @@ begin
     foreach t in array array['abc_centros', 'abc_recursos', 'abc_inductor1', 'abc_inductores',
                              'abc_actividades', 'abc_objetos_costo', 'abc_consumo', 'abc_materiales',
                              'abc_organigrama', 'abc_etapas', 'abc_etapa_dist', 'abc_presupuestos',
-                             'abc_recursos_mes']
+                             'abc_recursos_mes', 'abc_simulacion', 'abc_movimientos']
     loop
         execute format('alter table %I enable row level security', t);
         execute format('drop policy if exists %I on %I', t || '_acceso', t);
         execute format('create policy %I on %I for all to anon, authenticated using (true) with check (true)',
                        t || '_acceso', t);
     end loop;
+end $$;
+
+-- Tiempo real: las pantallas abiertas reciben al instante los cambios de la simulación
+do $$
+declare t text;
+begin
+    if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+        foreach t in array array['abc_simulacion', 'abc_movimientos']
+        loop
+            if not exists (select 1 from pg_publication_tables
+                           where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
+                execute format('alter publication supabase_realtime add table public.%I', t);
+            end if;
+        end loop;
+    end if;
 end $$;
 
 -- Refresca la caché de la API para que las tablas estén disponibles de inmediato

@@ -42,6 +42,7 @@ const ABC_NIVEL_INDUCTOR = {
 
 const ABC_SECCIONES_INICIO = [
     ['resumen',     '◉', 'Resumen ABC'],
+    ['vivo',        '🔴', 'En vivo · Simulación'],
     ['alertas',     '🚨', 'Alertas y Presupuesto'],
     ['analisis',    '◇', 'Análisis y Estructura'],
     ['centros',     '◈', 'Centros de Actividad'],
@@ -87,7 +88,11 @@ const abc = {
     modoMonto: 'mes',      // al editar un gasto: 'mes' = solo el período seleccionado · 'base' = monto base
     filtroAlertas: { tipo: 'todos', estado: 'alertas' },
     umbralNuevo: ABC_UMBRAL_DEFECTO,
-    calc: null, hist: null, alertas: []
+    calc: null, hist: null, alertas: [],
+    menuFijo: false,
+    // Simulación en vivo (tablas abc_simulacion y abc_movimientos + Supabase Realtime)
+    vivo: { sim: null, movs: [], ids: new Set(), cola: [], timer: null, canal: null, rt: 'off', local: false,
+            snaps: {}, estados: null, feed: [], ver: 'total', chart: null, poll: null }
 };
 
 // ==================== FORMATO ====================
@@ -398,15 +403,18 @@ function abcAplicarEtapa(etapa, nodos, nombreDe, avisos) {
              movido: Object.values(enviado).reduce((s, x) => s + x, 0) };
 }
 
-function abcCalcular(periodo = abc.periodo) {
-    const prods = abc.objetos.map(o => abcProducto(o.producto_codigo));
+// opciones.montos: { recurso_codigo: monto } reemplaza los montos del período (simulación en vivo)
+// opciones.factorUnidades: fracción del mes transcurrida (unidades producidas hasta el día)
+function abcCalcular(periodo = abc.periodo, opciones = {}) {
+    const factor = opciones.factorUnidades === undefined ? 1 : opciones.factorUnidades;
+    const prods = abc.objetos.map(o => { const p = abcProducto(o.producto_codigo); p.unidades *= factor; return p; });
     const avisos = [];
     const nombreCentro = cod => (abc.centros.find(x => x.codigo === cod) || {}).nombre || cod;
     const nombreAct = cod => (abc.actividades.find(x => x.codigo === cod) || {}).nombre || cod;
 
     // ---- Etapa ①: Recursos → Centros ----
     const recursos = abc.recursos.map(r => {
-        const monto = abcMontoRecurso(r, periodo);
+        const monto = opciones.montos ? (opciones.montos[r.codigo] || 0) : abcMontoRecurso(r, periodo);
         const pctTotal = abc.centros.reduce((s, c) => s + abcPctRecurso(r.codigo, c.codigo), 0);
         if (monto > 0 && Math.abs(pctTotal - 100) > 0.01) avisos.push(`Recurso "${r.nombre}": la distribución suma ${abcPct(pctTotal)} (debe ser 100%).`);
         return { ...r, montoCalc: monto, pctTotal };
@@ -590,55 +598,109 @@ function abcCalcularAlertas() {
 }
 
 // ==================== INTERFAZ ====================
+// Menú lateral deslizable (estilo panel lateral): se oculta solo y deja una pestaña en el borde para abrirlo
 function abcConstruirSidebar() {
     if (document.querySelector('.app-sidebar')) return;
     const html = `
         <a class="skip-link" href="#workspace">Ir al contenido</a>
-        <aside class="app-sidebar">
+        <aside class="app-sidebar" id="abcSidebar">
             <a class="app-brand" href="index.html">
                 🎯 VSS Costeo ABC
                 <small>COSTOS POR ACTIVIDADES</small>
             </a>
-            <div class="nav-caption">Espacio de trabajo</div>
             <nav aria-label="Navegación principal" id="abcNav"></nav>
             <div class="sidebar-bottom">
+                <label class="abc-pin" title="Si está marcado, el menú queda fijo y no se oculta solo">
+                    <input type="checkbox" id="abcPin" onchange="abcFijarMenu(this.checked)"> 📌 Mantener menú fijo
+                </label>
                 <strong>VSS S.A.C.</strong>
                 RUC 20601234567<br>
                 Soles peruanos · PEN
                 <button onclick="abcCerrarSesion()" class="abc-logout">🚪 Cerrar Sesión</button>
             </div>
-        </aside>`;
+        </aside>
+        <button class="abc-handle" id="abcHandle" aria-controls="abcSidebar" aria-expanded="true" title="Mostrar / ocultar menú" onclick="abcAlternarMenu()">
+            <span aria-hidden="true">‹</span>
+        </button>
+        <div class="abc-menu-velo" onclick="abcAlternarMenu(false)"></div>`;
     document.body.insertAdjacentHTML('afterbegin', html);
+    document.body.classList.add('abc-app');
     document.getElementById('abcNav').addEventListener('click', e => {
         const a = e.target.closest('a[data-tab]');
-        if (!a) return;
-        e.preventDefault();
-        abcMostrarTab(a.dataset.tab);
+        if (a) {
+            e.preventDefault();
+            abcMostrarTab(a.dataset.tab);
+            if (!abc.menuFijo) abcAlternarMenu(false);
+        }
+        if (e.target.closest('.abc-nav-add')) { e.preventDefault(); abcAbrirEtapa(); }
     });
+
+    // Ocultar automáticamente al salir del menú (si no está fijo)
+    const sb = document.getElementById('abcSidebar');
+    sb.addEventListener('mouseenter', () => clearTimeout(abc._menuTimer));
+    sb.addEventListener('mouseleave', () => abcProgramarOcultarMenu(1200));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !abc.menuFijo) abcAlternarMenu(false); });
+
+    let fijo = false;
+    try { fijo = localStorage.getItem('abc_menu_fijo') === '1'; } catch (e) { /* sin almacenamiento */ }
+    abc.menuFijo = fijo && window.innerWidth > 800;
+    document.getElementById('abcPin').checked = abc.menuFijo;
+    abcAlternarMenu(true);
+    if (!abc.menuFijo) abcProgramarOcultarMenu(2500);
 }
 
-// Menú lateral y sub-navegación: incluye una entrada por cada etapa del modelo
+function abcAlternarMenu(abrir) {
+    const abierto = abrir === undefined ? document.body.classList.contains('abc-menu-oculto') : abrir;
+    document.body.classList.toggle('abc-menu-oculto', !abierto);
+    document.body.classList.toggle('abc-menu-flotante', !abc.menuFijo);
+    const h = document.getElementById('abcHandle');
+    if (h) {
+        h.setAttribute('aria-expanded', abierto);
+        h.querySelector('span').textContent = abierto ? '‹' : '›';
+    }
+    clearTimeout(abc._menuTimer);
+}
+
+function abcProgramarOcultarMenu(ms) {
+    clearTimeout(abc._menuTimer);
+    if (abc.menuFijo) return;
+    abc._menuTimer = setTimeout(() => {
+        const sb = document.getElementById('abcSidebar');
+        if (sb && !sb.matches(':hover') && !sb.contains(document.activeElement)) abcAlternarMenu(false);
+    }, ms);
+}
+
+function abcFijarMenu(fijo) {
+    abc.menuFijo = fijo;
+    try { localStorage.setItem('abc_menu_fijo', fijo ? '1' : '0'); } catch (e) { /* sin almacenamiento */ }
+    abcAlternarMenu(true);
+    if (!fijo) abcProgramarOcultarMenu(1500);
+}
+
+// Menú lateral agrupado: general · etapas del modelo (una entrada por etapa) · resultados
 function abcRenderNav() {
     const n = abc.alertas.filter(x => x.estado === 'excedido' || x.estado === 'cerca').length;
     const exc = abc.alertas.some(x => x.estado === 'excedido');
-    const badge = id => id === 'alertas' && n ? ` <span class="abc-badge ${exc ? 'abc-badge-red' : ''}">${n}</span>` : '';
+    const badge = id => {
+        if (id === 'alertas' && n) return ` <span class="abc-badge ${exc ? 'abc-badge-red' : ''}">${n}</span>`;
+        return '';
+    };
     const actual = abc.tabActual;
+    const link = ([id, icon, label]) => `<a href="#${esc(id)}" data-tab="${esc(id)}" ${id === actual ? 'aria-current="page"' : ''}>
+        <span class="nav-symbol" aria-hidden="true">${icon}</span>${esc(label)}${badge(id)}</a>`;
     const nav = document.getElementById('abcNav');
-    if (nav) nav.innerHTML = abcSecciones().map(([id, icon, label]) =>
-        `<a href="#${esc(id)}" data-tab="${esc(id)}" ${id === actual ? 'aria-current="page"' : ''}><span class="nav-symbol" aria-hidden="true">${icon}</span>${esc(label)}${badge(id)}</a>`).join('');
-
-    const etapas = abcEtapasModelo();
-    const sub = document.getElementById('abcSubNav');
-    if (sub) sub.innerHTML = [
-        ...ABC_SECCIONES_INICIO.map(([id, icon, label]) => [id, icon + ' ' + label]),
-        ...etapas.map(x => [x.id, x.simbolo + ' ' + x.nombre]),
-        ...ABC_SECCIONES_FIN.map(([id, icon, label]) => [id, icon + ' ' + label])
-    ].map(([id, label]) => `<button data-tab="${esc(id)}" class="${id === actual ? 'active' : ''} ${id.startsWith('etapa:') ? 'abc-subnav-etapa' : ''}"
-        onclick="abcMostrarTab(this.dataset.tab)">${esc(label)}${badge(id)}</button>`).join('') +
-        `<button class="abc-subnav-add" title="Agregar una etapa de reparto" onclick="abcAbrirEtapa()">＋ Etapa</button>`;
+    if (nav) nav.innerHTML = `
+        <div class="nav-caption">General</div>
+        ${ABC_SECCIONES_INICIO.map(link).join('')}
+        <div class="nav-caption">Etapas del modelo (${abcEtapasModelo().length})</div>
+        ${abcEtapasModelo().map(x => link([x.id, x.simbolo, x.nombre])).join('')}
+        <a href="#" class="abc-nav-add"><span class="nav-symbol" aria-hidden="true">＋</span>Agregar etapa</a>
+        <div class="nav-caption">Resultados</div>
+        ${ABC_SECCIONES_FIN.map(link).join('')}`;
 
     // Números de etapa en los títulos fijos
     document.querySelectorAll('[data-num-etapa]').forEach(el => { el.textContent = abcNumEtapa(el.dataset.numEtapa); });
+    abcVivoBadge();
 }
 
 async function abcCerrarSesion() {
@@ -655,8 +717,8 @@ function abcMostrarTab(id, sinScroll) {
     abc.tabActual = id;
     const contenedor = id.startsWith('etapa:') ? 'etapa' : id;
     if (contenedor === 'etapa') { abc.etapaActiva = id.slice(6); abcRenderEtapa(); }
+    if (contenedor === 'vivo') setTimeout(() => abcVivoRender(true), 0);
     document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + contenedor));
-    document.querySelectorAll('.sub-nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
     document.querySelectorAll('#abcNav a').forEach(a => {
         if (a.dataset.tab === id) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
@@ -2495,8 +2557,8 @@ function abcFilasTabla(idTabla) {
     }).filter(f => f.some(v => v !== ''));
 }
 
-function abcDescargarLibro(hojas, nombre) {
-    const archivo = nombre + '-' + (abc.periodo || '') + '.xlsx';
+function abcDescargarLibro(hojas, nombre, sinPeriodo) {
+    const archivo = nombre + (sinPeriodo ? '' : '-' + (abc.periodo || '')) + '.xlsx';
     if (typeof XLSX === 'undefined') {
         // Sin librería (sin conexión): se descarga la primera hoja como CSV compatible con Excel
         const txt = hojas[0][1].map(f => f.map(v => '"' + String(v).replaceAll('"', '""') + '"').join(';')).join('\r\n');
@@ -2620,6 +2682,814 @@ async function abcInstalarApp() {
         : 'Para instalar: abra el menú del navegador (⋮) y elija "Instalar aplicación" o "Agregar a pantalla de inicio".\nLa página debe abrirse desde una dirección https (no como archivo local).');
 }
 
+// ==================== EN VIVO: SIMULACIÓN DE UN MES ====================
+// Un dispositivo "controla" la simulación: cada pocos segundos registra en abc_movimientos los gastos del día.
+// Todas las pantallas abiertas reciben esos movimientos por Supabase Realtime (o cada 3 s si el tiempo real no
+// está disponible) y recalculan el costeo ABC con el gasto acumulado hasta ese día.
+const ABC_VIVO_DIAS = 30;
+const ABC_VIVO_SEG = 600;   // 10 minutos a velocidad x1
+const ABC_VIVO_HITOS = { 1: 'Pagos fijos', 14: 'Avería', 20: 'Campaña', 22: 'Alza de luz' };
+
+function abcVivoId() {
+    try {
+        let id = localStorage.getItem('abc_vivo_ctrl');
+        if (!id) { id = 'C-' + Math.random().toString(36).slice(2, 10); localStorage.setItem('abc_vivo_ctrl', id); }
+        return id;
+    } catch (e) {
+        return abc._ctrlId || (abc._ctrlId = 'C-' + Math.random().toString(36).slice(2, 10));
+    }
+}
+const abcVivoSoyControl = () => !!abc.vivo.sim && abc.vivo.sim.controlador === abcVivoId();
+const abcVivoActiva = () => !!abc.vivo.sim && ['corriendo', 'pausada'].includes(abc.vivo.sim.estado);
+
+// Números pseudoaleatorios reproducibles (la misma simulación genera los mismos gastos en cualquier dispositivo)
+function abcRng(semilla) {
+    let h = 1779033703 ^ semilla.length;
+    for (const ch of semilla) { h = Math.imul(h ^ ch.charCodeAt(0), 3432918353); h = h << 13 | h >>> 19; }
+    return () => {
+        h = Math.imul(h ^ h >>> 16, 2246822507);
+        h = Math.imul(h ^ h >>> 13, 3266489909);
+        h ^= h >>> 16;
+        return (h >>> 0) / 4294967296;
+    };
+}
+
+// Gastos de un día: planilla diaria, consumos variables, pagos fijos en su fecha y eventos (avería, campaña, alza de luz)
+function abcVivoPlanDia(sim, d) {
+    const rnd = abcRng(sim.sim_id + ':' + d);
+    const ruido = a => 1 + (rnd() * 2 - 1) * a;
+    const base = r => abcMontoRecurso(r, sim.base_periodo);
+    const dias = sim.dias || ABC_VIVO_DIAS;
+    const grupos = [];
+    const add = (clave, icono, descripcion, filas) => {
+        filas = filas.filter(f => f.monto > 0.004).map(f => ({ ...f, monto: Math.round(f.monto * 100) / 100 }));
+        if (filas.length) grupos.push({ grupo: 'D' + d + '-' + clave, icono, descripcion, filas });
+    };
+
+    const extra = d >= 14 && d <= 16;
+    add('PLANILLA', '👷', extra ? 'Jornada laboral + horas extra para recuperar la producción tras la avería' : 'Jornada laboral (planilla del día)',
+        abc.recursos.filter(r => r.origen === 'planilla').map(r => ({
+            recurso_codigo: r.codigo, monto: base(r) / dias * ruido(0.03) * (extra && r.categoria === 'MOD' ? 1.35 : 1)
+        })));
+
+    abc.recursos.filter(r => r.origen !== 'planilla').forEach(r => {
+        const n = abcNorm(r.nombre);
+        const m = base(r);
+        if (!(m > 0)) return;
+        const diario = m / dias;
+        const uno = (icono, desc, monto, clave) => add(clave || r.codigo, icono, desc, [{ recurso_codigo: r.codigo, monto }]);
+        if (/alquiler|seguro/.test(n)) { if (d === 1) uno('🏢', 'Pago mensual: ' + r.nombre, m); }
+        else if (/software|licenc/.test(n)) { if (d === 5) uno('💻', 'Renovación mensual: ' + r.nombre, m); }
+        else if (/profesional|auditor|legal/.test(n)) { if (d === 15) uno('⚖️', 'Honorarios: ' + r.nombre, m); }
+        else if (/telefon|internet/.test(n)) { if (d === 10) uno('📞', 'Factura de ' + r.nombre.toLowerCase(), m); }
+        else if (/utiles|oficina/.test(n)) { if (d === 2 || d === 16) uno('📎', 'Compra de ' + r.nombre.toLowerCase(), m * 0.5); }
+        else if (/repuesto|mantenim/.test(n)) {
+            if ([3, 9, 25].includes(d)) uno('🔩', 'Mantenimiento preventivo programado', m * 0.25 * ruido(0.1));
+            if (d === 14) uno('🔧', '¡Avería en la llenadora! Compra urgente de repuestos', m * 1.2, 'AVERIA');
+            if (d === 20) uno('🔩', 'Reposición de repuestos usados en la avería', m * 0.3);
+        }
+        else if (/laborator|quimic/.test(n)) { if (d % 3 === 0) uno('🧪', 'Insumos de laboratorio y químicos', diario * 3 * ruido(0.1)); }
+        else if (/publicidad|marketing/.test(n)) {
+            if (d === 8) uno('📣', 'Publicidad en redes sociales y radio', m * 0.4);
+            if (d === 20) uno('📣', '¡Lanzamiento de la campaña publicitaria de verano!', m * 0.9, 'CAMPANA');
+            if (d === 28) uno('📣', 'Material publicitario para puntos de venta', m * 0.15);
+        }
+        else if (/flete|distribuc|transporte/.test(n)) {
+            const pico = d >= 18 && d <= 24;
+            uno('🚚', pico ? 'Fletes de distribución · pico de pedidos' : 'Fletes de distribución del día', diario * ruido(0.15) * (pico ? 1.6 : 0.85));
+        }
+        else if (/comision/.test(n)) { if (d % 7 !== 0) uno('🤝', 'Comisiones por las ventas del día', diario * 7 / 6 * ruido(0.2) * (d >= 18 && d <= 24 ? 1.4 : 1)); }
+        else if (/energ|electric/.test(n)) {
+            const alza = d >= 22;
+            uno('⚡', d === 22 ? '¡Sube la tarifa eléctrica 25%! Consumo de energía del día' : alza ? 'Consumo de energía (tarifa nueva)' : 'Consumo de energía eléctrica del día',
+                diario * ruido(0.12) * (alza ? 1.25 : 1));
+        }
+        else if (/agua/.test(n)) uno('💧', 'Consumo de agua industrial del día', diario * ruido(0.1));
+        else if (/depreci/.test(n)) uno('📉', 'Depreciación diaria de maquinaria y equipo', diario);
+        else uno('🧾', r.nombre, diario * ruido(0.1));
+    });
+
+    for (let i = grupos.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [grupos[i], grupos[j]] = [grupos[j], grupos[i]]; }
+    return grupos;
+}
+
+// ---------- Carga y sincronización ----------
+async function abcVivoCargar() {
+    const v = abc.vivo;
+    v.local = abc.modo !== 'db';
+    if (!v.local) {
+        const r = await supabaseClient.from('abc_simulacion').select('*').order('created_at', { ascending: false }).limit(1);
+        if (r.error) {
+            if (!abcTablaNoExiste(r.error)) console.warn('abc_simulacion:', r.error);
+            v.local = true;
+        } else {
+            v.sim = r.data[0] || null;
+            if (v.sim) await abcVivoCargarMovs();
+            abcVivoSuscribir();
+        }
+    }
+    // El controlador que recargó la página continúa donde se quedó
+    if (abcVivoSoyControl() && v.sim.estado === 'corriendo') {
+        v.cola = abcVivoPendientesDia(v.sim.dia);
+        v.gruposDia = v.cola.length;
+        abcVivoProgramar(800);
+    }
+    abcVivoRender(true);
+}
+
+function abcVivoPendientesDia(dia) {
+    if (!dia) return [];
+    const ya = new Set(abc.vivo.movs.filter(m => m.dia === dia).map(m => m.grupo));
+    return abcVivoPlanDia(abc.vivo.sim, dia).filter(g => !ya.has(g.grupo));
+}
+
+async function abcVivoCargarMovs() {
+    const v = abc.vivo;
+    if (v.local || !v.sim) return;
+    const desde = v.movs.reduce((m, x) => Math.max(m, x.id || 0), 0);
+    const nuevos = [];
+    for (let i = 0; ; i += 1000) {
+        const r = await supabaseClient.from('abc_movimientos').select('*').eq('sim_id', v.sim.sim_id).gt('id', desde)
+            .order('id', { ascending: true }).range(i, i + 999);
+        if (r.error) { console.warn('abc_movimientos:', r.error); break; }
+        nuevos.push(...r.data);
+        if (r.data.length < 1000) break;
+    }
+    abcVivoNuevosMovs(nuevos, true);
+}
+
+function abcVivoSuscribir() {
+    const v = abc.vivo;
+    if (v.local || v.canal || typeof supabaseClient.channel !== 'function') { abcVivoPolling(); return; }
+    v.rt = 'conectando';
+    v.canal = supabaseClient.channel('abc-vivo')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'abc_simulacion' }, p => abcVivoCambioSim(p))
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'abc_movimientos' }, p => abcVivoNuevosMovs([p.new]))
+        .subscribe(estado => {
+            if (estado === 'SUBSCRIBED') { v.rt = 'on'; abcVivoResync(); }
+            else if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(estado)) v.rt = 'error';
+            abcVivoPolling();
+            abcVivoRender();
+        });
+    // Si en 8 s no conecta, se usa la consulta periódica
+    setTimeout(() => { if (v.rt === 'conectando') { v.rt = 'error'; abcVivoPolling(); abcVivoRender(); } }, 8000);
+}
+
+// Respaldo sin tiempo real: se consulta la base de datos cada 3 segundos
+function abcVivoPolling() {
+    const v = abc.vivo;
+    const necesita = !v.local && v.rt !== 'on';
+    if (necesita && !v.poll) v.poll = setInterval(abcVivoResync, 3000);
+    if (!necesita && v.poll) { clearInterval(v.poll); v.poll = null; }
+}
+
+async function abcVivoResync() {
+    const v = abc.vivo;
+    if (v.local || v._sincronizando) return;
+    v._sincronizando = true;
+    try {
+        const r = await supabaseClient.from('abc_simulacion').select('*').order('created_at', { ascending: false }).limit(1);
+        if (!r.error) {
+            const s = r.data[0] || null;
+            // El controlador mantiene su propio estado salvo que otro dispositivo haya tomado el control o cambiado la simulación
+            const propio = s && abcVivoSoyControl() && s.sim_id === v.sim.sim_id && s.controlador === abcVivoId();
+            if (!propio) await abcVivoAplicarSim(s);
+        }
+        await abcVivoCargarMovs();
+    } finally {
+        v._sincronizando = false;
+    }
+}
+
+function abcVivoCambioSim(p) {
+    const v = abc.vivo;
+    if (p.eventType === 'DELETE') {
+        if (v.sim && p.old && p.old.id && p.old.id !== v.sim.id) return;   // se borró una simulación anterior
+        abcVivoAplicarSim(null);
+        return;
+    }
+    // El controlador ignora el eco de sus propios cambios, salvo que otro dispositivo tome el control
+    if (abcVivoSoyControl() && p.new.sim_id === v.sim.sim_id && p.new.controlador === abcVivoId()) return;
+    abcVivoAplicarSim(p.new);
+}
+
+async function abcVivoAplicarSim(s) {
+    const v = abc.vivo;
+    const antes = v.sim;
+    if (!s) {
+        if (antes) { v.sim = null; abcVivoReiniciarEstado(); clearTimeout(v.timer); }
+        abcVivoRender(true);
+        return;
+    }
+    if (!antes || antes.sim_id !== s.sim_id) {
+        v.sim = s;
+        abcVivoReiniciarEstado();
+        clearTimeout(v.timer);
+        await abcVivoCargarMovs();
+        abcVivoRender(true);
+        return;
+    }
+    const eraControl = abcVivoSoyControl();
+    v.sim = { ...antes, ...s };
+    if (eraControl && !abcVivoSoyControl()) { clearTimeout(v.timer); v.cola = []; showAlert('🎮 Otro dispositivo tomó el control de la simulación', 'info'); }
+    abcVivoRender();
+}
+
+function abcVivoReiniciarEstado() {
+    Object.assign(abc.vivo, { movs: [], ids: new Set(), cola: [], snaps: {}, estados: null, feed: [], filas: [], ultimo: {} });
+}
+
+// Agrega movimientos nuevos (sin duplicar los que ya llegaron por otra vía)
+function abcVivoNuevosMovs(filas, carga) {
+    const v = abc.vivo;
+    if (!v.sim) return;
+    const nuevos = (filas || []).filter(m => m && m.sim_id === v.sim.sim_id && !v.ids.has(m.id));
+    if (!nuevos.length) return;
+    nuevos.forEach(m => { v.ids.add(m.id); m.monto = Number(m.monto) || 0; m.dia = Number(m.dia) || 0; v.movs.push(m); delete v.snaps[m.dia]; });
+    // Movimientos agrupados por evento para el registro en pantalla
+    const porGrupo = new Map();
+    nuevos.forEach(m => {
+        const k = m.sim_id + m.grupo;
+        if (!porGrupo.has(k)) porGrupo.set(k, { tipo: 'mov', clave: k, dia: m.dia, icono: m.icono, descripcion: m.descripcion, monto: 0, recursos: [] });
+        const g = porGrupo.get(k);
+        g.monto += m.monto;
+        g.recursos.push(m.recurso_codigo);
+    });
+    porGrupo.forEach(g => {
+        const ex = v.feed.find(f => f.clave === g.clave);
+        if (ex) { ex.monto += g.monto; ex.recursos.push(...g.recursos); }
+        else v.feed.unshift({ ...g, nuevo: !carga });
+    });
+    v.feed = v.feed.slice(0, 80);
+    abcVivoRender(carga);
+}
+
+// ---------- Control (solo el dispositivo que controla) ----------
+async function abcVivoActualizarSim(cambios) {
+    const v = abc.vivo;
+    if (!v.sim) return;
+    Object.assign(v.sim, cambios, { updated_at: new Date().toISOString() });
+    if (v.local) return;
+    const { error } = await supabaseClient.from('abc_simulacion').update({ ...cambios, updated_at: v.sim.updated_at }).eq('sim_id', v.sim.sim_id);
+    if (error) throw error;
+}
+
+async function abcVivoIniciar() {
+    const v = abc.vivo;
+    if (abcVivoActiva() && !confirm('Hay una simulación en curso. ¿Empezar una nueva desde el día 1?')) return;
+    const base = abc.periodos[abc.periodos.length - 1];
+    const sim = {
+        sim_id: 'SIM-' + Date.now().toString(36).toUpperCase(), periodo: abcSiguientePeriodo(base), base_periodo: base,
+        estado: 'corriendo', dia: 0, dias: ABC_VIVO_DIAS, duracion_seg: ABC_VIVO_SEG, velocidad: v.velocidadElegida || 1,
+        controlador: abcVivoId(), updated_at: new Date().toISOString()
+    };
+    clearTimeout(v.timer);
+    try {
+        if (!v.local) {
+            const del = await supabaseClient.from('abc_simulacion').delete().neq('id', 0);
+            if (del.error) throw del.error;
+            const ins = await supabaseClient.from('abc_simulacion').insert([sim]).select();
+            if (ins.error) throw ins.error;
+            v.sim = ins.data[0];
+        } else {
+            v.sim = { id: abcIdLocal++, ...sim };
+        }
+    } catch (e) {
+        showAlert('❌ No se pudo iniciar la simulación: ' + (e.message || e), 'error');
+        return;
+    }
+    abcVivoReiniciarEstado();
+    abcAlternarMenu(false);
+    abcVivoRender(true);
+    abcVivoProgramar(600);
+}
+
+function abcVivoProgramar(ms) {
+    const v = abc.vivo;
+    clearTimeout(v.timer);
+    if (!v.sim || v.sim.estado !== 'corriendo' || !abcVivoSoyControl()) return;
+    const s = v.sim;
+    const diaMs = s.duracion_seg * 1000 / s.dias / (Number(s.velocidad) || 1);
+    v.timer = setTimeout(abcVivoPaso, ms !== undefined ? ms : diaMs / ((v.gruposDia || 10) + 1));
+}
+
+async function abcVivoPaso() {
+    const v = abc.vivo, s = v.sim;
+    if (!s || s.estado !== 'corriendo' || !abcVivoSoyControl()) return;
+    let espera;
+    try {
+        if (!v.cola.length) {
+            if (s.dia >= s.dias) {
+                await abcVivoActualizarSim({ estado: 'terminada' });
+                abcVivoToast('🏁', 'Mes terminado', `Se simularon los ${s.dias} días de ${abcNombreMes(s.periodo)}. Revise el cierre y descargue el Excel.`, 'ok');
+                abcVivoRender(true);
+                return;
+            }
+            const dia = s.dia + 1;
+            await abcVivoActualizarSim({ dia });
+            v.cola = abcVivoPendientesDia(dia);
+            v.gruposDia = v.cola.length;
+            abcVivoRender(true);
+        } else {
+            const g = v.cola[0];
+            const filas = g.filas.map(f => ({ sim_id: s.sim_id, dia: s.dia, grupo: g.grupo, icono: g.icono, descripcion: g.descripcion,
+                                              recurso_codigo: f.recurso_codigo, monto: f.monto }));
+            let guardadas;
+            if (!v.local) {
+                const r = await supabaseClient.from('abc_movimientos').insert(filas).select();
+                if (r.error) throw r.error;
+                guardadas = r.data;
+            } else {
+                guardadas = filas.map(f => ({ id: abcIdLocal++, ...f }));
+            }
+            v.cola.shift();
+            abcVivoNuevosMovs(guardadas);
+        }
+    } catch (e) {
+        console.error(e);
+        if (!v._errorAvisado) showAlert('⚠️ Problema de conexión en la simulación: ' + (e.message || e) + '. Reintentando…', 'error');
+        v._errorAvisado = true;
+        espera = 3000;
+    }
+    if (espera === undefined) v._errorAvisado = false;
+    abcVivoProgramar(espera);
+}
+
+async function abcVivoPausar() {
+    clearTimeout(abc.vivo.timer);
+    try { await abcVivoActualizarSim({ estado: 'pausada' }); } catch (e) { showAlert('❌ ' + e.message, 'error'); }
+    abcVivoRender(true);
+}
+
+async function abcVivoReanudar() {
+    try { await abcVivoActualizarSim({ estado: 'corriendo' }); } catch (e) { showAlert('❌ ' + e.message, 'error'); return; }
+    abcVivoRender(true);
+    abcVivoProgramar(300);
+}
+
+async function abcVivoVelocidad(x) {
+    const v = abc.vivo;
+    v.velocidadElegida = Number(x) || 1;
+    if (v.sim && abcVivoSoyControl() && abcVivoActiva()) {
+        try { await abcVivoActualizarSim({ velocidad: v.velocidadElegida }); } catch (e) { showAlert('❌ ' + e.message, 'error'); }
+        abcVivoProgramar();
+    }
+    abcVivoRender(true);
+}
+
+async function abcVivoTomarControl() {
+    const v = abc.vivo;
+    if (!v.sim || !confirm('¿Controlar la simulación desde este dispositivo?')) return;
+    try { await abcVivoActualizarSim({ controlador: abcVivoId() }); } catch (e) { showAlert('❌ ' + e.message, 'error'); return; }
+    await abcVivoCargarMovs();
+    v.cola = abcVivoPendientesDia(v.sim.dia);
+    v.gruposDia = v.cola.length;
+    abcVivoRender(true);
+    abcVivoProgramar(500);
+}
+
+async function abcVivoDetener() {
+    const v = abc.vivo;
+    if (!v.sim || !confirm('¿Detener y borrar la simulación? Los datos reales del sistema no se modifican.')) return;
+    clearTimeout(v.timer);
+    if (!v.local) {
+        const { error } = await supabaseClient.from('abc_simulacion').delete().eq('sim_id', v.sim.sim_id);
+        if (error) { showAlert('❌ ' + error.message, 'error'); return; }
+    }
+    v.sim = null;
+    abcVivoReiniciarEstado();
+    abcVivoRender(true);
+}
+
+function abcVivoCopiarEnlace() {
+    const url = location.origin + location.pathname + '#vivo';
+    const ok = () => showAlert('🔗 Enlace copiado: ábralo en otro dispositivo para ver la simulación en vivo', 'success');
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, () => prompt('Copie este enlace:', url));
+    else prompt('Copie este enlace:', url);
+}
+
+function abcVivoPantallaCompleta() {
+    abcAlternarMenu(false);
+    const el = document.documentElement;
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+}
+
+// ---------- Cálculo ----------
+function abcVivoMontos(hasta) {
+    const m = {};
+    abc.vivo.movs.forEach(x => { if (x.dia <= hasta) m[x.recurso_codigo] = (m[x.recurso_codigo] || 0) + x.monto; });
+    return m;
+}
+
+// Costeo ABC completo con lo gastado hasta el día d (los días cerrados se guardan en caché)
+function abcVivoSnap(d) {
+    const v = abc.vivo;
+    if (v.snaps[d] && d < v.sim.dia) return v.snaps[d];
+    const c = abcCalcular(v.sim.periodo, { montos: abcVivoMontos(d), factorUnidades: d / v.sim.dias });
+    const snap = { dia: d, calc: c, total: c.totalRecursos, centro: { ...c.centroCosto },
+                   actividad: Object.fromEntries(c.actividades.map(a => [a.codigo, a.costo])) };
+    v.snaps[d] = snap;
+    return snap;
+}
+
+// Proyección al cierre: lo gastado + ritmo diario de los últimos 7 días × días que faltan.
+// Así un pago único (alquiler, seguros del día 1) no se multiplica como si se repitiera cada día.
+function abcVivoBase(snap) {
+    return snap.dia >= 2 ? abcVivoSnap(Math.max(1, snap.dia - 7)) : null;
+}
+function abcVivoProyectar(hoy, base, snap) {
+    const s = abc.vivo.sim;
+    if (!base || base.dia === snap.dia) return hoy / (Math.max(snap.dia, 1) / s.dias);
+    return hoy + (hoy - base.valor) / (snap.dia - base.dia) * (s.dias - snap.dia);
+}
+
+function abcVivoFilas(snap) {
+    const base = abcVivoBase(snap);
+    const fila = (tipo, x, costo, extra) => {
+        const pres = abcPresupuesto(tipo, x.codigo);
+        const e = abcEstado(costo, pres);
+        const proy = abcVivoProyectar(costo, base && { dia: base.dia, valor: base[tipo][x.codigo] || 0 }, snap);
+        const ep = abcEstado(proy, pres);
+        return { tipo, codigo: x.codigo, nombre: x.nombre, costo, proy, ...e, proyEstado: ep.estado, proyPct: ep.pct, ...extra };
+    };
+    return [
+        ...abcCentrosOrdenados().map(x => fila('centro', x, snap.centro[x.codigo] || 0, { centroTipo: x.tipo })),
+        ...abc.actividades.map(a => fila('actividad', a, snap.actividad[a.codigo] || 0,
+            { centroTipo: (abc.centros.find(c => c.codigo === a.centro_codigo) || {}).tipo }))
+    ];
+}
+
+// Nivel de alerta: 3 excedido · 2 cerca del límite · 1 la proyección superará el presupuesto (desde el día 5) · 0 normal
+const abcVivoNivel = x => x.estado === 'excedido' ? 3 : x.estado === 'cerca' ? 2
+    : x.proyEstado === 'excedido' && abc.vivo.sim && abc.vivo.sim.dia >= 5 ? 1 : 0;
+
+function abcVivoDetectarAlertas(snap) {
+    const v = abc.vivo;
+    const filas = abcVivoFilas(snap);
+    v.filas = filas;
+    const nuevo = {};
+    filas.forEach(x => { nuevo[x.tipo + ':' + x.codigo] = abcVivoNivel(x); });
+    if (v.estados) {
+        filas.forEach(x => {
+            const k = x.tipo + ':' + x.codigo, n = nuevo[k];
+            if (n <= (v.estados[k] || 0)) return;
+            if (n === 1 && x.tipo !== 'centro') return;   // las proyecciones de actividades solo se listan, sin aviso
+            const quien = (x.tipo === 'centro' ? 'Centro ' : 'Actividad ') + x.nombre;
+            const msg = n === 3 ? `${quien} superó su presupuesto: ${abcSoles(x.costo, 0)} de ${abcSoles(x.monto, 0)} (${abcPct(x.pct)}).`
+                      : n === 2 ? `${quien} ya consumió el ${abcPct(x.pct)} de su presupuesto mensual.`
+                      : `Al ritmo actual, ${quien.toLowerCase()} cerraría el mes en ${abcSoles(x.proy, 0)} (${abcPct(x.proyPct)} del presupuesto).`;
+            const titulo = n === 3 ? '🔴 Presupuesto excedido' : n === 2 ? '🟠 Cerca del límite' : '📈 Proyección en riesgo';
+            v.feed.unshift({ tipo: 'alerta', nivel: n, dia: snap.dia, titulo, descripcion: msg, nuevo: true, tipoEl: x.tipo, codigo: x.codigo });
+            if ((x.tipo === 'centro' && n >= 2) || n === 3) abcVivoToast(n === 3 ? '🔴' : n === 2 ? '🟠' : '📈', titulo, msg, n === 3 ? 'red' : 'naranja', x.tipo, x.codigo);
+        });
+        v.feed = v.feed.slice(0, 80);
+    }
+    v.estados = nuevo;
+}
+
+function abcVivoToast(icono, titulo, texto, clase, tipo, codigo) {
+    const cont = document.getElementById('vivoToasts');
+    if (!cont) return;
+    const div = document.createElement('div');
+    div.className = 'abc-vivo-toast abc-vivo-toast-' + (clase || 'ok');
+    div.innerHTML = `<span class="abc-vivo-toast-ico">${icono}</span><div><b>${esc(titulo)}</b><p>${esc(texto)}</p>
+        ${tipo ? `<button class="btn btn-sm" onclick="abcAbrirGraficaVivo('${tipo}','${esc(codigo)}')">📈 Ver gráfica</button>` : ''}</div>
+        <button class="abc-icon-btn" title="Cerrar" onclick="this.parentElement.remove()">✕</button>`;
+    cont.prepend(div);
+    while (cont.children.length > 4) cont.lastChild.remove();
+    setTimeout(() => div.classList.add('abc-vivo-toast-sale'), 7000);
+    setTimeout(() => div.remove(), 7600);
+}
+
+function abcAbrirGraficaVivo(tipo, codigo) {
+    abc.vivo.ver = tipo + ':' + codigo;
+    abcMostrarTab('vivo');
+    setTimeout(() => { const c = document.getElementById('vivoCanvas'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100);
+}
+
+// ---------- Interfaz ----------
+function abcAnimarNumero(el, valor, fmt) {
+    if (!el) return;
+    const desde = Number(el.dataset.valor);
+    el.dataset.valor = valor;
+    cancelAnimationFrame(el._raf);
+    if (isNaN(desde) || Math.abs(valor - desde) < 0.005 || document.hidden || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        el.textContent = fmt(valor);
+        return;
+    }
+    const t0 = performance.now();
+    const paso = t => {
+        const k = Math.min(1, (t - t0) / 700), e = 1 - Math.pow(1 - k, 3);
+        el.textContent = fmt(desde + (valor - desde) * e);
+        if (k < 1) el._raf = requestAnimationFrame(paso);
+    };
+    el._raf = requestAnimationFrame(paso);
+    const card = el.closest('.abc-vivo-kpi');
+    if (card) { card.classList.remove('abc-pulso'); void card.offsetWidth; card.classList.add('abc-pulso'); }
+}
+
+function abcVivoRender(forzar) {
+    const v = abc.vivo;
+    if (!forzar) {
+        if (v._pend) return;
+        v._pend = setTimeout(() => { v._pend = null; abcVivoRender(true); }, 250);
+        return;
+    }
+    clearTimeout(v._pend);
+    v._pend = null;
+    const s = v.sim;
+    let snap = null;
+    if (s && s.dia > 0) {
+        snap = abcVivoSnap(s.dia);
+        abcVivoDetectarAlertas(snap);
+    } else {
+        v.filas = [];
+        v.estados = s ? {} : null;
+    }
+    abcVivoBadge();
+    if (abc.tabActual !== 'vivo' || !document.getElementById('vivoBotones')) return;
+    abcVivoRenderControles();
+    abcVivoRenderKpis(snap);
+    abcVivoRenderHistoria(snap);
+    abcVivoRenderGrafica();
+    abcVivoRenderFeed();
+    abcVivoRenderTablas(snap);
+}
+
+function abcVivoBadge() {
+    const a = document.querySelector('#abcNav a[data-tab="vivo"]');
+    if (!a) return;
+    let b = a.querySelector('.abc-badge');
+    const s = abc.vivo.sim;
+    const txt = s && s.estado === 'corriendo' ? 'día ' + s.dia : s && s.estado === 'pausada' ? '⏸ ' + s.dia : '';
+    if (!txt) { if (b) b.remove(); return; }
+    if (!b) { b = document.createElement('span'); b.className = 'abc-badge abc-badge-red'; a.appendChild(b); }
+    b.textContent = txt;
+}
+
+function abcVivoRenderControles() {
+    const v = abc.vivo, s = v.sim;
+    const control = abcVivoSoyControl();
+    const vel = s ? Number(s.velocidad) || 1 : v.velocidadElegida || 1;
+    const firma = [s && s.sim_id, s && s.estado, control, v.rt, v.local, vel].join('|');
+
+    const conexion = v.local
+        ? `<span class="abc-pill abc-pill-naranja" title="Ejecute sistema-costeo-abc/sql/abc_schema.sql en Supabase para compartir la simulación">🟠 Solo en este dispositivo</span>`
+        : v.rt === 'on' ? '<span class="abc-pill abc-pill-verde">🟢 Tiempo real conectado</span>'
+        : v.rt === 'conectando' ? '<span class="abc-pill">🟡 Conectando…</span>'
+        : '<span class="abc-pill abc-pill-naranja" title="Active Realtime en Supabase para que sea instantáneo">🟠 Sincronizando cada 3 s</span>';
+    const rol = !s ? '' : control ? '<span class="abc-pill abc-pill-azul">🎮 Usted controla</span>' : '<span class="abc-pill">👀 Espectador</span>';
+    document.getElementById('vivoConexion').innerHTML = conexion + rol;
+
+    if (v._firma !== firma) {
+        v._firma = firma;
+        const opcionesVel = [[0.5, 'x0.5 · 20 min'], [1, 'x1 · 10 min'], [2, 'x2 · 5 min'], [5, 'x5 · 2 min'], [10, 'x10 · 1 min']]
+            .map(([x, t]) => `<option value="${x}" ${x === vel ? 'selected' : ''}>${t}</option>`).join('');
+        const selVel = `<label class="abc-vivo-vel">Velocidad <select class="abc-input-sel" onchange="abcVivoVelocidad(this.value)" ${s && abcVivoActiva() && !control ? 'disabled' : ''}>${opcionesVel}</select></label>`;
+        let b = '';
+        if (!s || s.estado === 'terminada') {
+            b += `<button class="btn btn-success abc-btn-grande" onclick="abcVivoIniciar()">▶ ${s ? 'Nueva simulación' : 'Iniciar simulación del mes'}</button>${selVel}`;
+        } else if (control) {
+            b += s.estado === 'corriendo'
+                ? `<button class="btn btn-warning abc-btn-grande" onclick="abcVivoPausar()">⏸ Pausar</button>`
+                : `<button class="btn btn-success abc-btn-grande" onclick="abcVivoReanudar()">▶ Reanudar</button>`;
+            b += selVel + `<button class="btn btn-danger" onclick="abcVivoDetener()">⏹ Detener</button>`;
+        } else {
+            b += `<span class="abc-muted">La simulación se controla desde otro dispositivo.</span>
+                  <button class="btn btn-primary" onclick="abcVivoTomarControl()">🎮 Tomar control</button>${selVel}`;
+        }
+        b += `<span class="abc-vivo-sep"></span>
+              <button class="btn" onclick="abcVivoCopiarEnlace()" title="Para verlo en otro celular o computadora">🔗 Copiar enlace</button>
+              <button class="btn" onclick="abcVivoPantallaCompleta()">🖥 Pantalla completa</button>
+              ${s ? '<button class="btn" onclick="abcVivoExportar()">📥 Excel</button>' : ''}`;
+        document.getElementById('vivoBotones').innerHTML = b;
+        document.getElementById('vivoMarcas').innerHTML = Object.entries(ABC_VIVO_HITOS).map(([d, t]) =>
+            `<span style="left:${((d - 0.5) / ABC_VIVO_DIAS * 100).toFixed(2)}%" title="Día ${d}: ${t}">${t}</span>`).join('');
+    }
+
+    const dia = s ? s.dia : 0, dias = s ? s.dias : ABC_VIVO_DIAS;
+    document.getElementById('vivoMes').textContent = s ? '· ' + abcNombreMes(s.periodo) + ' (simulado con base en ' + abcNombreMes(s.base_periodo) + ')' : '';
+    document.getElementById('vivoDia').innerHTML = `Día <b>${dia}</b> / ${dias}`;
+    document.getElementById('vivoBarra').style.width = (dia / dias * 100).toFixed(2) + '%';
+    document.getElementById('vivoBarra').className = s && s.estado === 'corriendo' ? 'abc-vivo-corriendo' : '';
+    const diaSeg = s ? s.duracion_seg / s.dias / (Number(s.velocidad) || 1) : ABC_VIVO_SEG / ABC_VIVO_DIAS;
+    const resta = Math.max(0, Math.round((dias - dia) * diaSeg));
+    document.getElementById('vivoReloj').textContent = !s ? '⏱ 10:00 para recorrer el mes'
+        : s.estado === 'terminada' ? '🏁 Mes terminado' : s.estado === 'pausada' ? '⏸ En pausa'
+        : `⏱ quedan ${Math.floor(resta / 60)}:${String(resta % 60).padStart(2, '0')}`;
+}
+
+function abcVivoTotalesPresupuesto() {
+    return abc.centros.reduce((t, c) => { const p = abcPresupuesto('centro', c.codigo); return t + (p ? Number(p.monto) || 0 : 0); }, 0);
+}
+
+function abcVivoRenderKpis(snap) {
+    const el = document.getElementById('vivoKpis');
+    if (!el.dataset.listo) {
+        el.dataset.listo = '1';
+        el.innerHTML = [
+            ['acum', '💰', 'Costo indirecto acumulado'], ['proy', '🔮', 'Proyección al día 30'], ['cons', '📊', 'Presupuesto consumido'],
+            ['unit', '🎯', 'Costo unitario promedio'], ['marg', '📈', 'Margen acumulado'], ['alert', '🚨', 'Alertas activas']
+        ].map(([k, i, t]) => `<div class="abc-vivo-kpi" id="vk-${k}"><span class="abc-vivo-kpi-ico">${i}</span><small>${t}</small><b>—</b><em></em></div>`).join('');
+    }
+    const set = (k, valor, fmt, sub, clase) => {
+        const card = document.getElementById('vk-' + k);
+        abcAnimarNumero(card.querySelector('b'), valor, fmt);
+        card.querySelector('em').innerHTML = sub || '';
+        card.className = 'abc-vivo-kpi ' + (clase || '') + (card.classList.contains('abc-pulso') ? ' abc-pulso' : '');
+    };
+    const s = abc.vivo.sim;
+    if (!snap) {
+        ['acum', 'proy', 'cons', 'unit', 'marg', 'alert'].forEach(k => set(k, 0, () => '—', k === 'acum' ? 'Presione ▶ para empezar' : ''));
+        return;
+    }
+    const c = snap.calc, pres = abcVivoTotalesPresupuesto();
+    const ayer = snap.dia > 1 ? abcVivoSnap(snap.dia - 1) : null;
+    const hoy = snap.total - (ayer ? ayer.total : 0);
+    const base = abcVivoBase(snap);
+    const proy = abcVivoProyectar(snap.total, base && { dia: base.dia, valor: base.total }, snap);
+    const cons = pres ? snap.total / pres * 100 : 0;
+    const ideal = snap.dia / s.dias * 100;
+    const unidades = c.productos.reduce((t, p) => t + p.unidades, 0);
+    const costoTot = c.productos.reduce((t, p) => t + p.total, 0), ventas = c.productos.reduce((t, p) => t + p.ventas, 0);
+    const filas = abc.vivo.filas || [];
+    const exc = filas.filter(x => x.estado === 'excedido').length, cerca = filas.filter(x => x.estado === 'cerca').length;
+    const riesgo = filas.filter(x => abcVivoNivel(x) === 1).length;
+
+    set('acum', snap.total, v => abcSoles(v, 0), `hoy <b>+${abcSoles(hoy, 0)}</b>`);
+    set('proy', proy, v => abcSoles(v, 0), pres ? `presupuesto ${abcSoles(pres, 0)} · <b>${abcPct(proy / pres * 100)}</b>` : 'sin presupuesto',
+        pres && proy > pres ? 'abc-vk-red' : pres && proy > pres * 0.9 ? 'abc-vk-naranja' : 'abc-vk-verde');
+    set('cons', cons, v => abcPct(v), `lo esperado al día ${snap.dia}: ${abcPct(ideal)}`, cons > ideal * 1.05 ? 'abc-vk-naranja' : 'abc-vk-verde');
+    set('unit', unidades ? costoTot / unidades : 0, v => abcSoles(v, 4), `${abcFmt(unidades, 0)} unidades producidas`);
+    set('marg', ventas ? (ventas - costoTot) / ventas * 100 : 0, v => abcPct(v), `ventas ${abcSoles(ventas, 0)}`);
+    set('alert', exc + cerca, v => String(Math.round(v)), `🔴 ${exc} excedidos · 🟠 ${cerca} cerca · 📈 ${riesgo} en riesgo`,
+        exc ? 'abc-vk-red' : cerca ? 'abc-vk-naranja' : 'abc-vk-verde');
+}
+
+// "¿Qué está pasando?": explica en una línea lo que cambió hoy, para narrar la simulación
+function abcVivoRenderHistoria(snap) {
+    const el = document.getElementById('vivoHistoria');
+    const s = abc.vivo.sim;
+    if (!snap) {
+        el.innerHTML = `<div class="abc-banner abc-banner-info"><strong>🎬 Listo para empezar.</strong> Al presionar <b>▶ Iniciar</b> se simula
+            ${abcNombreMes(abcSiguientePeriodo(abc.periodos[abc.periodos.length - 1]))} día por día con base en los montos de
+            ${abcNombreMes(abc.periodos[abc.periodos.length - 1])}. Sus datos reales no se modifican.</div>`;
+        return;
+    }
+    const ayer = snap.dia > 1 ? abcVivoSnap(snap.dia - 1) : null;
+    const movsHoy = abc.vivo.feed.filter(f => f.tipo === 'mov' && f.dia === snap.dia);
+    const mayor = movsHoy.slice().sort((a, b) => b.monto - a.monto)[0];
+    const nombreC = cod => (abc.centros.find(c => c.codigo === cod) || {}).nombre || cod;
+    const crec = Object.keys(snap.centro).map(k => [k, snap.centro[k] - (ayer ? ayer.centro[k] || 0 : 0)]).sort((a, b) => b[1] - a[1])[0];
+    const prodCambio = ayer ? snap.calc.productos.map(p => {
+        const q = ayer.calc.productos.find(x => x.codigo === p.codigo);
+        return { p, antes: q ? q.unitario : 0, dif: q ? p.unitario - q.unitario : 0 };
+    }).sort((a, b) => Math.abs(b.dif) - Math.abs(a.dif))[0] : null;
+    const items = [];
+    if (mayor) items.push(`Hoy entraron <b>${abcSoles(movsHoy.reduce((t, f) => t + f.monto, 0), 0)}</b> en ${movsHoy.length} movimientos; el más fuerte: ${mayor.icono} <b>${esc(mayor.descripcion)}</b> (${abcSoles(mayor.monto, 0)}).`);
+    if (crec && crec[1] > 0) items.push(`El centro que más creció hoy es <b>${esc(nombreC(crec[0]))}</b> (+${abcSoles(crec[1], 0)}).`);
+    if (prodCambio && Math.abs(prodCambio.dif) > 0.00005) items.push(`Costo unitario de <b>${esc(prodCambio.p.nombre)}</b>: ${abcSoles(prodCambio.antes, 4)} → <b>${abcSoles(prodCambio.p.unitario, 4)}</b>
+        (${prodCambio.dif > 0 ? 'sube' : 'baja'}: ${prodCambio.dif > 0 ? 'entró más costo del que se diluye con la producción del día' : 'la producción del día diluye los costos fijos'}).`);
+    const alerta = abc.vivo.feed.find(f => f.tipo === 'alerta' && f.dia === snap.dia);
+    if (alerta) items.push(`${alerta.titulo}: ${esc(alerta.descripcion)}`);
+    el.innerHTML = `<div class="abc-vivo-historia"><div class="abc-vivo-historia-dia">Día<b>${snap.dia}</b></div>
+        <ul>${items.map(i => `<li>${i}</li>`).join('') || '<li>Esperando los primeros movimientos del día…</li>'}</ul></div>`;
+}
+
+function abcVivoRenderGrafica() {
+    const v = abc.vivo, s = v.sim;
+    const sel = document.getElementById('vivoVer');
+    const opciones = [['total', 'Total de la empresa'], ...abcCentrosOrdenados().map(c => ['centro:' + c.codigo, 'Centro · ' + c.nombre]),
+                      ...abc.actividades.map(a => ['actividad:' + a.codigo, 'Actividad · ' + a.nombre])];
+    if (!opciones.some(o => o[0] === v.ver)) v.ver = 'total';
+    const firmaSel = opciones.length + v.ver;
+    if (sel.dataset.firma !== firmaSel) {
+        sel.dataset.firma = firmaSel;
+        sel.innerHTML = opciones.map(([k, t]) => `<option value="${esc(k)}" ${k === v.ver ? 'selected' : ''}>${esc(t)}</option>`).join('');
+    }
+    const canvas = document.getElementById('vivoCanvas');
+    if (typeof Chart === 'undefined' || !canvas) return;
+    const dias = s ? s.dias : ABC_VIVO_DIAS, dia = s ? s.dia : 0;
+    const [tipo, codigo] = v.ver === 'total' ? ['total', null] : v.ver.split(/:(.+)/);
+    const valorDe = snap => tipo === 'total' ? snap.total : (snap[tipo][codigo] || 0);
+    const pres = tipo === 'total' ? abcVivoTotalesPresupuesto() : (abcPresupuesto(tipo, codigo) ? Number(abcPresupuesto(tipo, codigo).monto) || 0 : 0);
+    const umbral = tipo === 'total' ? ABC_UMBRAL_DEFECTO : (abcPresupuesto(tipo, codigo) ? Number(abcPresupuesto(tipo, codigo).umbral) || ABC_UMBRAL_DEFECTO : ABC_UMBRAL_DEFECTO);
+    const etiquetas = Array.from({ length: dias }, (_, i) => 'Día ' + (i + 1));
+    const reales = etiquetas.map((_, i) => i + 1 <= dia ? valorDe(abcVivoSnap(i + 1)) : null);
+    const actual = dia ? reales[dia - 1] : 0;
+    const sb = dia ? abcVivoBase(abcVivoSnap(dia)) : null;
+    const fin = dia ? abcVivoProyectar(actual, sb && { dia: sb.dia, valor: valorDe(sb) }, { dia }) : 0;
+    const ritmo = dia && dia < dias ? (fin - actual) / (dias - dia) : 0;
+    const proy = etiquetas.map((_, i) => dia && i + 1 >= dia ? actual + ritmo * (i + 1 - dia) : null);
+    const colorReal = pres && actual >= pres ? '#c81e1e' : pres && actual >= pres * umbral / 100 ? '#F58220' : '#1765bc';
+    const ds = [
+        { label: 'Gastado (acumulado)', data: reales, borderColor: colorReal, backgroundColor: colorReal + '22', fill: true, tension: 0.25, pointRadius: 0, borderWidth: 3 },
+        { label: 'Proyección al ritmo actual', data: proy, borderColor: '#7c3aed', borderDash: [6, 4], pointRadius: 0, fill: false, borderWidth: 2 }
+    ];
+    if (pres) {
+        ds.push({ label: 'Presupuesto proporcional al día', data: etiquetas.map((_, i) => pres * (i + 1) / dias), borderColor: '#087565', borderDash: [3, 3], pointRadius: 0, fill: false, borderWidth: 1.5 });
+        ds.push({ label: 'Presupuesto del mes', data: etiquetas.map(() => pres), borderColor: '#c81e1e', pointRadius: 0, fill: false, borderWidth: 2 });
+    }
+    if (v.chart && v.chart.canvas === canvas && v.chart._ver === v.ver && v.chart.data.datasets.length === ds.length) {
+        v.chart.data.datasets.forEach((d, i) => { d.data = ds[i].data; d.borderColor = ds[i].borderColor; d.backgroundColor = ds[i].backgroundColor; });
+        v.chart.update();
+        return;
+    }
+    if (v.chart) v.chart.destroy();
+    v.chart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: { labels: etiquetas, datasets: ds },
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: { duration: 400 }, interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 14, font: { size: window.innerWidth < 640 ? 10 : 12 } } },
+                tooltip: { callbacks: { label: ctx => ctx.raw === null ? null : `${ctx.dataset.label}: ${abcSoles(ctx.raw, 0)}` } }
+            },
+            scales: { x: { ticks: { maxTicksLimit: 15 } }, y: { beginAtZero: true, ticks: { callback: x => 'S/ ' + abcFmt(x, 0) } } }
+        }
+    });
+    v.chart._ver = v.ver;
+}
+
+function abcVivoDestinos(recursos) {
+    const unicos = [...new Set(recursos)];
+    if (unicos.length !== 1) return unicos.length > 1 ? `${unicos.length} recursos repartidos a varios centros` : '';
+    return abc.inductor1.filter(f => f.recurso_codigo === unicos[0] && Number(f.porcentaje) > 0)
+        .sort((a, b) => b.porcentaje - a.porcentaje).slice(0, 3)
+        .map(f => `${esc((abc.centros.find(c => c.codigo === f.centro_codigo) || {}).nombre || f.centro_codigo)} ${abcPct(f.porcentaje)}`).join(' · ');
+}
+
+function abcVivoRenderFeed() {
+    const el = document.getElementById('vivoFeed');
+    const feed = abc.vivo.feed.slice(0, 40);
+    el.innerHTML = feed.length ? feed.map(f => f.tipo === 'alerta'
+        ? `<li class="abc-feed-alerta abc-feed-n${f.nivel} ${f.nuevo ? 'abc-feed-nuevo' : ''}"><span class="abc-feed-dia">D${f.dia}</span>
+            <div><b>${esc(f.titulo)}</b><small>${esc(f.descripcion)}</small></div></li>`
+        : `<li class="${f.nuevo ? 'abc-feed-nuevo' : ''}"><span class="abc-feed-dia">D${f.dia}</span><span class="abc-feed-ico">${f.icono || '🧾'}</span>
+            <div><b>${esc(f.descripcion)}</b><small>→ ${abcVivoDestinos(f.recursos)}</small></div><strong>+${abcSoles(f.monto, 0)}</strong></li>`).join('')
+        : '<li class="abc-muted abc-feed-vacio">Aquí aparecerá cada gasto en el momento en que se registra.</li>';
+    abc.vivo.feed.forEach(f => { f.nuevo = false; });
+}
+
+function abcVivoRenderTablas(snap) {
+    const v = abc.vivo;
+    const filas = v.filas || [];
+    const ult = v.ultimo || (v.ultimo = {});
+    const tbody = document.getElementById('vivoCentros');
+    tbody.innerHTML = filas.filter(x => x.tipo === 'centro').map(x => {
+        const k = 'c' + x.codigo, sube = ult[k] !== undefined && x.costo > ult[k] + 0.005;
+        ult[k] = x.costo;
+        return `<tr class="abc-fila-${x.estado} ${sube ? 'abc-flash' : ''}">
+            <td><span class="abc-tag abc-tag-${x.centroTipo}">${esc(x.nombre)}</span></td>
+            <td class="num"><strong>${abcSoles(x.costo, 0)}</strong></td>
+            <td class="num">${x.monto ? abcSoles(x.monto, 0) : '–'}</td>
+            <td class="abc-bar-cell">${abcBarraConsumo(x)}</td>
+            <td class="num ${x.proyEstado === 'excedido' ? 'abc-neg' : ''}">${abcSoles(x.proy, 0)}${x.monto ? `<br><small>${abcPct(x.proyPct)}</small>` : ''}</td>
+            <td>${abcChipEstado(x)}${abcVivoNivel(x) === 1 ? '<br><span class="abc-estado abc-estado-cerca">📈 va a exceder</span>' : ''}</td>
+            <td><button class="abc-icon-btn" title="Ver en la gráfica" onclick="abcAbrirGraficaVivo('centro','${esc(x.codigo)}')">📈</button></td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="7" class="abc-muted abc-vacio">Sin datos todavía.</td></tr>';
+
+    const activas = filas.filter(x => abcVivoNivel(x) > 0).sort((a, b) => abcVivoNivel(b) - abcVivoNivel(a) || b.pct - a.pct);
+    document.getElementById('vivoAlertas').innerHTML = activas.length ? `<ul class="abc-vivo-alertas">${activas.slice(0, 10).map(x => `
+        <li class="abc-vivo-al-${abcVivoNivel(x)}" onclick="abcAbrirGraficaVivo('${x.tipo}','${esc(x.codigo)}')">
+            <span>${['', '📈', '🟠', '🔴'][abcVivoNivel(x)]}</span>
+            <div><b>${esc(x.nombre)}</b><small>${x.tipo === 'centro' ? 'Centro' : 'Actividad'} · ${abcSoles(x.costo, 0)} de ${abcSoles(x.monto, 0)}
+                (${abcPct(x.pct)}) · proyección ${abcPct(x.proyPct)}</small></div></li>`).join('')}</ul>
+        ${activas.length > 10 ? `<p class="abc-muted">… y ${activas.length - 10} más.</p>` : ''}`
+        : `<p class="abc-muted">${snap ? '🟢 Todo dentro del presupuesto por ahora.' : 'Las alertas aparecerán aquí durante la simulación.'}</p>`;
+
+    const ayer = snap && snap.dia > 1 ? abcVivoSnap(snap.dia - 1) : null;
+    document.getElementById('vivoProductos').innerHTML = snap ? snap.calc.productos.map(p => {
+        const q = ayer ? ayer.calc.productos.find(x => x.codigo === p.codigo) : null;
+        const dif = q ? p.unitario - q.unitario : 0;
+        return `<tr><td>${esc(p.nombre)}</td><td class="num"><strong>${abcSoles(p.unitario, 4)}</strong></td>
+            <td class="num ${dif > 0.00005 ? 'abc-neg' : dif < -0.00005 ? 'abc-pos' : ''}">${Math.abs(dif) > 0.00005 ? (dif > 0 ? '▲ +' : '▼ ') + abcFmt(dif, 4) : '–'}</td>
+            <td class="num ${p.margen < 0 ? 'abc-neg' : 'abc-pos'}">${abcPct(p.margen)}</td></tr>`;
+    }).join('') : '<tr><td colspan="4" class="abc-muted">—</td></tr>';
+}
+
+function abcVivoExportar() {
+    const v = abc.vivo, s = v.sim;
+    if (!s) return;
+    const movs = [['Día', 'Evento', 'Código recurso', 'Recurso', 'Categoría', 'Monto S/']];
+    v.movs.slice().sort((a, b) => a.dia - b.dia || a.id - b.id).forEach(m => {
+        const r = abc.recursos.find(x => x.codigo === m.recurso_codigo) || {};
+        movs.push([m.dia, m.descripcion, m.recurso_codigo, r.nombre || '', r.categoria || '', abcRedondear(m.monto)]);
+    });
+    const centros = abcCentrosOrdenados();
+    const diario = [['Día', 'Total acumulado S/', ...centros.map(c => c.nombre)]];
+    for (let d = 1; d <= s.dia; d++) { const sn = abcVivoSnap(d); diario.push([d, abcRedondear(sn.total), ...centros.map(c => abcRedondear(sn.centro[c.codigo]))]); }
+    const cierre = [['Tipo', 'Código', 'Nombre', 'Acumulado S/', 'Presupuesto S/', '% consumido', 'Proyección día 30 S/', 'Estado']];
+    (v.filas || []).forEach(x => cierre.push([x.tipo, x.codigo, x.nombre, abcRedondear(x.costo), x.monto || '', x.monto ? abcRedondear(x.pct) : '',
+        abcRedondear(x.proy), ABC_ESTADOS[x.estado].nombre]));
+    const prods = [['Producto', 'Unidades', 'Costo total S/', 'Costo unitario S/', 'Ventas S/', 'Margen %']];
+    if (s.dia) abcVivoSnap(s.dia).calc.productos.forEach(p => prods.push([p.nombre, abcRedondear(p.unidades), abcRedondear(p.total), abcRedondear(p.unitario), abcRedondear(p.ventas), abcRedondear(p.margen)]));
+    abcDescargarLibro([['Movimientos', movs], ['Día a día', diario], ['Centros y actividades', cierre], ['Productos', prods]],
+        'simulacion-' + s.periodo + '-dia-' + s.dia, true);
+}
+
 // ==================== INICIO ====================
 async function initCosteoABC() {
     abcConstruirSidebar();
@@ -2643,6 +3513,7 @@ async function initCosteoABC() {
     abcMostrarTab((location.hash || '#resumen').slice(1));
     document.getElementById('abcCargando').style.display = 'none';
     abcIniciarPWA();
+    try { await abcVivoCargar(); } catch (e) { console.error('Simulación en vivo:', e); }
 }
 
 function abcRellenarPeriodos() {

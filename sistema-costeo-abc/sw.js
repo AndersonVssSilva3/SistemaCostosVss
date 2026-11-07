@@ -1,7 +1,7 @@
 // Service worker del Costeo ABC: permite instalar la página como aplicación y abrirla sin conexión.
 // Estrategia "primero la red": siempre se usan los archivos más recientes y la copia guardada solo
 // se usa cuando no hay internet. Los datos de Supabase nunca se guardan en caché.
-const CACHE = 'vss-abc-v1';
+const CACHE = 'vss-abc-v2';
 const ARCHIVOS = [
     './', 'index.html', 'manifest.webmanifest', 'css/abc.css', 'js/abc.js', 'js/abc-seed.js',
     'icons/icon-192.png', 'icons/icon-512.png',
