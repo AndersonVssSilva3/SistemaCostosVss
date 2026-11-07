@@ -37,10 +37,10 @@
     </div>
 </div>
 
-<div class="sub-nav" id="abcSubNav"></div>
 
 <div class="main-content">
     <div id="alertContainer"></div>
+    <div class="abc-vivo-toasts" id="vivoToasts" aria-live="polite"></div>
     <div id="abcModo"></div>
     <div id="abcCargando" class="card abc-loading">⏳ Cargando planillas, productos y configuración ABC…</div>
 
@@ -89,6 +89,81 @@
                 </table>
             </div>
         </div>
+    </div>
+
+    <!-- ==================== EN VIVO: SIMULACIÓN DE UN MES ==================== -->
+    <div class="tab-content" id="tab-vivo">
+        <div class="card abc-vivo-control">
+            <div class="abc-vivo-top">
+                <div>
+                    <h2>🔴 Mes en vivo <small class="abc-muted" id="vivoMes"></small></h2>
+                    <p class="abc-muted">Simula del día 1 al 30 en 10 minutos: cada pocos segundos entran gastos reales del día
+                        (planilla, luz, fletes, repuestos…) y el costeo ABC completo se recalcula en todas las pantallas abiertas.</p>
+                </div>
+                <div class="abc-vivo-estado" id="vivoConexion"></div>
+            </div>
+            <div class="abc-vivo-botones" id="vivoBotones"></div>
+            <div class="abc-vivo-progreso">
+                <div class="abc-vivo-dia" id="vivoDia">Día 0 / 30</div>
+                <div class="abc-vivo-barra"><div id="vivoBarra"></div><div class="abc-vivo-marcas" id="vivoMarcas"></div></div>
+                <div class="abc-vivo-reloj" id="vivoReloj"></div>
+            </div>
+        </div>
+
+        <div class="abc-vivo-kpis" id="vivoKpis"></div>
+        <div id="vivoHistoria"></div>
+
+        <div class="abc-vivo-grid">
+            <div class="card">
+                <div class="abc-vivo-cardhead">
+                    <h2>📈 Costo acumulado día a día</h2>
+                    <select class="abc-input-sel" id="vivoVer" onchange="abc.vivo.ver = this.value; abcVivoRender(true)"></select>
+                </div>
+                <div class="abc-vivo-canvas"><canvas id="vivoCanvas"></canvas></div>
+            </div>
+            <div class="card abc-vivo-feedcard">
+                <h2>⚡ Movimientos en tiempo real</h2>
+                <ol class="abc-vivo-feed" id="vivoFeed"></ol>
+            </div>
+        </div>
+
+        <div class="abc-vivo-grid">
+            <div class="card">
+                <h2>🏢 Centros de actividad vs. presupuesto</h2>
+                <p class="abc-muted">Consumido = gastado en lo que va del mes ÷ presupuesto del mes · Proyección = ritmo actual llevado al día 30.</p>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Centro</th><th class="num">Acumulado</th><th class="num">Presupuesto</th><th>Consumido</th>
+                            <th class="num">Proyección día 30</th><th>Estado</th><th></th></tr></thead>
+                        <tbody id="vivoCentros"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card">
+                <h2>🚨 Alertas activas</h2>
+                <div id="vivoAlertas"></div>
+                <h2 class="abc-vivo-h2b">🎯 Productos</h2>
+                <div class="table-container">
+                    <table class="abc-mini">
+                        <thead><tr><th>Producto</th><th class="num">C. unitario</th><th class="num">vs ayer</th><th class="num">Margen</th></tr></thead>
+                        <tbody id="vivoProductos"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <details class="card abc-vivo-guia">
+            <summary>🎓 Guía para presentar la simulación al profesor</summary>
+            <ol>
+                <li><b>Antes de empezar:</b> muestre en <i>Alertas y Presupuesto</i> que cada centro tiene un presupuesto mensual y un umbral de alerta (90%).</li>
+                <li><b>Presione ▶ Iniciar</b> y comparta el enlace (🔗) para que el profesor lo vea en su celular: los números cambian en las dos pantallas a la vez.</li>
+                <li><b>Señale el recorrido de cada gasto:</b> en «Movimientos en tiempo real» cada gasto indica a qué centros va (etapa ①); luego se reparte a actividades y productos.</li>
+                <li><b>Día 1:</b> se pagan el alquiler y los seguros completos → el costo unitario arranca alto. Explique que es un costo fijo que se diluye conforme se produce más.</li>
+                <li><b>Día 14 · avería en la llenadora:</b> Mantenimiento se dispara. Con la etapa «Actividades de apoyo → Actividades principales» (mantenimiento → llenado y soplado) ese costo pasa a las actividades productivas y sube el costo unitario de los productos que más horas máquina usan.</li>
+                <li><b>Días 18 a 24:</b> campaña publicitaria, pico de fletes y alza de la tarifa eléctrica. Muestre cómo la <b>proyección</b> avisa antes de que el presupuesto se supere (🟠) y luego salta la alerta 🔴.</li>
+                <li><b>Cierre (día 30):</b> compare el costo final con el presupuesto, revise qué centros se excedieron y descargue todo a Excel (📥).</li>
+            </ol>
+        </details>
     </div>
 
     <!-- ==================== ALERTAS Y PRESUPUESTO ==================== -->
